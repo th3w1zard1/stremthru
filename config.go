@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/base64"
 	"log"
 	"os"
+	"strings"
 )
 
 func getEnv(key string, defaultValue string) string {
@@ -13,7 +15,9 @@ func getEnv(key string, defaultValue string) string {
 }
 
 type Config struct {
-	Port string
+	Port                string
+	EnforceProxyAuth    bool
+	ProxyAuthCredential map[string]bool
 }
 
 var config = func() Config {
@@ -29,7 +33,25 @@ var config = func() Config {
 		}
 	}
 
+	proxyAuthCredList := strings.FieldsFunc(getEnv("STREMTHRU_PROXY_AUTH_CREDENTIALS", ""), func(c rune) bool {
+		return c == ','
+	})
+	proxyAuthCredMap := make(map[string]bool, len(proxyAuthCredList))
+	for _, cred := range proxyAuthCredList {
+		proxyAuthCredMap[cred] = true
+		if strings.ContainsRune(cred, ':') {
+			proxyAuthCredMap[base64.StdEncoding.EncodeToString([]byte(cred))] = true
+		} else {
+			decodedBytes, err := base64.StdEncoding.DecodeString(cred)
+			if err == nil {
+				proxyAuthCredMap[string(decodedBytes)] = true
+			}
+		}
+	}
+
 	return Config{
-		Port: getEnv("STREMTHRU_PORT", "8080"),
+		Port:                getEnv("STREMTHRU_PORT", "8080"),
+		EnforceProxyAuth:    len(proxyAuthCredList) > 0,
+		ProxyAuthCredential: proxyAuthCredMap,
 	}
 }()

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 var httpClient = func() *http.Client {
@@ -23,8 +24,24 @@ func copyHeaders(src http.Header, dest http.Header) {
 	}
 }
 
-// ProxyHandler handles requests to the /proxy endpoint.
+func extractProxyAuthCred(r *http.Request) (cred string, hasCred bool) {
+	cred = r.Header.Get("Proxy-Authorization")
+	if cred != "" {
+		r.Header.Del("Proxy-Authorization")
+		return strings.TrimPrefix(cred, "Basic "), true
+	}
+	cred = r.URL.Query().Get("token")
+	return cred, cred != ""
+}
+
 func ProxyHandler(w http.ResponseWriter, r *http.Request) {
+	cred, hasCred := extractProxyAuthCred(r)
+	if config.EnforceProxyAuth && (!hasCred || !config.ProxyAuthCredential[cred]) {
+		w.Header().Add("Proxy-Authenticate", "Basic")
+		http.Error(w, "proxy unauthorized", http.StatusProxyAuthRequired)
+		return
+	}
+
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
