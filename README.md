@@ -2,11 +2,18 @@
 
 # StremThru
 
+Companion for Stremio.
+
 ## Features
 
-- [Byte Serving](https://en.wikipedia.org/wiki/Byte_serving)
 - HTTP Proxy
 - Proxy Authorization
+- [Byte Serving](https://en.wikipedia.org/wiki/Byte_serving)
+
+### Store Integration
+
+- [AllDebrid](https://alldebrid.com)
+- [RealDebrid](https://real-debrid.com) _(Planned)_
 
 ## Configuration
 
@@ -20,31 +27,244 @@ HTTP Proxy URL.
 
 HTTPS Proxy URL.
 
-**`STREMTHRU_PROXY_AUTH_CREDENTIALS`**
+**`STREMTHRU_PROXY_AUTH`**
 
-Comma separated list of credentials for proxy authorization, supports:
+Comma separated list of credentials, in the following formats:
 
-- plain text, e.g. `username:password`
-- or base64 encoded string, e.g. `dXNlcm5hbWU6cGFzc3dvcmQ=`
+- plain text credentials, e.g. `username:password`
+- or base64 encoded credentials, e.g. `dXNlcm5hbWU6cGFzc3dvcmQ=`
+
+These will be used for proxy authorization.
+
+**`STREMTHRU_STORE_AUTH`**
+
+Comma separated list of store credentials, in `username:store_name:api_key` format.
+
+For proxy-authorized requests, these credentials will be used.
 
 ## Endpoints
 
-### `/proxy`
+### Authentication
 
-**Methods**: `HEAD` and `GET`
+**`Proxy-Authorization` Header**
 
-**Headers**
+Basic auth header, e.g. `Basic dXNlcm5hbWU6cGFzc3dvcmQ=`
 
-- `Proxy-Authorization`: Basic auth header, e.g. `Basic dXNlcm5hbWU6cGFzc3dvcmQ=`
+`Proxy-Authorization` header is checked against `STREMTHRU_PROXY_AUTH` config.
 
-  `Proxy-Authorization` is required when `STREMTHRU_PROXY_AUTH_CREDENTIALS` is set and `token` query param is missing.
+### Store
 
-**Query Params**
+This is a common interface for interacting with external stores.
 
-- `url` _(required)_: URL to proxy, should be url encoded
-- `token`: auth credential
+If `X-StremThru-Store-Name` header is present, the value is used as store name. Otherwise,
+the first store configured for the user using `STREMTHRU_STORE_AUTH` config is used.
 
-  `token` is required when `STREMTHRU_PROXY_AUTH_CREDENTIALS` is set and `Proxy-Authorization` header is missing.
+**Authentication**
+
+If `STREMTHRU_STORE_AUTH` is configured, then proxy-authorized requests will be
+automatically authenticated for external stores.
+
+For non-proxy-authorized requests, the following HTTP headers are used:
+
+- `X-StremThru-Store-Authorization`
+- `Authorization`
+
+Values for these headers will be forwarded to the external store.
+
+#### Get User
+
+**`GET /v0/store/user`**
+
+Get information about authenticated user.
+
+**Response**:
+
+```json
+{
+  "data": {
+    "id": "string",
+    "email": "string",
+    "subscription_status": "premium|trial|expired"
+  }
+}
+```
+
+#### Add Magnet
+
+**`POST /v0/store/magnets`**
+
+Add manget link for download.
+
+**Request**:
+
+```json
+{
+  "magnet": "string"
+}
+```
+
+**Response**:
+
+```json
+{
+  "data": {
+    "id": "string",
+    "hash": "string",
+    "magnet": "string",
+    "name": "string",
+    "status": "MagnetStatus",
+    "files": [
+      {
+        "index": "int",
+        "link": "string",
+        "name": "string",
+        "path": "string",
+        "size": "int"
+      }
+    ]
+  }
+}
+```
+
+If `.status` is `downloaded`, `.files` will have the list of files.
+
+#### List Magnets
+
+**`GET /v0/store/magnets`**
+
+List mangets on user's account.
+
+**Response**:
+
+```json
+{
+  "data": {
+    "items": [
+      {
+        "id": "string",
+        "name": "string",
+        "status": "MagnetStatus"
+      }
+    ]
+  }
+}
+```
+
+#### Get Magnet
+
+**`GET /v0/store/magnets/{magnetId}`**
+
+Get manget on user's account.
+
+**Path Parameter**:
+
+- `magnetId`: magnet id
+
+**Response**:
+
+```json
+{
+  "data": {
+    "id": "string",
+    "name": "string",
+    "status": "MagnetStatus",
+    "files": [
+      {
+        "index": "int",
+        "link": "string",
+        "name": "string",
+        "path": "string",
+        "size": "int"
+      }
+    ]
+  }
+}
+```
+
+#### Remove Magnet
+
+**`DELETE /v0/store/magnets/{magnetId}`**
+
+Remove manget from user's account.
+
+**Path Parameter**:
+
+- `magnetId`: magnet id
+
+#### Check Magnet
+
+**`GET /v0/store/magnets/check`**
+
+Check manget links.
+
+**Query Parameter**:
+
+- `magnet`: comma seperated magnet links
+
+**Response**:
+
+```json
+{
+  "data": {
+    "items": [
+      {
+        "hash": "string",
+        "magnet": "string",
+        "status": "MagnetStatus",
+        "files": [
+          {
+            "index": "int",
+            "name": "string",
+            "size": "int"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+If `.status` is `cached`, `.files` will have the list of files.
+
+#### Generate Link
+
+`POST /v0/store/link/generate`
+
+Generate direct link for a file link.
+
+**Request**:
+
+```json
+{
+  "link": "string"
+}
+```
+
+**Response**:
+
+```json
+{
+  "data": {
+    "link": "string"
+  }
+}
+```
+
+The generated direct link should be valid for 24 hours.
+
+### Enums
+
+#### MagnetStatus
+
+- `cached`
+- `queued`
+- `downloading`
+- `processing`
+- `downloaded`
+- `uploading`
+- `failed`
+- `invalid`
+- `unknown`
 
 ## Usage
 
@@ -55,7 +275,7 @@ git clone https://github.com/MunifTanjim/stremthru
 cd stremthru
 
 # configure
-export STREMTHRU_PROXY_AUTH_CREDENTIALS=username:password
+export STREMTHRU_PROXY_AUTH=username:password
 
 # run
 make run
@@ -69,20 +289,16 @@ make build
 
 ```sh
 docker run --name stremthru -p 8080:8080 \
-    -e STREMTHRU_PROXY_AUTH_CREDENTIALS=username:password \
-    muniftanjim/stremthru
+  -e STREMTHRU_PROXY_AUTH=username:password \
+  muniftanjim/stremthru
 ```
 
 **Docker Compose**
 
-```yml
-stremthru:
-  image: muniftanjim/stremthru
-  ports:
-    - 8080:8080
-  env_file:
-    - .env
-  restart: unless-stopped
+```sh
+cp compose.example.yaml compose.yaml
+
+docker compose up stremthru
 ```
 
 ## Related Resources

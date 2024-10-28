@@ -11,8 +11,11 @@ RUN adduser \
 
 WORKDIR /workspace
 
-COPY go.mod ./
+COPY go.mod go.sum ./
 
+COPY core ./core
+COPY internal ./internal
+COPY store ./store
 COPY *.go ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o ./stremthru
