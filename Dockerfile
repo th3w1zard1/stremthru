@@ -12,6 +12,7 @@ RUN adduser \
 WORKDIR /workspace
 
 COPY go.mod go.sum ./
+RUN go mod download
 
 COPY core ./core
 COPY internal ./internal
