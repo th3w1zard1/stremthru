@@ -36,13 +36,7 @@ func extractProxyAuthToken(r *http.Request) (token string, hasToken bool) {
 	return token, token != ""
 }
 
-var ProxyHTTPClient = func() *http.Client {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.DisableKeepAlives = true
-	return &http.Client{
-		Transport: transport,
-	}
-}()
+var httpClient = core.DefaultHTTPClient
 
 func ProxyToLink(w http.ResponseWriter, r *http.Request, link string) {
 	request, err := http.NewRequest(r.Method, link, nil)
@@ -55,7 +49,7 @@ func ProxyToLink(w http.ResponseWriter, r *http.Request, link string) {
 
 	copyHeaders(r.Header, request.Header)
 
-	response, err := ProxyHTTPClient.Do(request)
+	response, err := httpClient.Do(request)
 	if err != nil {
 		error := ErrorBadGateway(r, "failed to request url")
 		error.Cause = err

@@ -11,17 +11,8 @@ import (
 	"github.com/MunifTanjim/stremthru/store"
 )
 
-var DefaultHTTPTransport = func() *http.Transport {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.DisableKeepAlives = true
-	return transport
-}()
-
-var DefaultHTTPClient = func() *http.Client {
-	return &http.Client{
-		Transport: DefaultHTTPTransport,
-	}
-}()
+var DefaultHTTPTransport = core.DefaultHTTPTransport
+var DefaultHTTPClient = core.DefaultHTTPClient
 
 type APIClientConfig struct {
 	BaseURL    string

@@ -37,6 +37,18 @@ func (m StoreAuthTokenMap) GetPreferredStore(user string) string {
 	return m.GetToken(user, "*")
 }
 
+func (m StoreAuthTokenMap) ListStores(user string) []string {
+	names := []string{}
+	if um, ok := m[user]; ok {
+		for name := range um {
+			if name != "*" {
+				names = append(names, name)
+			}
+		}
+	}
+	return names
+}
+
 func (m StoreAuthTokenMap) setPreferredStore(user, store string) {
 	if m.GetPreferredStore(user) == "" {
 		m.setToken(user, "*", store)
