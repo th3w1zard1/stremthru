@@ -123,7 +123,11 @@ func handleStoreMagnetsCheck(w http.ResponseWriter, r *http.Request) {
 func listMagnets(ctx *context.RequestContext) (*store.ListMagnetsData, error) {
 	params := &store.ListMagnetsParams{}
 	params.APIKey = ctx.StoreAuthToken
-	return ctx.Store.ListMagnets(params)
+	data, err := ctx.Store.ListMagnets(params)
+	if err == nil && data.Items == nil {
+		data.Items = []store.ListMagnetsDataItem{}
+	}
+	return data, err
 }
 
 func handleStoreMagnetsList(w http.ResponseWriter, r *http.Request) {
