@@ -406,7 +406,7 @@ func AddStoreEndpoints(mux *http.ServeMux) {
 	mux.HandleFunc("/v0/store/user", withStore(handleStoreUser))
 	mux.HandleFunc("/v0/store/magnets", withStore(handleStoreMagnets))
 	mux.HandleFunc("/v0/store/magnets/check", withStore(handleStoreMagnetsCheck))
-	mux.HandleFunc("/v0/store/magnets/{magnetId}", withStore(handleStoreMagnetGet))
+	mux.HandleFunc("/v0/store/magnets/{magnetId}", withStore(handleStoreMagnet))
 	mux.HandleFunc("/v0/store/link/generate", withStore(handleStoreLinkGenerate))
 	mux.HandleFunc("/v0/store/link/access/{token}", withContext(handleStoreLinkAccess))
 }
