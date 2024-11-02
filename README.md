@@ -84,7 +84,7 @@ Get information about authenticated user.
   "data": {
     "id": "string",
     "email": "string",
-    "subscription_status": "premium|trial|expired"
+    "subscription_status": "UserSubscriptionStatus"
   }
 }
 ```
@@ -265,6 +265,12 @@ The generated direct link should be valid for 24 hours.
 - `failed`
 - `invalid`
 - `unknown`
+
+#### UserSubscriptionStatus
+
+- `expired`
+- `premium`
+- `trial`
 
 ## Usage
 

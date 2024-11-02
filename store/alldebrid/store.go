@@ -36,11 +36,11 @@ func (c *StoreClient) GetUser(params *store.GetUserParams) (*store.User, error) 
 		Email: res.Data.Email,
 	}
 	if res.Data.IsPremium {
-		data.SubscriptionStatus = "premium"
+		data.SubscriptionStatus = store.UserSubscriptionStatusPremium
 	} else if res.Data.IsTrial {
-		data.SubscriptionStatus = "trial"
+		data.SubscriptionStatus = store.UserSubscriptionStatusTrial
 	} else {
-		data.SubscriptionStatus = "expired"
+		data.SubscriptionStatus = store.UserSubscriptionStatusExpired
 	}
 	return data, err
 }

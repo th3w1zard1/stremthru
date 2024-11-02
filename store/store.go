@@ -26,10 +26,18 @@ func (sn StoreName) Validate() (StoreName, *core.StoreError) {
 	return sn, ErrorInvalidStoreName(string(sn))
 }
 
+type UserSubscriptionStatus string
+
+const (
+	UserSubscriptionStatusPremium UserSubscriptionStatus = "premium"
+	UserSubscriptionStatusTrial   UserSubscriptionStatus = "trial"
+	UserSubscriptionStatusExpired UserSubscriptionStatus = "expired"
+)
+
 type User struct {
-	Id                 string `json:"id"`
-	Email              string `json:"email"`
-	SubscriptionStatus string `json:"subscription_status"`
+	Id                 string                 `json:"id"`
+	Email              string                 `json:"email"`
+	SubscriptionStatus UserSubscriptionStatus `json:"subscription_status"`
 }
 
 type GetUserParams struct {
