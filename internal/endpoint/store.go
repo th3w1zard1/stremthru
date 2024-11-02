@@ -101,6 +101,7 @@ func handleStoreMagnetsCheck(w http.ResponseWriter, r *http.Request) {
 	magnet, ok := queryParams["magnet"]
 	if !ok {
 		SendError(w, ErrorBadRequest(r, "missing magnet"))
+		return
 	}
 
 	magnets := []string{}
