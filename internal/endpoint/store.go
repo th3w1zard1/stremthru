@@ -92,7 +92,11 @@ func checkMagnet(ctx *context.RequestContext, magnets []string) (*store.CheckMag
 	params := &store.CheckMagnetParams{}
 	params.APIKey = ctx.StoreAuthToken
 	params.Magnets = magnets
-	return ctx.Store.CheckMagnet(params)
+	data, err := ctx.Store.CheckMagnet(params)
+	if err == nil && data.Items == nil {
+		data.Items = []store.CheckMagnetDataItem{}
+	}
+	return data, err
 }
 
 func handleStoreMagnetsCheck(w http.ResponseWriter, r *http.Request) {
