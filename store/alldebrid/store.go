@@ -26,7 +26,7 @@ func (c *StoreClient) GetName() store.StoreName {
 
 func (c *StoreClient) GetUser(params *store.GetUserParams) (*store.User, error) {
 	res, err := c.client.GetUser(&GetUserParams{
-		Ctx: Ctx(params.Ctx),
+		Ctx: params.Ctx,
 	})
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func (c *StoreClient) GetUser(params *store.GetUserParams) (*store.User, error) 
 
 func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.CheckMagnetData, error) {
 	mi, err := c.client.GetMagnetInstant(&GetMagnetInstantParams{
-		Ctx:     Ctx(params.Ctx),
+		Ctx:     params.Ctx,
 		Magnets: params.Magnets,
 	})
 	if err != nil {
@@ -91,7 +91,7 @@ func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.Check
 
 func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnetData, error) {
 	um, err := c.client.UploadMagnet(&UploadMagnetParams{
-		Ctx:     Ctx(params.Ctx),
+		Ctx:     params.Ctx,
 		Magnets: []string{params.Magnet},
 	})
 	if err != nil {
@@ -116,7 +116,7 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 		data.Status = store.MagnetStatusDownloaded
 
 		ms, err := c.client.GetMagnetStatus(&GetMagnetStatusParams{
-			Ctx: Ctx(params.Ctx),
+			Ctx: params.Ctx,
 			Id:  magnet.Id,
 		})
 		if err != nil {
@@ -180,7 +180,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 	}
 
 	ms, err := c.client.GetMagnetStatus(&GetMagnetStatusParams{
-		Ctx: Ctx(params.Ctx),
+		Ctx: params.Ctx,
 		Id:  id,
 	})
 	if err != nil {
@@ -210,7 +210,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 
 func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListMagnetsData, error) {
 	ams, err := c.client.GetAllMagnetStatus(&GetAllMagnetStatusParams{
-		Ctx: Ctx(params.Ctx),
+		Ctx: params.Ctx,
 	})
 	if err != nil {
 		return nil, err
@@ -241,7 +241,7 @@ func (c *StoreClient) RemoveMagnet(params *store.RemoveMagnetParams) (*store.Rem
 	}
 
 	_, err = c.client.DeleteMagnet(&DeleteMagnetParams{
-		Ctx: Ctx(params.Ctx),
+		Ctx: params.Ctx,
 		Id:  id,
 	})
 	if err != nil {
@@ -254,7 +254,7 @@ func (c *StoreClient) RemoveMagnet(params *store.RemoveMagnetParams) (*store.Rem
 
 func (c *StoreClient) GenerateLink(params *store.GenerateLinkParams) (*store.GenerateLinkData, error) {
 	ul, err := c.client.UnlockLink(&UnlockLinkParams{
-		Ctx:  Ctx(params.Ctx),
+		Ctx:  params.Ctx,
 		Link: params.Link,
 	})
 	if err != nil {

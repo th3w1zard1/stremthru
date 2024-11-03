@@ -1,16 +1,66 @@
 package store
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
+	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/MunifTanjim/stremthru/core"
 )
 
+type RequestContext interface {
+	GetAPIKey(fallbackAPIKey string) string
+	GetContext() context.Context
+	PrepareBody(method string, query *url.Values) (body io.Reader, contentType string, err error)
+}
+
 type Ctx struct {
-	APIKey  string
-	Context context.Context
-	Form    *url.Values
+	APIKey  string          `json:"-"`
+	Context context.Context `json:"-"`
+	Form    *url.Values     `json:"-"`
+	JSON    any             `json:"-"`
+}
+
+func (ctx Ctx) GetAPIKey(fallbackAPIKey string) string {
+	if len(ctx.APIKey) > 0 {
+		return ctx.APIKey
+	}
+	return fallbackAPIKey
+}
+
+func (ctx Ctx) GetContext() context.Context {
+	if ctx.Context == nil {
+		ctx.Context = context.Background()
+	}
+	return ctx.Context
+}
+
+func (ctx Ctx) PrepareBody(method string, query *url.Values) (body io.Reader, contentType string, err error) {
+	if ctx.JSON != nil {
+		jsonBytes, err := json.Marshal(ctx.JSON)
+		if err != nil {
+			return nil, "", err
+		}
+		body = bytes.NewBuffer(jsonBytes)
+		contentType = "application/json"
+	}
+	if ctx.Form != nil {
+		if method == http.MethodHead || method == http.MethodGet || ctx.JSON != nil {
+			for key, values := range *ctx.Form {
+				for _, value := range values {
+					query.Add(key, value)
+				}
+			}
+		} else {
+			body = strings.NewReader(ctx.Form.Encode())
+			contentType = "application/x-www-form-urlencoded"
+		}
+	}
+	return body, contentType, nil
 }
 
 type StoreName string

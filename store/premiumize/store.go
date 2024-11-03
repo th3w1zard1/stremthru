@@ -98,7 +98,7 @@ func (c *StoreClient) GetName() store.StoreName {
 
 func (c *StoreClient) GetUser(params *store.GetUserParams) (*store.User, error) {
 	res, err := c.client.GetAccountInfo(&GetAccountInfoParams{
-		Ctx: Ctx(params.Ctx),
+		Ctx: params.Ctx,
 	})
 	if err != nil {
 		return nil, err
@@ -146,7 +146,7 @@ func (c *StoreClient) getCachedMagnetFiles(apiKey string, magnet string, include
 
 func (c *StoreClient) checkMagnet(params *store.CheckMagnetParams, includeLink bool) (*store.CheckMagnetData, error) {
 	res, err := c.client.CheckCache(&CheckCacheParams{
-		Ctx:   Ctx(params.Ctx),
+		Ctx:   params.Ctx,
 		Items: params.Magnets,
 	})
 	if err != nil {
@@ -330,7 +330,7 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	}
 
 	ct_res, err := c.client.CreateTransfer(&CreateTransferParams{
-		Ctx:      Ctx(params.Ctx),
+		Ctx:      params.Ctx,
 		Src:      magnetLink,
 		FolderId: folder.Id,
 	})
@@ -414,7 +414,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 
 func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListMagnetsData, error) {
 	sf_res, err := c.client.SearchFolders(&SearchFoldersParams{
-		Ctx:   Ctx(params.Ctx),
+		Ctx:   params.Ctx,
 		Query: CachedMagnetIdPrefix,
 	})
 	if err != nil {
@@ -422,7 +422,7 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 	}
 
 	lt_res, err := c.client.ListTransfers(&ListTransfersParams{
-		Ctx: Ctx(params.Ctx),
+		Ctx: params.Ctx,
 	})
 	if err != nil {
 		return nil, err
@@ -490,7 +490,7 @@ func (c *StoreClient) RemoveMagnet(params *store.RemoveMagnetParams) (*store.Rem
 		}
 
 		_, err = c.client.DeleteFolder(&DeleteFolderParams{
-			Ctx: Ctx(params.Ctx),
+			Ctx: params.Ctx,
 			Id:  folder.Id,
 		})
 		if err != nil {

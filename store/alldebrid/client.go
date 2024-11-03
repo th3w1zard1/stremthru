@@ -1,11 +1,8 @@
 package alldebrid
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/store"
@@ -56,49 +53,9 @@ func NewAPIClient(conf *APIClientConfig) *APIClient {
 	return c
 }
 
-type RequestContext interface {
-	getContext() context.Context
-	getBody(method string, query *url.Values) (body io.Reader, contentType string)
-	setAuthHeader(req *http.Request, apiKey string)
-}
+type Ctx = store.Ctx
 
-type Ctx struct {
-	APIKey  string
-	Context context.Context
-	Form    *url.Values
-}
-
-func (rc Ctx) getContext() context.Context {
-	if rc.Context == nil {
-		rc.Context = context.Background()
-	}
-	return rc.Context
-}
-
-func (rc Ctx) getBody(method string, query *url.Values) (body io.Reader, contentType string) {
-	if rc.Form != nil {
-		if method == http.MethodHead || method == http.MethodGet {
-			for key, values := range *rc.Form {
-				for _, value := range values {
-					query.Add(key, value)
-				}
-			}
-		} else {
-			body = strings.NewReader(rc.Form.Encode())
-			contentType = "application/x-www-form-urlencoded"
-		}
-	}
-	return body, contentType
-}
-
-func (rc Ctx) setAuthHeader(req *http.Request, apiKey string) {
-	if len(rc.APIKey) > 0 {
-		apiKey = rc.APIKey
-	}
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-}
-
-func (c APIClient) newRequest(method, path string, params RequestContext) (req *http.Request, err error) {
+func (c APIClient) newRequest(method, path string, params store.RequestContext) (req *http.Request, err error) {
 	if params == nil {
 		params = &Ctx{}
 	}
@@ -108,16 +65,20 @@ func (c APIClient) newRequest(method, path string, params RequestContext) (req *
 	query := url.Query()
 	query.Set("agent", c.agent)
 
-	body, contentType := params.getBody(method, &query)
-
-	url.RawQuery = query.Encode()
-
-	req, err = http.NewRequestWithContext(params.getContext(), method, url.String(), body)
+	body, contentType, err := params.PrepareBody(method, &query)
 	if err != nil {
 		return nil, err
 	}
 
-	params.setAuthHeader(req, c.apiKey)
+	url.RawQuery = query.Encode()
+
+	req, err = http.NewRequestWithContext(params.GetContext(), method, url.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+params.GetAPIKey(c.apiKey))
+
 	req.Header.Add("User-Agent", c.agent)
 	if len(contentType) > 0 {
 		req.Header.Add("Content-Type", contentType)
@@ -126,7 +87,7 @@ func (c APIClient) newRequest(method, path string, params RequestContext) (req *
 	return req, nil
 }
 
-func (c APIClient) Request(method, path string, params RequestContext, v ResponseEnvelop) (*http.Response, error) {
+func (c APIClient) Request(method, path string, params store.RequestContext, v ResponseEnvelop) (*http.Response, error) {
 	req, err := c.newRequest(method, path, params)
 	if err != nil {
 		error := core.NewStoreError("failed to create request")
