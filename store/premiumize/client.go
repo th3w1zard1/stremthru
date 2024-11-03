@@ -90,7 +90,7 @@ func (c APIClient) Request(method, path string, params store.RequestContext, v R
 	req, err := c.newRequest(method, path, params)
 	if err != nil {
 		error := core.NewStoreError("failed to create request")
-		error.StoreName = string(store.StoreNameAlldebrid)
+		error.StoreName = string(store.StoreNamePremiumize)
 		error.Cause = err
 		return nil, error
 	}
