@@ -1,13 +1,12 @@
 package premiumize
 
 import (
-	"errors"
-	"net/url"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
@@ -156,13 +155,13 @@ func (c *StoreClient) checkMagnet(params *store.CheckMagnetParams, includeLink b
 	data := &store.CheckMagnetData{}
 
 	for idx, is_cached := range res.Data.Response {
-		magnetLink, magnetHash, err := parseMagnetLink(params.Magnets[idx])
+		magnet, err := core.ParseMagnetLink(params.Magnets[idx])
 		if err != nil {
 			return nil, err
 		}
 		item := &store.CheckMagnetDataItem{
-			Magnet: magnetLink,
-			Hash:   magnetHash,
+			Magnet: magnet.Link,
+			Hash:   magnet.Hash,
 			Status: store.MagnetStatusUnknown,
 			Files:  []store.MagnetFile{},
 		}
@@ -186,25 +185,6 @@ func (c *StoreClient) checkMagnet(params *store.CheckMagnetParams, includeLink b
 
 func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.CheckMagnetData, error) {
 	return c.checkMagnet(params, false)
-}
-
-func parseMagnetLink(value string) (link, hash string, err error) {
-	if !strings.HasPrefix(value, "magnet:") {
-		return "magnet:?xt=urn:btih:" + value, value, nil
-	}
-
-	magnetUrl, err := url.Parse(value)
-	if err != nil {
-		return "", "", err
-	}
-	params := magnetUrl.Query()
-	xt := params.Get("xt")
-
-	if !strings.HasPrefix(xt, "urn:btih:") {
-		return "", "", errors.New("invalid magnet")
-	}
-
-	return value, strings.TrimPrefix(xt, "urn:btih:"), nil
 }
 
 func getTransferById(c *StoreClient, apiKey string, id string) (*ListTransfersDataItem, error) {
@@ -291,11 +271,14 @@ func listFolderFlat(c *StoreClient, apiKey string, folderId string, result []sto
 }
 
 func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnetData, error) {
-	magnetLink, magnetHash, err := parseMagnetLink(params.Magnet)
+	magnet, err := core.ParseMagnetLink(params.Magnet)
+	if err != nil {
+		return nil, err
+	}
 
 	cm_res, err := c.checkMagnet(&store.CheckMagnetParams{
 		Ctx:     params.Ctx,
-		Magnets: []string{magnetLink},
+		Magnets: []string{magnet.Link},
 	}, true)
 	if err != nil {
 		return nil, err
@@ -305,7 +288,7 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 
 	// already cached, no need to download
 	if cm.Status == store.MagnetStatusCached {
-		id := CachedMagnetId("").toId(magnetHash).toString()
+		id := CachedMagnetId("").toId(magnet.Hash).toString()
 
 		if _, err = c.ensureFolder(params.APIKey, id); err != nil {
 			return nil, err
@@ -313,9 +296,9 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 
 		data := &store.AddMagnetData{
 			Id:     id,
-			Hash:   magnetHash,
-			Magnet: magnetLink,
-			Name:   "",
+			Hash:   magnet.Hash,
+			Magnet: magnet.Link,
+			Name:   magnet.Name,
 			Status: store.MagnetStatusDownloaded,
 			Files:  cm.Files,
 		}
@@ -324,14 +307,14 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	}
 
 	// not cached, need to download
-	folder, err := c.ensureFolder(params.APIKey, magnetHash)
+	folder, err := c.ensureFolder(params.APIKey, magnet.Hash)
 	if err != nil {
 		return nil, err
 	}
 
 	ct_res, err := c.client.CreateTransfer(&CreateTransferParams{
 		Ctx:      params.Ctx,
-		Src:      magnetLink,
+		Src:      magnet.Link,
 		FolderId: folder.Id,
 	})
 	if err != nil {
@@ -340,8 +323,8 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 
 	data := &store.AddMagnetData{
 		Id:     ct_res.Data.Id,
-		Hash:   magnetHash,
-		Magnet: magnetLink,
+		Hash:   magnet.Hash,
+		Magnet: magnet.Link,
 		Name:   ct_res.Data.Name,
 		Status: store.MagnetStatusQueued,
 	}
@@ -370,11 +353,11 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 
 func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnetData, error) {
 	if CachedMagnetId(params.Id).isValid() {
-		magnetLink, _, err := parseMagnetLink(CachedMagnetId(params.Id).toHash())
+		magnet, err := core.ParseMagnetLink(CachedMagnetId(params.Id).toHash())
 		if err != nil {
 			return nil, err
 		}
-		files, err := c.getCachedMagnetFiles(params.APIKey, magnetLink, true)
+		files, err := c.getCachedMagnetFiles(params.APIKey, magnet.Link, true)
 		if err != nil {
 			return nil, err
 		}
