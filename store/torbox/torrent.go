@@ -92,7 +92,13 @@ type TorrentFile struct {
 type TorrentDownloadState string
 
 const (
-	TorrentDownloadStateDownloading TorrentDownloadState = "downloading"
+	TorrentDownloadStateDownloading        TorrentDownloadState = "downloading"        // The torrent is currently downloading
+	TorrentDownloadStateUploading          TorrentDownloadState = "uploading"          // The torrent is currently seeding
+	TorrentDownloadStatePaused             TorrentDownloadState = "paused"             // The torrent is paused
+	TorrentDownloadStateCompleted          TorrentDownloadState = "completed"          // The torrent is completely downloaded. Do not use this for download completion status
+	TorrentDownloadStateCached             TorrentDownloadState = "cached"             // The torrent is cached from the server
+	TorrentDownloadStateMetaDL             TorrentDownloadState = "metaDL"             // The torrent is downloading metadata from the hoard
+	TorrentDownloadStateCheckingResumeData TorrentDownloadState = "checkingResumeData" // The torrent is checking resumable data
 )
 
 type Torrent struct {
