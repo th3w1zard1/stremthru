@@ -63,6 +63,7 @@ func StoreContext(next http.HandlerFunc) http.HandlerFunc {
 		ctx := context.GetRequestContext(r)
 		ctx.Store = store
 		ctx.StoreAuthToken = getStoreAuthToken(r)
+		w.Header().Add("X-StremThru-Store-Name", r.Header.Get("X-StremThru-Store-Name"))
 		next.ServeHTTP(w, r)
 	})
 }
