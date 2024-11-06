@@ -12,7 +12,7 @@ var DefaultHTTPTransport = core.DefaultHTTPTransport
 var DefaultHTTPClient = core.DefaultHTTPClient
 
 type APIClientConfig struct {
-	BaseURL    string
+	BaseURL    string // default: https://api.alldebrid.com
 	APIKey     string
 	HTTPClient *http.Client
 	agent      string
@@ -23,6 +23,8 @@ type APIClient struct {
 	HTTPClient *http.Client
 	apiKey     string
 	agent      string
+	reqQuery   func(query *url.Values, params store.RequestContext)
+	reqHeader  func(query *http.Header, params store.RequestContext)
 }
 
 func NewAPIClient(conf *APIClientConfig) *APIClient {
@@ -50,45 +52,25 @@ func NewAPIClient(conf *APIClientConfig) *APIClient {
 	c.apiKey = conf.APIKey
 	c.agent = conf.agent
 
+	c.reqQuery = func(query *url.Values, params store.RequestContext) {
+		query.Set("agent", c.agent)
+	}
+
+	c.reqHeader = func(header *http.Header, params store.RequestContext) {
+		header.Set("Authorization", "Bearer "+params.GetAPIKey(c.apiKey))
+		header.Add("User-Agent", c.agent)
+	}
+
 	return c
 }
 
 type Ctx = store.Ctx
 
-func (c APIClient) newRequest(method, path string, params store.RequestContext) (req *http.Request, err error) {
+func (c APIClient) Request(method, path string, params store.RequestContext, v ResponseEnvelop) (*http.Response, error) {
 	if params == nil {
 		params = &Ctx{}
 	}
-
-	url := c.BaseURL.JoinPath(path)
-
-	query := url.Query()
-	query.Set("agent", c.agent)
-
-	body, contentType, err := params.PrepareBody(method, &query)
-	if err != nil {
-		return nil, err
-	}
-
-	url.RawQuery = query.Encode()
-
-	req, err = http.NewRequestWithContext(params.GetContext(), method, url.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+params.GetAPIKey(c.apiKey))
-
-	req.Header.Add("User-Agent", c.agent)
-	if len(contentType) > 0 {
-		req.Header.Add("Content-Type", contentType)
-	}
-
-	return req, nil
-}
-
-func (c APIClient) Request(method, path string, params store.RequestContext, v ResponseEnvelop) (*http.Response, error) {
-	req, err := c.newRequest(method, path, params)
+	req, err := params.NewRequest(c.BaseURL, method, path, c.reqHeader, c.reqQuery)
 	if err != nil {
 		error := core.NewStoreError("failed to create request")
 		error.StoreName = string(store.StoreNameAlldebrid)

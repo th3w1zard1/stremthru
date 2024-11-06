@@ -16,6 +16,7 @@ type RequestContext interface {
 	GetAPIKey(fallbackAPIKey string) string
 	GetContext() context.Context
 	PrepareBody(method string, query *url.Values) (body io.Reader, contentType string, err error)
+	NewRequest(baseURL *url.URL, method, path string, header func(header *http.Header, params RequestContext), query func(query *url.Values, params RequestContext)) (req *http.Request, err error)
 }
 
 type Ctx struct {
@@ -61,6 +62,33 @@ func (ctx Ctx) PrepareBody(method string, query *url.Values) (body io.Reader, co
 		}
 	}
 	return body, contentType, nil
+}
+
+func (ctx Ctx) NewRequest(baseURL *url.URL, method, path string, header func(header *http.Header, params RequestContext), query func(query *url.Values, params RequestContext)) (req *http.Request, err error) {
+	url := baseURL.JoinPath(path)
+
+	q := url.Query()
+	query(&q, ctx)
+
+	body, contentType, err := ctx.PrepareBody(method, &q)
+	if err != nil {
+		return nil, err
+	}
+
+	url.RawQuery = q.Encode()
+
+	req, err = http.NewRequestWithContext(ctx.GetContext(), method, url.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	header(&req.Header, ctx)
+
+	if len(contentType) > 0 {
+		req.Header.Add("Content-Type", contentType)
+	}
+
+	return req, nil
 }
 
 type StoreName string
