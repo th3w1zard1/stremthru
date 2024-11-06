@@ -134,6 +134,11 @@ func handleStoreMagnetsCheck(w http.ResponseWriter, r *http.Request) {
 
 	ctx := context.GetRequestContext(r)
 	data, err := checkMagnet(ctx, magnets)
+	if err == nil && data != nil {
+		for _, item := range data.Items {
+			item.Hash = strings.ToLower(item.Hash)
+		}
+	}
 	SendResponse(w, 200, data, err)
 }
 
@@ -155,6 +160,11 @@ func handleStoreMagnetsList(w http.ResponseWriter, r *http.Request) {
 
 	ctx := context.GetRequestContext(r)
 	data, err := listMagnets(ctx)
+	if err == nil && data != nil {
+		for _, item := range data.Items {
+			item.Hash = strings.ToLower(item.Hash)
+		}
+	}
 	SendResponse(w, 200, data, err)
 }
 
@@ -179,8 +189,11 @@ func handleStoreMagnetAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := context.GetRequestContext(r)
-	magnet, err := addMagnet(ctx, payload.Magnet)
-	SendResponse(w, 201, magnet, err)
+	data, err := addMagnet(ctx, payload.Magnet)
+	if err == nil && data != nil {
+		data.Hash = strings.ToLower(data.Hash)
+	}
+	SendResponse(w, 201, data, err)
 }
 
 func handleStoreMagnets(w http.ResponseWriter, r *http.Request) {
@@ -218,6 +231,9 @@ func handleStoreMagnetGet(w http.ResponseWriter, r *http.Request) {
 
 	ctx := context.GetRequestContext(r)
 	data, err := getMagnet(ctx, magnetId)
+	if err == nil && data != nil {
+		data.Hash = strings.ToLower(data.Hash)
+	}
 	SendResponse(w, 200, data, err)
 }
 
