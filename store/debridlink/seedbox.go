@@ -2,6 +2,7 @@ package debridlink
 
 import (
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -65,6 +66,12 @@ func (c APIClient) ListSeedboxTorrents(params *ListSeedboxTorrentsParams) (APIRe
 	form := &url.Values{}
 	if len(params.Ids) > 0 {
 		form.Add("ids", strings.Join(params.Ids, ","))
+	}
+	if params.Page != 0 {
+		form.Add("page", strconv.Itoa(params.Page))
+	}
+	if params.PerPage != 0 {
+		form.Add("perPage", strconv.Itoa(params.PerPage))
 	}
 	params.Form = form
 
