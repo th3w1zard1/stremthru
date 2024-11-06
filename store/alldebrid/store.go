@@ -194,6 +194,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		Hash:   magnet.Hash,
 		Name:   magnet.Filename,
 		Status: statusCodeToMangetStatus(magnet.StatusCode),
+		Files:  []store.MagnetFile{},
 	}
 
 	for _, f := range magnet.GetFiles() {
