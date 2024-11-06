@@ -25,47 +25,35 @@ func NewStoreClient() *StoreClient {
 	c.Name = store.StoreNameTorBox
 
 	c.getUserCache = func() core.Cache[string, store.User] {
-		cache, err := core.NewCache[string, store.User](core.CacheConfig[string]{
+		return core.NewCache[string, store.User](&core.CacheConfig[string]{
+			Name:     "store:torbox:getUser",
 			HashKey:  core.CacheHashKeyString,
 			Lifetime: 1 * time.Minute,
 		})
-		if err != nil {
-			panic("failed to create cache")
-		}
-		return cache
 	}()
 
 	c.checkMagnetCache = func() core.Cache[string, store.CheckMagnetDataItem] {
-		cache, err := core.NewCache[string, store.CheckMagnetDataItem](core.CacheConfig[string]{
+		return core.NewCache[string, store.CheckMagnetDataItem](&core.CacheConfig[string]{
+			Name:     "store:torbox:checkMagnet",
 			HashKey:  core.CacheHashKeyString,
 			Lifetime: 10 * time.Minute,
 		})
-		if err != nil {
-			panic("failed to create cache")
-		}
-		return cache
 	}()
 
 	c.getMagnetCache = func() core.Cache[string, store.GetMagnetData] {
-		cache, err := core.NewCache[string, store.GetMagnetData](core.CacheConfig[string]{
+		return core.NewCache[string, store.GetMagnetData](&core.CacheConfig[string]{
+			Name:     "store:torbox:getMagnet",
 			HashKey:  core.CacheHashKeyString,
 			Lifetime: 10 * time.Minute,
 		})
-		if err != nil {
-			panic("failed to create cache")
-		}
-		return cache
 	}()
 
 	c.generateLinkCache = func() core.Cache[string, store.GenerateLinkData] {
-		cache, err := core.NewCache[string, store.GenerateLinkData](core.CacheConfig[string]{
+		return core.NewCache[string, store.GenerateLinkData](&core.CacheConfig[string]{
+			Name:     "store:torbox:generateLink",
 			HashKey:  core.CacheHashKeyString,
 			Lifetime: 50 * time.Minute,
 		})
-		if err != nil {
-			panic("failed to create cache")
-		}
-		return cache
 	}()
 
 	return c

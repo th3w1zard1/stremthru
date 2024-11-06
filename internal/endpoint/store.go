@@ -378,14 +378,11 @@ func getUserSecretFromJWT(t *jwt.Token) (string, []byte, error) {
 }
 
 var tokenLinkCache = func() core.Cache[string, string] {
-	cache, err := core.NewCache[string, string](core.CacheConfig[string]{
+	return core.NewCache[string, string](&core.CacheConfig[string]{
+		Name:     "endpoint:store:tokenLink",
 		HashKey:  core.CacheHashKeyString,
 		Lifetime: 15 * time.Minute,
 	})
-	if err != nil {
-		panic("failed to create cache")
-	}
-	return cache
 }()
 
 func handleStoreLinkAccess(w http.ResponseWriter, r *http.Request) {
