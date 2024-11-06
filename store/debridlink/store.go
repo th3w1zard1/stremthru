@@ -1,6 +1,7 @@
 package debridlink
 
 import (
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -142,11 +143,16 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 
 func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnetData, error) {
 	res, err := c.client.ListSeedboxTorrents(&ListSeedboxTorrentsParams{
-		Ctx:           params.Ctx,
-		Ids:           []string{params.Id},
-		StructureType: "tree",
+		Ctx: params.Ctx,
+		Ids: []string{params.Id},
 	})
 	if err != nil {
+		return nil, err
+	}
+	if len(res.Data.Value) != 1 || res.Data.Value[0].Id != params.Id {
+		err := core.NewAPIError("not found")
+		err.StatusCode = http.StatusNotFound
+		err.StoreName = string(store.StoreNameDebridLink)
 		return nil, err
 	}
 	t := res.Data.Value[0]
