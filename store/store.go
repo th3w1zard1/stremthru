@@ -187,6 +187,7 @@ type AddMagnetParams struct {
 type GetMagnetData struct {
 	Id     string       `json:"id"`
 	Name   string       `json:"name"`
+	Hash   string       `json:"hash"`
 	Status MagnetStatus `json:"status"`
 	Files  []MagnetFile `json:"files"`
 }
@@ -198,6 +199,7 @@ type GetMagnetParams struct {
 
 type ListMagnetsDataItem struct {
 	Id     string       `json:"id"`
+	Hash   string       `json:"hash"`
 	Name   string       `json:"name"`
 	Status MagnetStatus `json:"status"`
 }

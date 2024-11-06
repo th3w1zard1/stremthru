@@ -363,6 +363,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		}
 		data := &store.GetMagnetData{
 			Id:     params.Id,
+			Hash:   magnet.Hash,
 			Name:   "",
 			Status: store.MagnetStatusDownloaded,
 			Files:  files,
@@ -375,8 +376,13 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		return nil, err
 	}
 
+	magnet, err := core.ParseMagnetLink(transfer.Src)
+	if err != nil {
+		return nil, err
+	}
 	data := &store.GetMagnetData{
 		Id:     transfer.Id,
+		Hash:   magnet.Hash,
 		Name:   transfer.Name,
 		Status: store.MagnetStatusUnknown,
 	}
@@ -416,6 +422,7 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 	for _, m := range sf_res.Data.Content {
 		item := &store.ListMagnetsDataItem{
 			Id:     m.Name,
+			Hash:   CachedMagnetId(m.Name).toHash(),
 			Name:   "",
 			Status: store.MagnetStatusDownloaded,
 		}
@@ -424,8 +431,13 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 	}
 
 	for _, t := range lt_res.Data.Transfers {
+		magnet, err := core.ParseMagnetLink(t.Src)
+		if err != nil {
+			return nil, err
+		}
 		item := &store.ListMagnetsDataItem{
 			Id:     t.Id,
+			Hash:   magnet.Hash,
 			Name:   t.Name,
 			Status: store.MagnetStatusUnknown,
 		}

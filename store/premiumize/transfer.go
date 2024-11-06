@@ -20,7 +20,7 @@ type ListTransfersDataItem struct {
 	Name     string         `json:"name"`
 	Message  string         `json:"message"`
 	Status   TransferStatus `json:"status"`
-	Progress int            `json:"progress"`
+	Progress float32        `json:"progress"`
 	Src      string         `json:"src"`
 	FolderId string         `json:"folder_id"`
 	FileId   string         `json:"file_id"`

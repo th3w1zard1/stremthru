@@ -182,6 +182,7 @@ type GetMagnetStatusDataMagnet struct {
 	Id             int              `json:"id"`
 	Filename       string           `json:"filename"`
 	Size           int              `json:"size"`
+	Hash           string           `json:"hash"`
 	Type           string           `json:"type"`
 	Version        int              `json:"version"`
 	Status         string           `json:"status"`

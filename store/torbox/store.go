@@ -336,6 +336,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 	}
 	data := &store.GetMagnetData{
 		Id:     params.Id,
+		Hash:   res.Data.Hash,
 		Name:   res.Data.Name,
 		Status: store.MagnetStatusQueued,
 		Files:  []store.MagnetFile{},
@@ -373,6 +374,7 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 	for _, t := range res.Data {
 		item := store.ListMagnetsDataItem{
 			Id:     strconv.Itoa(t.Id),
+			Hash:   t.Hash,
 			Name:   t.Name,
 			Status: store.MagnetStatusUnknown,
 		}

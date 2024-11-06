@@ -191,6 +191,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 
 	data := &store.GetMagnetData{
 		Id:     strconv.Itoa(magnet.Id),
+		Hash:   magnet.Hash,
 		Name:   magnet.Filename,
 		Status: statusCodeToMangetStatus(magnet.StatusCode),
 	}
@@ -221,6 +222,7 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 	for _, magnet := range ams.Data.Magnets {
 		item := &store.ListMagnetsDataItem{
 			Id:     strconv.Itoa(magnet.Id),
+			Hash:   magnet.Hash,
 			Name:   magnet.Filename,
 			Status: statusCodeToMangetStatus(magnet.StatusCode),
 		}

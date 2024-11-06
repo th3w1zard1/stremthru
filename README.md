@@ -146,6 +146,7 @@ List mangets on user's account.
     "items": [
       {
         "id": "string",
+        "hash": "string",
         "name": "string",
         "status": "MagnetStatus"
       }
@@ -170,6 +171,7 @@ Get manget on user's account.
 {
   "data": {
     "id": "string",
+    "hash": "string",
     "name": "string",
     "status": "MagnetStatus",
     "files": [
