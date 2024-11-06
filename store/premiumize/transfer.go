@@ -12,6 +12,7 @@ type TransferStatus string
 
 const (
 	TransferStatusWaiting  TransferStatus = "waiting"
+	TransferStatusRunning  TransferStatus = "running"
 	TransferStatusFinished TransferStatus = "finished"
 )
 

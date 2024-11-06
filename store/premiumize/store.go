@@ -351,6 +351,19 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	return data, err
 }
 
+func getMagnetStatsForTransfer(transfer *ListTransfersDataItem) store.MagnetStatus {
+	if transfer.Status == TransferStatusFinished {
+		return store.MagnetStatusDownloaded
+	}
+	if transfer.Status == TransferStatusRunning {
+		if transfer.Progress > 0 {
+			return store.MagnetStatusDownloading
+		}
+		return store.MagnetStatusQueued
+	}
+	return store.MagnetStatusUnknown
+}
+
 func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnetData, error) {
 	if CachedMagnetId(params.Id).isValid() {
 		magnet, err := core.ParseMagnetLink(CachedMagnetId(params.Id).toHash())
@@ -384,11 +397,10 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		Id:     transfer.Id,
 		Hash:   magnet.Hash,
 		Name:   transfer.Name,
-		Status: store.MagnetStatusUnknown,
+		Status: getMagnetStatsForTransfer(transfer),
 	}
 
 	if transfer.Status == TransferStatusFinished {
-		data.Status = store.MagnetStatusDownloaded
 		files, err := listFolderFlat(c, params.APIKey, transfer.FolderId, nil, &store.MagnetFile{
 			Path: transfer.Name,
 		}, 0)
@@ -439,11 +451,7 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 			Id:     t.Id,
 			Hash:   magnet.Hash,
 			Name:   t.Name,
-			Status: store.MagnetStatusUnknown,
-		}
-
-		if t.Status == TransferStatusFinished {
-			item.Status = store.MagnetStatusDownloaded
+			Status: getMagnetStatsForTransfer(&t),
 		}
 
 		data.Items = append(data.Items, *item)
