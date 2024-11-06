@@ -130,7 +130,7 @@ func (c *StoreClient) getCachedMagnetFiles(apiKey string, magnet string, include
 		file := &store.MagnetFile{
 			Idx:  idx,
 			Name: filepath.Base(f.Path),
-			Path: f.Path,
+			Path: "/" + f.Path,
 			Size: f.Size,
 		}
 		if includeLink {
@@ -409,7 +409,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 
 	if transfer.Status == TransferStatusFinished {
 		files, err := listFolderFlat(c, params.APIKey, transfer.FolderId, nil, &store.MagnetFile{
-			Path: transfer.Name,
+			Path: "/" + transfer.Name,
 		}, 0)
 		if err != nil {
 			return nil, err
