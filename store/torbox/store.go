@@ -337,6 +337,9 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		Id:          id,
 		BypassCache: true,
 	})
+	if err != nil {
+		return nil, err
+	}
 	if res.Data.Id == 0 {
 		error := core.NewAPIError("not found")
 		error.StatusCode = http.StatusNotFound

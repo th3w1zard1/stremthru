@@ -74,7 +74,7 @@ type ResponseEnvelop interface {
 }
 
 func (r Response[any]) IsSuccess() bool {
-	return r.Success
+	return r.Success && r.Error == ""
 }
 
 func (r Response[any]) GetError() *ResponseError {
