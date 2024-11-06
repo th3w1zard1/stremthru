@@ -377,6 +377,17 @@ func getUserSecretFromJWT(t *jwt.Token) (string, []byte, error) {
 	return password, []byte(password), nil
 }
 
+var tokenLinkCache = func() core.Cache[string, string] {
+	cache, err := core.NewCache[string, string](core.CacheConfig[string]{
+		HashKey:  core.CacheHashKeyString,
+		Lifetime: 15 * time.Minute,
+	})
+	if err != nil {
+		panic("failed to create cache")
+	}
+	return cache
+}()
+
 func handleStoreLinkAccess(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) && !IsMethod(r, http.MethodHead) {
 		SendError(w, ErrorMethodNotAllowed(r))
@@ -386,6 +397,11 @@ func handleStoreLinkAccess(w http.ResponseWriter, r *http.Request) {
 	encodedToken := r.PathValue("token")
 	if encodedToken == "" {
 		SendError(w, ErrorBadRequest(r, "missing token"))
+		return
+	}
+
+	if link, ok := tokenLinkCache.Get(encodedToken); ok {
+		ProxyToLink(w, r, link)
 		return
 	}
 
@@ -411,6 +427,8 @@ func handleStoreLinkAccess(w http.ResponseWriter, r *http.Request) {
 		SendError(w, err)
 		return
 	}
+
+	tokenLinkCache.Add(encodedToken, link)
 
 	ProxyToLink(w, r, link)
 }
