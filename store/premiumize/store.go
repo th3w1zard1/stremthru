@@ -1,6 +1,7 @@
 package premiumize
 
 import (
+	"net/http"
 	"path"
 	"path/filepath"
 	"strings"
@@ -386,6 +387,12 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 
 	transfer, err := getTransferById(c, params.APIKey, params.Id)
 	if err != nil {
+		return nil, err
+	}
+	if transfer == nil {
+		err := core.NewAPIError("not found")
+		err.StatusCode = http.StatusNotFound
+		err.StoreName = string(store.StoreNamePremiumize)
 		return nil, err
 	}
 
