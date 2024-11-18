@@ -46,6 +46,8 @@ Comma separated list of store credentials, in `username:store_name:api_key` form
 
 For proxy-authorized requests, these credentials will be used.
 
+If `username` is `*`, it is used as fallback for users without explicit store credentials.
+
 ## Endpoints
 
 ### Authentication

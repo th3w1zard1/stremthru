@@ -23,6 +23,9 @@ func (m StoreAuthTokenMap) GetToken(user, store string) string {
 			return token
 		}
 	}
+	if user != "*" {
+		return m.GetToken("*", store)
+	}
 	return ""
 }
 
@@ -34,7 +37,11 @@ func (m StoreAuthTokenMap) setToken(user, store, token string) {
 }
 
 func (m StoreAuthTokenMap) GetPreferredStore(user string) string {
-	return m.GetToken(user, "*")
+	store := m.GetToken(user, "*")
+	if store == "" {
+		store = m.GetToken("*", "*")
+	}
+	return store
 }
 
 func (m StoreAuthTokenMap) ListStores(user string) []string {
