@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/MunifTanjim/stremthru/core"
@@ -62,8 +61,6 @@ func processResponseBody(res *http.Response, err error, v ResponseContainer) err
 
 	body, err := io.ReadAll(res.Body)
 	defer res.Body.Close()
-
-	log.Println("res body: ", string(body))
 
 	if err != nil {
 		return err

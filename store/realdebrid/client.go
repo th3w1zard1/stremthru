@@ -1,7 +1,6 @@
 package realdebrid
 
 import (
-	"log"
 	"net/http"
 	"net/url"
 
@@ -72,8 +71,6 @@ func (c APIClient) newRequest(method, path string, params store.RequestContext) 
 
 	url.RawQuery = query.Encode()
 
-	println("url: ", url.String())
-	log.Printf("body: %v", body)
 	req, err = http.NewRequestWithContext(params.GetContext(), method, url.String(), body)
 	if err != nil {
 		return nil, err
