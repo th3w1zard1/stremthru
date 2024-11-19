@@ -61,6 +61,10 @@ func (c *checkTorrentInstantAvailabilityData) UnmarshalJSON(data []byte) error {
 			return err
 		}
 
+		if jsonBytes[0] == '[' {
+			jsonBytes = []byte("{}")
+		}
+
 		var hosterMap CheckTorrentInstantAvailabilityDataHosterMap
 		if err := json.Unmarshal(jsonBytes, &hosterMap); err != nil {
 			return err
