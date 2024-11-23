@@ -8,6 +8,7 @@ const USER_AGENT = `stremthru:sdk:js/${VERSION}`;
 
 export type StremThruConfig = {
   baseUrl: string;
+  userAgent?: string;
 } & (
   | { auth: string | { pass: string; user: string } }
   | { storeName: string; storeToken: string }
@@ -142,7 +143,7 @@ export class StremThru {
     this.baseUrl = config.baseUrl;
 
     this.#headers = {
-      "User-Agent": USER_AGENT,
+      "User-Agent": [USER_AGENT, config.userAgent].filter(Boolean).join(" "),
     };
 
     if ("auth" in config) {
