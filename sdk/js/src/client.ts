@@ -8,6 +8,7 @@ const USER_AGENT = `stremthru:sdk:js/${VERSION}`;
 
 export type StremThruConfig = {
   baseUrl: string;
+  timeout?: number;
   userAgent?: string;
 } & (
   | { auth: string | { pass: string; user: string } }
@@ -138,6 +139,7 @@ export class StremThru {
   store: StremThruStore;
 
   #headers: Record<string, unknown>;
+  #timeout?: number;
 
   constructor(config: StremThruConfig) {
     this.baseUrl = config.baseUrl;
@@ -145,6 +147,9 @@ export class StremThru {
     this.#headers = {
       "User-Agent": [USER_AGENT, config.userAgent].filter(Boolean).join(" "),
     };
+    if (config.timeout) {
+      this.#timeout = config.timeout;
+    }
 
     if ("auth" in config) {
       if (typeof config.auth !== "string") {
@@ -195,7 +200,11 @@ export class StremThru {
       ...headers,
     });
 
-    const req: RequestInit = { ...options, method };
+    const req: RequestInit = {
+      ...options,
+      method,
+      timeout: this.#timeout,
+    };
 
     if (body instanceof URLSearchParams) {
       headers.set("Content-Type", "application/x-www-form-urlencoded");
