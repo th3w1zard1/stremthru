@@ -38,8 +38,7 @@ const (
 	ErrorCodeUnsupportedMediaType        ErrorCode = "UNSUPPORTED_MEDIA_TYPE"
 
 	ErrorCodeStoreLimitExceeded ErrorCode = "STORE_LIMIT_EXCEEDED"
-
-	ErrorCodeMagnetInvalid ErrorCode = "MAGNET_INVALID"
+	ErrorCodeStoreMagnetInvalid ErrorCode = "STORE_MAGNET_INVALID"
 )
 
 type StremThruError interface {

@@ -89,9 +89,9 @@ var errorCodeByErrorCode = map[ErrorCode]core.ErrorCode{
 	ErrorCodeAuthBlocked:       core.ErrorCodeForbidden,
 	ErrorCodeAuthBanned:        core.ErrorCodeForbidden,
 
-	MagnetErrorCodeNoURI:         core.ErrorCodeMagnetInvalid,
-	MagnetErrorCodeInvalidId:     core.ErrorCodeMagnetInvalid,
-	MagnetErrorCodeInvalidURI:    core.ErrorCodeMagnetInvalid,
+	MagnetErrorCodeNoURI:         core.ErrorCodeStoreMagnetInvalid,
+	MagnetErrorCodeInvalidId:     core.ErrorCodeStoreMagnetInvalid,
+	MagnetErrorCodeInvalidURI:    core.ErrorCodeStoreMagnetInvalid,
 	MagnetErrorCodeMustBePremium: core.ErrorCodePaymentRequired,
 	MagnetErrorCodeNoServer:      core.ErrorCodeForbidden,
 	MagnetErrorCodeTooManyActive: core.ErrorCodeStoreLimitExceeded,
