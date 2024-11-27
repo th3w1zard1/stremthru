@@ -25,10 +25,13 @@ type Response[T interface{}] struct {
 }
 
 type ResponseEnvelop interface {
-	GetError() *ResponseError
+	GetError() error
 }
 
-func (r Response[any]) GetError() *ResponseError {
+func (r Response[any]) GetError() error {
+	if r.Error == nil {
+		return nil
+	}
 	return r.Error
 }
 
