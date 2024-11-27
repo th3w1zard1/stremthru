@@ -61,11 +61,15 @@ type APIResponse[T interface{}] struct {
 }
 
 func newAPIResponse[T interface{}](res *http.Response, data T) APIResponse[T] {
-	return APIResponse[T]{
-		Header:     res.Header,
-		StatusCode: res.StatusCode,
+	apiResponse := APIResponse[T]{
+		StatusCode: 503,
 		Data:       data,
 	}
+	if res != nil {
+		apiResponse.Header = res.Header
+		apiResponse.StatusCode = res.StatusCode
+	}
+	return apiResponse
 }
 
 func extractResponseError(statusCode int, body []byte, v ResponseEnvelop) error {
