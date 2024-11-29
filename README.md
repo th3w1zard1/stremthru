@@ -240,6 +240,8 @@ Check manget links.
 
 If `.status` is `cached`, `.files` will have the list of files.
 
+If `.files[].index` is `-1`, the index of the file is unknown and you should rely on `.name` instead.
+
 #### Generate Link
 
 `POST /v0/store/link/generate`
