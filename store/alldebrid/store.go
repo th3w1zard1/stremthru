@@ -1,7 +1,6 @@
 package alldebrid
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -85,15 +84,9 @@ func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.Check
 		hashes = append(hashes, magnet.Hash)
 	}
 
-	if buddy.Client.IsAvailable() {
-		res, err := buddy.Client.CheckMagnetCache(&buddy.CheckMagnetCacheParams{
-			Store:  store.StoreNameAlldebrid,
-			Hashes: hashes,
-		})
-		if err != nil {
-			return nil, err
-		}
-		return &res.Data, nil
+	res, err := buddy.CheckMagnetCache(c, hashes)
+	if err != nil || res != nil {
+		return res, err
 	}
 
 	data := &store.CheckMagnetData{
@@ -151,16 +144,7 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 		}
 	}
 
-	if buddy.Client.IsAvailable() {
-		if _, err := buddy.Client.TrackMagnetCache(&buddy.TrackMagnetCacheParams{
-			Store:     c.GetName(),
-			Hash:      magnet.Hash,
-			Files:     data.Files,
-			CacheMiss: data.Status != store.MagnetStatusDownloaded,
-		}); err != nil {
-			log.Printf("failed to track magnet cache for %s:%s: %v\n", c.GetName(), data.Hash, err)
-		}
-	}
+	buddy.TrackMagnetCache(c, data.Hash, data.Files, data.Status != store.MagnetStatusDownloaded)
 
 	return data, err
 }
@@ -233,16 +217,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		})
 	}
 
-	if buddy.Client.IsAvailable() {
-		if _, err := buddy.Client.TrackMagnetCache(&buddy.TrackMagnetCacheParams{
-			Store:     c.GetName(),
-			Hash:      magnet.Hash,
-			Files:     data.Files,
-			CacheMiss: data.Status != store.MagnetStatusDownloaded,
-		}); err != nil {
-			log.Printf("failed to track magnet cache for %s:%s: %v\n", c.GetName(), data.Hash, err)
-		}
-	}
+	buddy.TrackMagnetCache(c, data.Hash, data.Files, data.Status != store.MagnetStatusDownloaded)
 
 	return data, nil
 }

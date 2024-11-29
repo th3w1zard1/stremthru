@@ -5,7 +5,6 @@ import (
 	"net/url"
 
 	"github.com/MunifTanjim/stremthru/core"
-	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
@@ -96,7 +95,3 @@ func (c APIClient) Request(method, path string, params store.RequestContext, v R
 	}
 	return res, nil
 }
-
-var Client = NewAPIClient(&APIClientConfig{
-	BaseURL: config.BuddyURL,
-})

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/buddy"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
@@ -253,6 +254,9 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 		}
 		data.Files = append(data.Files, file)
 	}
+
+	buddy.TrackMagnetCache(c, data.Hash, data.Files, data.Status != store.MagnetStatusDownloaded)
+
 	return data, nil
 }
 
@@ -357,6 +361,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 	if data.Status == store.MagnetStatusDownloaded {
 		c.setCachedGetMagnet(params, data)
 	}
+	buddy.TrackMagnetCache(c, data.Hash, data.Files, data.Status != store.MagnetStatusDownloaded)
 	return data, nil
 }
 
