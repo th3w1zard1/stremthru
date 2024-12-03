@@ -173,6 +173,10 @@ export class StremThru {
     this.store = new StremThruStore(this);
   }
 
+  async health() {
+    return await this.request<{ status: "ok" }>(`/v0/health`, {});
+  }
+
   async request<T>(
     endpoint: string,
     {
