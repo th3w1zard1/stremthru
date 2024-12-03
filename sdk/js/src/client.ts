@@ -7,13 +7,15 @@ import { VERSION } from "./version";
 const USER_AGENT = `stremthru:sdk:js/${VERSION}`;
 
 export type StremThruConfig = {
+  auth?:
+    | string
+    | { pass: string; user: string }
+    | { store: string; token: string };
+} & {
   baseUrl: string;
   timeout?: number;
   userAgent?: string;
-} & (
-  | { auth: string | { pass: string; user: string } }
-  | { storeName: string; storeToken: string }
-);
+};
 
 type ResponseMeta = {
   headers: Record<string, string>;
@@ -151,22 +153,21 @@ export class StremThru {
       this.#timeout = config.timeout;
     }
 
-    if ("auth" in config) {
-      if (typeof config.auth !== "string") {
+    if (config.auth) {
+      if (typeof config.auth === "object" && "user" in config.auth) {
         config.auth = `${config.auth.user}:${config.auth.pass}`;
       }
-      if (config.auth.includes(":")) {
-        config.auth = Buffer.from(config.auth).toString("base64");
-      }
-      this.#headers["Proxy-Authorization"] = `Basic ${config.auth}`;
-    }
 
-    if ("storeName" in config) {
-      this.#headers["X-StremThru-Store-Name"] = config.storeName;
-    }
-    if ("storeToken" in config) {
-      this.#headers["X-StremThru-Store-Authorization"] =
-        `Bearer ${config.storeToken}`;
+      if (typeof config.auth === "string") {
+        if (config.auth.includes(":")) {
+          config.auth = Buffer.from(config.auth.trim()).toString("base64");
+        }
+        this.#headers["Proxy-Authorization"] = `Basic ${config.auth}`;
+      } else if ("store" in config.auth) {
+        this.#headers["X-StremThru-Store-Name"] = config.auth.store;
+        this.#headers["X-StremThru-Store-Authorization"] =
+          `Bearer ${config.auth.token}`;
+      }
     }
 
     this.store = new StremThruStore(this);
