@@ -56,6 +56,7 @@ class StremThru:
         auth: StremThruConfigAuth | None = None,
         user_agent: str | None = None,
         timeout: int | None = None,
+        client_ip: str | None = None,
     ) -> None:
         self.base_url = base_url
         self._headers["User-Agent"] = (
@@ -79,7 +80,7 @@ class StremThru:
         if timeout:
             self._timeout = aiohttp.ClientTimeout(total=timeout)
 
-        self.store = StremThruStore(self)
+        self.store = StremThruStore(self, client_ip)
 
     async def health(self) -> Response[HealthData]:
         return await self.request("/v0/health")
@@ -227,20 +228,40 @@ class ListMagnetsData(TypedDict):
 
 
 class StremThruStore:
-    def __init__(self, client: StremThru):
-        self.client = client
+    _client_ip: str | None = None
 
-    async def add_magnet(self, magnet: str) -> Response[AddMagnetData]:
+    def __init__(self, client: StremThru, client_ip: str | None = None):
+        self.client = client
+        if client_ip:
+            self._client_ip = client_ip
+
+    async def add_magnet(
+        self, magnet: str, client_ip: str | None = None
+    ) -> Response[AddMagnetData]:
+        if not client_ip:
+            client_ip = self._client_ip
+
         return await self.client.request(
-            "/v0/store/magnets", "POST", json={"magnet": magnet}
+            "/v0/store/magnets",
+            "POST",
+            json={"magnet": magnet},
+            params={"client_ip": client_ip} if client_ip else None,
         )
 
     async def check_magnet(self, magnet: list[str]) -> Response[CheckMagnetData]:
         return await self.client.request("/v0/store/magnets", params={"magnet": magnet})
 
-    async def generate_link(self, link: str) -> Response[GenerateLinkData]:
+    async def generate_link(
+        self, link: str, client_ip: str | None = None
+    ) -> Response[GenerateLinkData]:
+        if not client_ip:
+            client_ip = self._client_ip
+
         return await self.client.request(
-            "/v0/store/link/generate", "POST", json={"link": link}
+            "/v0/store/link/generate",
+            "POST",
+            json={"link": link},
+            params={"client_ip": client_ip} if client_ip else None,
         )
 
     async def get_magnet(self, magnet_id: str) -> Response[GetMagnetData]:
