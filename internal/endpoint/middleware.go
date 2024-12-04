@@ -64,7 +64,6 @@ func getStoreAuthToken(r *http.Request) string {
 		ctx := context.GetRequestContext(r)
 		if ctx.IsProxyAuthorized && ctx.Store != nil {
 			if token := config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, string(ctx.Store.GetName())); token != "" {
-				ctx.ClientIP = core.GetClientIP(r)
 				return token
 			}
 		}
@@ -83,6 +82,9 @@ func StoreContext(next http.HandlerFunc) http.HandlerFunc {
 		ctx := context.GetRequestContext(r)
 		ctx.Store = store
 		ctx.StoreAuthToken = getStoreAuthToken(r)
+		if !ctx.IsProxyAuthorized {
+			ctx.ClientIP = core.GetClientIP(r)
+		}
 		w.Header().Add("X-StremThru-Store-Name", r.Header.Get("X-StremThru-Store-Name"))
 		next.ServeHTTP(w, r)
 	})
