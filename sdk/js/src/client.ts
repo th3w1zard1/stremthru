@@ -13,6 +13,7 @@ export type StremThruConfig = {
     | { store: string; token: string };
 } & {
   baseUrl: string;
+  clientIp?: string;
   timeout?: number;
   userAgent?: string;
 };
@@ -25,12 +26,22 @@ type ResponseMeta = {
 
 class StremThruStore {
   #client: StremThru;
+  #clientIp?: string;
 
-  constructor(client: StremThru) {
+  constructor(client: StremThru, clientIp?: string) {
     this.#client = client;
+    if (clientIp) {
+      this.#clientIp = clientIp;
+    }
   }
 
-  async addMagnet(payload: { magnet: string }) {
+  async addMagnet({
+    clientIp = this.#clientIp,
+    magnet,
+  }: {
+    clientIp?: string;
+    magnet: string;
+  }) {
     return await this.#client.request<{
       files: Array<{
         index: number;
@@ -45,8 +56,9 @@ class StremThruStore {
       name: string;
       status: StoreMagnetStatus;
     }>("/v0/store/magnets", {
-      body: { magnet: payload.magnet },
+      body: { magnet },
       method: "POST",
+      params: clientIp ? { client_ip: clientIp } : {},
     });
   }
 
@@ -68,12 +80,19 @@ class StremThruStore {
     });
   }
 
-  async generateLink(payload: { link: string }) {
+  async generateLink({
+    clientIp = this.#clientIp,
+    link,
+  }: {
+    clientIp?: string;
+    link: string;
+  }) {
     return await this.#client.request<{
       link: string;
     }>(`/v0/store/link/generate`, {
-      body: payload,
+      body: { link },
       method: "POST",
+      params: clientIp ? { client_ip: clientIp } : {},
     });
   }
 
@@ -170,7 +189,7 @@ export class StremThru {
       }
     }
 
-    this.store = new StremThruStore(this);
+    this.store = new StremThruStore(this, config.clientIp);
   }
 
   async health() {
