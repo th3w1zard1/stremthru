@@ -74,3 +74,9 @@ jobs:
         if: ${{ steps.release.outputs['sdk/py--release_created'] }}
         working-directory: sdk/py
         run: poetry build
+      - name: SDK/PY - Publish
+        if: ${{ steps.release.outputs['sdk/py--release_created'] }}
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+        working-directory: sdk/py
+        run: poetry publish --skip-existing
