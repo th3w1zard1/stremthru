@@ -21,6 +21,12 @@
       "component": "sdk-js",
       "release-type": "node",
       "pull-request-title-pattern": "chore(sdk/js): release ${version}"
+    },
+    "sdk/py": {
+      "component": "sdk-py",
+      "release-as": "0.0.1",
+      "release-type": "python",
+      "pull-request-title-pattern": "chore(sdk/py): release ${version}"
     }
   }
 }
