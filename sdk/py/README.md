@@ -1,5 +1,5 @@
 [![GitHub Workflow Status: CI [SDK/PY]](https://img.shields.io/github/actions/workflow/status/MunifTanjim/stremthru/ci-sdk-py.yml?branch=main&label=CI%20%5BSDK%2FPY%5D&style=for-the-badge)](https://github.com/MunifTanjim/stremthru/actions/workflows/ci-sdk-py.yml)
-[![License](https://img.shields.io/github/license/MunifTanjim/stremthru?style=for-the-badge)](https://github.com/MunifTanjim/stremthru/blob/main/sdk/py/LICENSE
+[![License](https://img.shields.io/github/license/MunifTanjim/stremthru?style=for-the-badge)](https://github.com/MunifTanjim/stremthru/blob/main/sdk/py/LICENSE)
 
 # StremThru - Python SDK
 
