@@ -95,8 +95,7 @@ const (
 
 type CheckMagnetParams struct {
 	Ctx
-	BuddyToken string
-	Magnets    []string
+	Magnets []string
 }
 
 type CheckMagnetDataItem struct {

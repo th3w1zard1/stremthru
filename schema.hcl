@@ -31,3 +31,24 @@ table "magnet_cache" {
     columns = [column.store, column.hash]
   }
 }
+
+table "peer_token" {
+  schema = schema.main
+
+  column "id" {
+    null = false
+    type = varchar
+  }
+  column "name" {
+    null = false
+    type = varchar
+  }
+  column "created_at" {
+    null = false
+    type = datetime
+    default = sql("unixepoch()")
+  }
+  primary_key {
+    columns = [column.id]
+  }
+}

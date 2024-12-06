@@ -21,7 +21,6 @@ var DefaultHTTPClient = func() *http.Client {
 
 type APIClientConfig struct {
 	BaseURL    string
-	APIKey     string
 	HTTPClient *http.Client
 	agent      string
 }
@@ -29,7 +28,6 @@ type APIClientConfig struct {
 type APIClient struct {
 	BaseURL    *url.URL
 	HTTPClient *http.Client
-	apiKey     string
 	agent      string
 
 	reqQuery  func(query *url.Values, params request.Context)
@@ -56,14 +54,12 @@ func NewAPIClient(conf *APIClientConfig) *APIClient {
 	}
 
 	c.HTTPClient = conf.HTTPClient
-	c.apiKey = conf.APIKey
 	c.agent = conf.agent
 
 	c.reqQuery = func(query *url.Values, params request.Context) {
 	}
 
 	c.reqHeader = func(header *http.Header, params request.Context) {
-		header.Set("Authorization", "Bearer "+params.GetAPIKey(c.apiKey))
 		header.Add("User-Agent", c.agent)
 	}
 

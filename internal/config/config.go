@@ -77,11 +77,10 @@ type Config struct {
 	StoreAuthToken    StoreAuthTokenMap
 	ProxyAuthPassword ProxyAuthPasswordMap
 	BuddyURL          string
-	BuddyAuthToken    string
 	HasBuddy          bool
-	UpstreamURL       string
-	UpstreamAuthToken string
-	HasUpstream       bool
+	PeerURL           string
+	PeerAuthToken     string
+	HasPeer           bool
 	RedisURI          string
 	DatabaseURI       string
 }
@@ -145,8 +144,8 @@ var config = func() Config {
 		}
 	}
 
-	buddyUrl, buddyAuthToken := parseUri(getEnv("STREMTHRU_BUDDY_URI", ""))
-	upstreamUrl, upstreamAuthToken := parseUri(getEnv("STREMTHRU_UPSTREAM_URI", ""))
+	buddyUrl, _ := parseUri(getEnv("STREMTHRU_BUDDY_URI", ""))
+	peerUrl, peerAuthToken := parseUri(getEnv("STREMTHRU_PEER_URI", ""))
 
 	databaseUri := getEnv("STREMTHRU_DATABASE_URI", "sqlite://./data/stremthru.db")
 
@@ -155,11 +154,10 @@ var config = func() Config {
 		ProxyAuthPassword: proxyAuthPasswordMap,
 		StoreAuthToken:    storeAuthTokenMap,
 		BuddyURL:          buddyUrl,
-		BuddyAuthToken:    buddyAuthToken,
 		HasBuddy:          len(buddyUrl) > 0,
-		UpstreamURL:       upstreamUrl,
-		UpstreamAuthToken: upstreamAuthToken,
-		HasUpstream:       len(upstreamUrl) > 0,
+		PeerURL:           peerUrl,
+		PeerAuthToken:     peerAuthToken,
+		HasPeer:           len(peerUrl) > 0,
 		RedisURI:          getEnv("STREMTHRU_REDIS_URI", ""),
 		DatabaseURI:       databaseUri,
 	}
@@ -169,10 +167,9 @@ var Port = config.Port
 var ProxyAuthPassword = config.ProxyAuthPassword
 var StoreAuthToken = config.StoreAuthToken
 var BuddyURL = config.BuddyURL
-var BuddyAuthToken = config.BuddyAuthToken
 var HasBuddy = config.HasBuddy
-var UpstreamURL = config.UpstreamURL
-var UpstreamAuthToken = config.UpstreamAuthToken
-var HasUpstream = config.HasUpstream
+var PeerURL = config.PeerURL
+var PeerAuthToken = config.PeerAuthToken
+var HasPeer = config.HasPeer
 var RedisURI = config.RedisURI
 var DatabaseURI = config.DatabaseURI

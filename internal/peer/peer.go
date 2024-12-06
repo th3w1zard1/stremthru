@@ -1,4 +1,4 @@
-package upstream
+package peer
 
 import (
 	"encoding/json"
@@ -66,7 +66,7 @@ func NewAPIClient(conf *APIClientConfig) *APIClient {
 	}
 
 	c.reqHeader = func(header *http.Header, params request.Context) {
-		header.Set("X-StremThru-Buddy-Token", params.GetAPIKey(c.apiKey))
+		header.Set("X-StremThru-Peer-Token", params.GetAPIKey(c.apiKey))
 		header.Add("User-Agent", c.agent)
 	}
 

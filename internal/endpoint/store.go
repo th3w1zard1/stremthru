@@ -11,6 +11,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
+	"github.com/MunifTanjim/stremthru/internal/peer_token"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/store/alldebrid"
 	"github.com/MunifTanjim/stremthru/store/debridlink"
@@ -88,7 +89,6 @@ type AddMagnetPayload struct {
 func checkMagnet(ctx *context.RequestContext, magnets []string) (*store.CheckMagnetData, error) {
 	params := &store.CheckMagnetParams{}
 	params.APIKey = ctx.StoreAuthToken
-	params.BuddyToken = ctx.BuddyToken
 	params.Magnets = magnets
 	data, err := ctx.Store.CheckMagnet(params)
 	if err == nil && data.Items == nil {
@@ -114,7 +114,7 @@ func hadleStoreMagnetsTrack(w http.ResponseWriter, r *http.Request) {
 
 	ctx := context.GetRequestContext(r)
 
-	isValidToken, err := buddy.IsValidToken(ctx.BuddyToken)
+	isValidToken, err := peer_token.IsValid(ctx.PeerToken)
 	if err != nil {
 		SendError(w, err)
 		return
@@ -131,7 +131,7 @@ func hadleStoreMagnetsTrack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	buddy.TrackMagnet(ctx.Store, payload.Hash, payload.Files, payload.IsMiss, ctx.BuddyToken, ctx.StoreAuthToken)
+	buddy.TrackMagnet(ctx.Store, payload.Hash, payload.Files, payload.IsMiss, ctx.StoreAuthToken)
 
 	SendResponse[any](w, 202, &TrackMagnetData{}, nil)
 }
@@ -228,7 +228,7 @@ func addMagnet(ctx *context.RequestContext, magnet string) (*store.AddMagnetData
 	}
 	data, err := ctx.Store.AddMagnet(params)
 	if err == nil {
-		buddy.TrackMagnet(ctx.Store, data.Hash, data.Files, data.Status != store.MagnetStatusDownloaded, "", ctx.StoreAuthToken)
+		buddy.TrackMagnet(ctx.Store, data.Hash, data.Files, data.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
 	}
 	return data, err
 }
@@ -274,7 +274,7 @@ func getMagnet(ctx *context.RequestContext, magnetId string) (*store.GetMagnetDa
 	params.Id = magnetId
 	data, err := ctx.Store.GetMagnet(params)
 	if err == nil {
-		buddy.TrackMagnet(ctx.Store, data.Hash, data.Files, data.Status != store.MagnetStatusDownloaded, "", ctx.StoreAuthToken)
+		buddy.TrackMagnet(ctx.Store, data.Hash, data.Files, data.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
 	}
 	return data, err
 }
