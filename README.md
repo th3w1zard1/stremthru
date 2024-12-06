@@ -48,6 +48,22 @@ For proxy-authorized requests, these credentials will be used.
 
 If `username` is `*`, it is used as fallback for users without explicit store credentials.
 
+**`STREMTHRU_PEER_URI`**
+
+URI for another StremThru instance, in format `https://:<pass>@<host>[:<port>]`.
+
+**`STREMTHRU_REDIS_URI`**
+
+URI for Redis, in format `https://<user>:<pass>@<host>[:<port>][/<db>]`.
+
+If provided, it'll be used for caching instead of in-memory storage.
+
+**`STREMTHRU_DATABASE_URI`**
+
+URI for Database, in format `<scheme>://<user>:<pass>@<host>[:<port>][/<db>]`.
+
+Supports `sqlite` and `postgresql`.
+
 ## Endpoints
 
 ### Authentication
@@ -241,6 +257,8 @@ Check manget links.
 If `.status` is `cached`, `.files` will have the list of files.
 
 If `.files[].index` is `-1`, the index of the file is unknown and you should rely on `.name` instead.
+
+If `.files[].size` is `-1`, the size of the file is unknown.
 
 #### Generate Link
 
