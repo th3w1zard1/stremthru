@@ -82,7 +82,7 @@ func StoreContext(next http.HandlerFunc) http.HandlerFunc {
 		ctx := context.GetRequestContext(r)
 		ctx.Store = store
 		ctx.StoreAuthToken = getStoreAuthToken(r)
-		ctx.UpstreamToken = r.Header.Get("X-StremThru-Upstream-Token")
+		ctx.BuddyToken = r.Header.Get("X-StremThru-Buddy-Token")
 		if !ctx.IsProxyAuthorized {
 			ctx.ClientIP = core.GetClientIP(r)
 		}

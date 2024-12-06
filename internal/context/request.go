@@ -12,7 +12,7 @@ type requestContextKey struct{}
 type RequestContext struct {
 	Store             store.Store
 	StoreAuthToken    string
-	UpstreamToken     string
+	BuddyToken        string
 	IsProxyAuthorized bool
 	ProxyAuthUser     string
 	ProxyAuthPassword string

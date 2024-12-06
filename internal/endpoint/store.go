@@ -88,7 +88,7 @@ type AddMagnetPayload struct {
 func checkMagnet(ctx *context.RequestContext, magnets []string) (*store.CheckMagnetData, error) {
 	params := &store.CheckMagnetParams{}
 	params.APIKey = ctx.StoreAuthToken
-	params.UpstreamToken = ctx.UpstreamToken
+	params.BuddyToken = ctx.BuddyToken
 	params.Magnets = magnets
 	data, err := ctx.Store.CheckMagnet(params)
 	if err == nil && data.Items == nil {
@@ -114,7 +114,7 @@ func hadleStoreMagnetsTrack(w http.ResponseWriter, r *http.Request) {
 
 	ctx := context.GetRequestContext(r)
 
-	isValidToken, err := buddy.IsValidToken(ctx.UpstreamToken)
+	isValidToken, err := buddy.IsValidToken(ctx.BuddyToken)
 	if err != nil {
 		SendError(w, err)
 		return
@@ -131,7 +131,7 @@ func hadleStoreMagnetsTrack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	buddy.TrackMagnet(ctx.Store, payload.Hash, payload.Files, payload.IsMiss, ctx.UpstreamToken, ctx.StoreAuthToken)
+	buddy.TrackMagnet(ctx.Store, payload.Hash, payload.Files, payload.IsMiss, ctx.BuddyToken, ctx.StoreAuthToken)
 
 	SendResponse[any](w, 202, &TrackMagnetData{}, nil)
 }
