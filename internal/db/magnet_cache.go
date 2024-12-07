@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"log"
 	"strings"
 	"time"
 
@@ -198,14 +199,14 @@ func TouchMagnetCaches(store store.StoreCode, filesByHash map[string]MagnetCache
 		hit_buf.WriteString(" ON CONFLICT (store, hash) DO UPDATE SET is_cached = excluded.is_cached, files = excluded.files, modified_at = " + CurrentTimestamp)
 		_, err := tx.Exec(hit_buf.String(), hit_args...)
 		if err != nil {
-			println(err.Error())
+			log.Printf("[magnet_cache] failed to touch hits: %v\n", err)
 		}
 	}
 	if miss_count > 0 {
 		miss_buf.WriteString(" ON CONFLICT (store, hash) DO UPDATE SET is_cached = excluded.is_cached, modified_at = " + CurrentTimestamp)
 		_, err := tx.Exec(miss_buf.String(), miss_args...)
 		if err != nil {
-			println(err.Error())
+			log.Printf("[magnet_cache] failed to touch misses: %v\n", err)
 		}
 	}
 
