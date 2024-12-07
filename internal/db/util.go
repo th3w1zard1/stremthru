@@ -2,6 +2,7 @@ package db
 
 import (
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -33,4 +34,24 @@ func ParseConnectionURI(connection_uri string) (ConnectionURI, error) {
 
 	return uri, nil
 
+}
+func adaptQuery(query string) string {
+	if dialect == "sqlite" {
+		return query
+	}
+
+	var q strings.Builder
+	pos := 1
+
+	for _, char := range query {
+		if char == '?' {
+			q.WriteRune('$')
+			q.WriteString(strconv.Itoa(pos))
+			pos++
+		} else {
+			q.WriteRune(char)
+		}
+	}
+
+	return q.String()
 }

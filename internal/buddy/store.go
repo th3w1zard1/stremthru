@@ -5,7 +5,7 @@ import (
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
-	"github.com/MunifTanjim/stremthru/internal/db"
+	"github.com/MunifTanjim/stremthru/internal/magnet_cache"
 	"github.com/MunifTanjim/stremthru/internal/peer"
 	"github.com/MunifTanjim/stremthru/store"
 )
@@ -20,13 +20,13 @@ var Peer = peer.NewAPIClient(&peer.APIClientConfig{
 })
 
 func TrackMagnet(s store.Store, hash string, files []store.MagnetFile, cacheMiss bool, storeToken string) {
-	mcFiles := db.MagnetCacheFiles{}
+	mcFiles := magnet_cache.Files{}
 	if !cacheMiss {
 		for _, f := range files {
-			mcFiles = append(mcFiles, db.MagnetCacheFile{Idx: f.Idx, Name: f.Name, Size: f.Size})
+			mcFiles = append(mcFiles, magnet_cache.File{Idx: f.Idx, Name: f.Name, Size: f.Size})
 		}
 	}
-	if err := db.TouchMagnetCache(s.GetName().Code(), hash, mcFiles); err != nil {
+	if err := magnet_cache.Touch(s.GetName().Code(), hash, mcFiles); err != nil {
 		log.Printf("[buddy] failed to update local cache: %v\n", err)
 	}
 
@@ -61,11 +61,11 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string) (*store.Chec
 		Items: []store.CheckMagnetDataItem{},
 	}
 
-	mcs, err := db.GetMagnetCaches(s.GetName().Code(), hashes)
+	mcs, err := magnet_cache.GetByHashes(s.GetName().Code(), hashes)
 	if err != nil {
 		return nil, err
 	}
-	mcByHash := map[string]db.MagnetCache{}
+	mcByHash := map[string]magnet_cache.MagnetCache{}
 	for _, mc := range mcs {
 		mcByHash[mc.Hash] = mc
 	}
@@ -109,18 +109,18 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string) (*store.Chec
 		if err != nil {
 			log.Printf("[buddy] failed to check magnet: %v\n", err)
 		} else {
-			filesByHash := map[string]db.MagnetCacheFiles{}
+			filesByHash := map[string]magnet_cache.Files{}
 			for _, item := range res.Data.Items {
-				files := db.MagnetCacheFiles{}
+				files := magnet_cache.Files{}
 				if item.Status == store.MagnetStatusCached {
 					for _, f := range item.Files {
-						files = append(files, db.MagnetCacheFile{Idx: f.Idx, Name: f.Name, Size: f.Size})
+						files = append(files, magnet_cache.File{Idx: f.Idx, Name: f.Name, Size: f.Size})
 					}
 				}
 				filesByHash[item.Hash] = files
 				data.Items = append(data.Items, item)
 			}
-			err = db.TouchMagnetCaches(s.GetName().Code(), filesByHash)
+			err = magnet_cache.BulkTouch(s.GetName().Code(), filesByHash)
 			if err != nil {
 				log.Printf("[buddy] failed to update local cache: %v\n", err)
 			}
@@ -138,18 +138,18 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string) (*store.Chec
 		if err != nil {
 			log.Printf("[buddy:upstream] failed to check magnet: %v\n", err)
 		} else {
-			filesByHash := map[string]db.MagnetCacheFiles{}
+			filesByHash := map[string]magnet_cache.Files{}
 			for _, item := range res.Data.Items {
-				files := db.MagnetCacheFiles{}
+				files := magnet_cache.Files{}
 				if item.Status == store.MagnetStatusCached {
 					for _, f := range item.Files {
-						files = append(files, db.MagnetCacheFile{Idx: f.Idx, Name: f.Name, Size: f.Size})
+						files = append(files, magnet_cache.File{Idx: f.Idx, Name: f.Name, Size: f.Size})
 					}
 				}
 				filesByHash[item.Hash] = files
 				data.Items = append(data.Items, item)
 			}
-			err = db.TouchMagnetCaches(s.GetName().Code(), filesByHash)
+			err = magnet_cache.BulkTouch(s.GetName().Code(), filesByHash)
 			if err != nil {
 				log.Printf("[buddy:upstream] failed to update local cache: %v\n", err)
 			}

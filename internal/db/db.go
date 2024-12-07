@@ -3,8 +3,6 @@ package db
 import (
 	"database/sql"
 	"log"
-	"strconv"
-	"strings"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -16,27 +14,6 @@ var dialect string
 
 var CurrentTimestamp string
 
-func adaptQuery(query string) string {
-	if dialect == "sqlite" {
-		return query
-	}
-
-	var q strings.Builder
-	pos := 1
-
-	for _, char := range query {
-		if char == '?' {
-			q.WriteRune('$')
-			q.WriteString(strconv.Itoa(pos))
-			pos++
-		} else {
-			q.WriteRune(char)
-		}
-	}
-
-	return q.String()
-}
-
 func Exec(query string, args ...any) (sql.Result, error) {
 	return db.Exec(adaptQuery(query), args...)
 }
@@ -47,6 +24,30 @@ func Query(query string, args ...any) (*sql.Rows, error) {
 
 func QueryRow(query string, args ...any) *sql.Row {
 	return db.QueryRow(adaptQuery(query), args...)
+}
+
+type Tx struct {
+	tx *sql.Tx
+}
+
+func (tx *Tx) Commit() error {
+	return tx.tx.Commit()
+}
+
+func (tx *Tx) Exec(query string, args ...any) (sql.Result, error) {
+	return tx.tx.Exec(adaptQuery(query), args...)
+}
+
+func (tx *Tx) Rollback() error {
+	return tx.tx.Rollback()
+}
+
+func Begin() (*Tx, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	return &Tx{tx: tx}, nil
 }
 
 func Ping() {
@@ -95,6 +96,6 @@ func Open() *sql.DB {
 	return db
 }
 
-func Close() {
-	db.Close()
+func Close() error {
+	return db.Close()
 }
