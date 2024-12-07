@@ -45,6 +45,7 @@ const (
 	ErrorCodeTooManyRequests
 	ErrorCodeInfringingFile
 	ErrorCodeFairUsageLimit
+	ErrorCodeDisabledEndpoint
 )
 
 var errorCodeByErrorCode = map[ErrorCode]core.ErrorCode{
@@ -85,6 +86,7 @@ var errorCodeByErrorCode = map[ErrorCode]core.ErrorCode{
 	ErrorCodeTooManyRequests:                core.ErrorCodeTooManyRequests,
 	ErrorCodeInfringingFile:                 core.ErrorCodeUnavailableForLegalReasons,
 	ErrorCodeFairUsageLimit:                 core.ErrorCodeStoreLimitExceeded,
+	ErrorCodeDisabledEndpoint:               core.ErrorCodeNotFound,
 }
 
 func TranslateErrorCode(errorCode ErrorCode) core.ErrorCode {
