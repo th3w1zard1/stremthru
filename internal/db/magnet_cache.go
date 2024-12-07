@@ -192,6 +192,8 @@ func TouchMagnetCaches(store store.StoreCode, filesByHash map[string]MagnetCache
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
+
 	if hit_count > 0 {
 		hit_buf.WriteString(" ON CONFLICT (store, hash) DO UPDATE SET is_cached = excluded.is_cached, files = excluded.files, modified_at = " + CurrentTimestamp)
 		_, err := tx.Exec(hit_buf.String(), hit_args...)

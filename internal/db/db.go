@@ -54,8 +54,9 @@ func Ping() {
 	if err != nil {
 		log.Fatalf("[db] failed to ping: %v\n", err)
 	}
-	_, err = Query("SELECT 1")
-	if err != nil {
+	one := 0
+	row := QueryRow("SELECT 1")
+	if err := row.Scan(&one); err != nil {
 		log.Fatalf("[db] failed to query: %v\n", err)
 	}
 }
@@ -83,13 +84,9 @@ func Open() *sql.DB {
 	db = database
 
 	if dialect == "sqlite" {
-		result := db.QueryRow("PRAGMA journal_mode=WAL")
-		if err := result.Err(); err != nil {
-			log.Fatalf("[db] failed to enable WAL mode: %v\n", err)
-		}
+		result := QueryRow("PRAGMA journal_mode=WAL")
 		journal_mode := ""
-		err := result.Scan(&journal_mode)
-		if err != nil {
+		if err := result.Scan(&journal_mode); err != nil {
 			log.Fatalf("[db] failed to enable WAL mode: %v\n", err)
 		}
 		log.Printf("[db] journal_mode: %v\n", journal_mode)
