@@ -43,7 +43,7 @@ inspect)
   $atlas schema inspect -u "${db_url}" "${@}"
   ;;
 migrate)
-  echo_err \$ schema apply -u "\${STREMTHRU_DATABASE_URI}" --file "${schema_file}" "${@}"
+  echo_err \$ atlas schema apply -u "\${STREMTHRU_DATABASE_URI}" --file "${schema_file}" "${@}"
   echo_err
   $atlas schema apply -u "${db_url}" --file "${schema_file}" "${@}"
   ;;
