@@ -46,7 +46,7 @@ table "peer_token" {
   }
   column "created_at" {
     null = false
-    type = datetime
+    type = timestamptz
     default = sql("current_timestamp")
   }
   primary_key {
