@@ -22,8 +22,13 @@ run:
 
 docker-build:
 	docker buildx build \
+		--file Dockerfile \
 		--platform linux/amd64,linux/arm64 \
-		-t $(DOCKER_ID)/$(NAME) .
+		-t $(DOCKER_ID)/$(NAME):latest .
+	docker buildx build \
+		--file heavy.Dockerfile \
+		--platform linux/amd64,linux/arm64 \
+		-t $(DOCKER_ID)/$(NAME):latest-heavy .
 
 docker-run:
 	docker run --rm -it --name $(NAME) \

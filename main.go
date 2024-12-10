@@ -16,9 +16,10 @@ func main() {
 	endpoint.AddProxyEndpoints(mux)
 	endpoint.AddStoreEndpoints(mux)
 
-	db.Open()
+	database := db.Open()
 	defer db.Close()
 	db.Ping()
+	RunSchemaMigration(database.URI)
 
 	addr := ":" + config.Port
 	server := &http.Server{Addr: addr, Handler: mux}

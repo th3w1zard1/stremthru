@@ -3,13 +3,19 @@ package db
 import (
 	"database/sql"
 	"log"
+	"net/url"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var db *sql.DB
+type DB struct {
+	*sql.DB
+	URI ConnectionURI
+}
+
+var db *DB
 var dialect string
 
 var CurrentTimestamp string
@@ -62,27 +68,35 @@ func Ping() {
 	}
 }
 
-func Open() *sql.DB {
+func Open() *DB {
 	uri, err := ParseConnectionURI(config.DatabaseURI)
 	if err != nil {
 		log.Fatalf("[db] failed to parse uri: %v\n", err)
 	}
 
-	dialect = uri.dialect
+	dialect = uri.Dialect
+	dsnModifiers := []DSNModifier{}
+
 	switch dialect {
 	case "sqlite":
 		CurrentTimestamp = "unixepoch()"
+		dsnModifiers = append(dsnModifiers, func(u *url.URL, q *url.Values) {
+			u.Scheme = "file"
+		})
 	case "postgres":
 		CurrentTimestamp = "current_timestamp"
 	default:
 		log.Fatalf("[db] unsupported dialect: %v\n", dialect)
 	}
 
-	database, err := sql.Open(uri.driverName, uri.connectionString)
+	database, err := sql.Open(uri.driverName, uri.DSN(dsnModifiers...))
 	if err != nil {
 		log.Fatalf("[db] failed to open: %v\n", err)
 	}
-	db = database
+	db = &DB{
+		DB:  database,
+		URI: uri,
+	}
 
 	return db
 }
