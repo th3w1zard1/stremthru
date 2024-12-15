@@ -161,6 +161,7 @@ class AddMagnetDataFile(TypedDict):
 
 
 class AddMagnetData(TypedDict):
+    added_at: str
     files: list[AddMagnetDataFile]
     hash: str
     id: str
@@ -199,6 +200,7 @@ class GetMagnetDataFile(TypedDict):
 
 
 class GetMagnetData(TypedDict):
+    added_at: str
     files: list[GetMagnetDataFile]
     hash: str
     id: str
@@ -216,6 +218,7 @@ class GetUserData(TypedDict):
 
 
 class ListMagnetsDataItem(TypedDict):
+    added_at: str
     hash: str
     id: str
     name: str
