@@ -43,6 +43,7 @@ class StremThruStore {
     magnet: string;
   }) {
     return await this.#client.request<{
+      added_at: string;
       files: Array<{
         index: number;
         link: string;
@@ -98,6 +99,7 @@ class StremThruStore {
 
   async getMagnet(magnetId: string) {
     return await this.#client.request<{
+      added_at: string;
       files: Array<{
         index: number;
         link: string;
@@ -138,6 +140,7 @@ class StremThruStore {
     }
     return await this.#client.request<{
       items: Array<{
+        added_at: string;
         hash: string;
         id: string;
         name: string;
