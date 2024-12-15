@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 )
@@ -158,6 +159,19 @@ type GetTorrentInfoData struct {
 	Seeders          int                      `json:"seeders,omitempty"` // Seeders, only present in specific statuses
 }
 
+func toAddedAt(added string) time.Time {
+	added_at, err := time.Parse(time.RFC3339, added)
+	if err != nil {
+		return time.Unix(0, 0).UTC()
+	}
+	return added_at.UTC()
+
+}
+
+func (t GetTorrentInfoData) GetAddedAt() time.Time {
+	return toAddedAt(t.Added)
+}
+
 type GetTorrentInfoParams struct {
 	Ctx
 	Id string
@@ -183,6 +197,10 @@ type ListTorrentsDataItem struct {
 	Ended    string        `json:"ended,omitempty"`   // Only present when finished, jsonDate format
 	Speed    int64         `json:"speed,omitempty"`   // Only present in "downloading", "compressing", or "uploading" statuses
 	Seeders  int           `json:"seeders,omitempty"` // Only present in "downloading" or "magnet_conversion" statuses
+}
+
+func (t ListTorrentsDataItem) GetAddedAt() time.Time {
+	return toAddedAt(t.Added)
 }
 
 type ListTorrentsData = []ListTorrentsDataItem

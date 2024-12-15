@@ -1,6 +1,8 @@
 package store
 
 import (
+	"time"
+
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/request"
 )
@@ -110,12 +112,13 @@ type CheckMagnetData struct {
 }
 
 type AddMagnetData struct {
-	Id     string       `json:"id"`
-	Hash   string       `json:"hash"`
-	Magnet string       `json:"magnet"`
-	Name   string       `json:"name"`
-	Status MagnetStatus `json:"status"`
-	Files  []MagnetFile `json:"files"`
+	Id      string       `json:"id"`
+	Hash    string       `json:"hash"`
+	Magnet  string       `json:"magnet"`
+	Name    string       `json:"name"`
+	Status  MagnetStatus `json:"status"`
+	Files   []MagnetFile `json:"files"`
+	AddedAt time.Time    `json:"added_at"`
 }
 
 type AddMagnetParams struct {
@@ -125,11 +128,12 @@ type AddMagnetParams struct {
 }
 
 type GetMagnetData struct {
-	Id     string       `json:"id"`
-	Name   string       `json:"name"`
-	Hash   string       `json:"hash"`
-	Status MagnetStatus `json:"status"`
-	Files  []MagnetFile `json:"files"`
+	Id      string       `json:"id"`
+	Name    string       `json:"name"`
+	Hash    string       `json:"hash"`
+	Status  MagnetStatus `json:"status"`
+	Files   []MagnetFile `json:"files"`
+	AddedAt time.Time    `json:"added_at"`
 }
 
 type GetMagnetParams struct {
@@ -138,10 +142,11 @@ type GetMagnetParams struct {
 }
 
 type ListMagnetsDataItem struct {
-	Id     string       `json:"id"`
-	Hash   string       `json:"hash"`
-	Name   string       `json:"name"`
-	Status MagnetStatus `json:"status"`
+	Id      string       `json:"id"`
+	Hash    string       `json:"hash"`
+	Name    string       `json:"name"`
+	Status  MagnetStatus `json:"status"`
+	AddedAt time.Time    `json:"added_at"`
 }
 
 type ListMagnetsData struct {

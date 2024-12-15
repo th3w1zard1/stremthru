@@ -1,6 +1,9 @@
 package premiumize
 
-import "net/url"
+import (
+	"net/url"
+	"time"
+)
 
 type TranscodeStatus string
 
@@ -37,6 +40,10 @@ type ListTransfersDataItem struct {
 	Src      string         `json:"src"`
 	FolderId string         `json:"folder_id"`
 	FileId   string         `json:"file_id"`
+}
+
+func (t ListTransfersDataItem) GetAddedAt() time.Time {
+	return time.Now().UTC()
 }
 
 type ListTransfersData struct {

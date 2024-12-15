@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"path"
 	"strconv"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/store"
 )
@@ -193,8 +194,16 @@ type GetMagnetStatusDataMagnet struct {
 	Seeders        int              `json:"seeders"`
 	DownloadSpeed  int              `json:"downloadSpeed"`
 	UploadSpeed    int              `json:"uploadSpeed"`
-	UploadDate     int              `json:"uploadDate"`
-	CompletionDate int              `json:"completionDate"`
+	UploadDate     int64            `json:"uploadDate"`
+	CompletionDate int64            `json:"completionDate"`
+}
+
+func (m GetMagnetStatusDataMagnet) GetAddedAt() time.Time {
+	unixSeconds := m.CompletionDate
+	if unixSeconds == 0 {
+		unixSeconds = m.UploadDate
+	}
+	return time.Unix(unixSeconds, 0).UTC()
 }
 
 type GetMagnetStatusData struct {

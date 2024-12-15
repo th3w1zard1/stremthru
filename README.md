@@ -143,7 +143,8 @@ Add manget link for download.
         "path": "string",
         "size": "int"
       }
-    ]
+    ],
+    "added_at": "datetime"
   }
 }
 ```
@@ -171,7 +172,8 @@ List mangets on user's account.
         "id": "string",
         "hash": "string",
         "name": "string",
-        "status": "MagnetStatus"
+        "status": "MagnetStatus",
+        "added_at": "datetime"
       }
     ],
     "total_items": "int"
@@ -206,7 +208,8 @@ Get manget on user's account.
         "path": "string",
         "size": "int"
       }
-    ]
+    ],
+    "added_at": "datetime"
   }
 }
 ```

@@ -262,12 +262,13 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 		Id:  t.Id,
 	})
 	data := &store.AddMagnetData{
-		Id:     t.Id,
-		Hash:   magnet.Hash,
-		Magnet: magnet.Link,
-		Name:   magnet.Name,
-		Status: m.Status,
-		Files:  m.Files,
+		Id:      t.Id,
+		Hash:    magnet.Hash,
+		Magnet:  magnet.Link,
+		Name:    magnet.Name,
+		Status:  m.Status,
+		Files:   m.Files,
+		AddedAt: m.AddedAt,
 	}
 
 	return data, nil
@@ -346,11 +347,12 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		return nil, err
 	}
 	data := &store.GetMagnetData{
-		Id:     res.Data.Id,
-		Hash:   res.Data.Hash,
-		Name:   res.Data.Filename,
-		Status: torrentStatusToMagnetStatus(res.Data.Status),
-		Files:  []store.MagnetFile{},
+		Id:      res.Data.Id,
+		Hash:    res.Data.Hash,
+		Name:    res.Data.Filename,
+		Status:  torrentStatusToMagnetStatus(res.Data.Status),
+		Files:   []store.MagnetFile{},
+		AddedAt: res.Data.GetAddedAt(),
 	}
 	totalLinks := len(res.Data.Links)
 	if data.Status == store.MagnetStatusDownloaded {
@@ -402,10 +404,11 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 	}
 	for _, t := range res.Data {
 		item := store.ListMagnetsDataItem{
-			Id:     t.Id,
-			Hash:   t.Hash,
-			Name:   t.Filename,
-			Status: torrentStatusToMagnetStatus(t.Status),
+			Id:      t.Id,
+			Hash:    t.Hash,
+			Name:    t.Filename,
+			Status:  torrentStatusToMagnetStatus(t.Status),
+			AddedAt: t.GetAddedAt(),
 		}
 		data.Items = append(data.Items, item)
 		c.addIdHashMapCache(params, item.Id, item.Hash)

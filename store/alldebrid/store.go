@@ -110,11 +110,12 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	}
 
 	data := &store.AddMagnetData{
-		Id:     strconv.Itoa(magnet.Id),
-		Hash:   magnet.Hash,
-		Magnet: magnet.Magnet,
-		Name:   magnet.Name,
-		Status: store.MagnetStatusQueued,
+		Id:      strconv.Itoa(magnet.Id),
+		Hash:    magnet.Hash,
+		Magnet:  magnet.Magnet,
+		Name:    magnet.Name,
+		Status:  store.MagnetStatusQueued,
+		AddedAt: time.Now().UTC(),
 	}
 
 	if magnet.Ready {
@@ -195,11 +196,12 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 	magnet := ms.Data
 
 	data := &store.GetMagnetData{
-		Id:     strconv.Itoa(magnet.Id),
-		Hash:   magnet.Hash,
-		Name:   magnet.Filename,
-		Status: statusCodeToMangetStatus(magnet.StatusCode),
-		Files:  []store.MagnetFile{},
+		Id:      strconv.Itoa(magnet.Id),
+		Hash:    magnet.Hash,
+		Name:    magnet.Filename,
+		Status:  statusCodeToMangetStatus(magnet.StatusCode),
+		Files:   []store.MagnetFile{},
+		AddedAt: magnet.GetAddedAt(),
 	}
 
 	for _, f := range magnet.GetFiles() {
@@ -228,10 +230,11 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 		items := []store.ListMagnetsDataItem{}
 		for _, magnet := range res.Data.Magnets {
 			item := &store.ListMagnetsDataItem{
-				Id:     strconv.Itoa(magnet.Id),
-				Hash:   magnet.Hash,
-				Name:   magnet.Filename,
-				Status: statusCodeToMangetStatus(magnet.StatusCode),
+				Id:      strconv.Itoa(magnet.Id),
+				Hash:    magnet.Hash,
+				Name:    magnet.Filename,
+				Status:  statusCodeToMangetStatus(magnet.StatusCode),
+				AddedAt: magnet.GetAddedAt(),
 			}
 
 			items = append(items, *item)

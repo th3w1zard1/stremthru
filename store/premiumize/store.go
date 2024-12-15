@@ -310,12 +310,13 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 		}
 
 		data := &store.AddMagnetData{
-			Id:     id,
-			Hash:   magnet.Hash,
-			Magnet: magnet.Link,
-			Name:   magnet.Name,
-			Status: store.MagnetStatusDownloaded,
-			Files:  cm.Files,
+			Id:      id,
+			Hash:    magnet.Hash,
+			Magnet:  magnet.Link,
+			Name:    magnet.Name,
+			Status:  store.MagnetStatusDownloaded,
+			Files:   cm.Files,
+			AddedAt: time.Now().UTC(),
 		}
 
 		c.listMagnetsCache.Remove(c.getCacheKey(params, ""))
@@ -339,11 +340,12 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	}
 
 	data := &store.AddMagnetData{
-		Id:     ct_res.Data.Id,
-		Hash:   magnet.Hash,
-		Magnet: magnet.Link,
-		Name:   ct_res.Data.Name,
-		Status: store.MagnetStatusQueued,
+		Id:      ct_res.Data.Id,
+		Hash:    magnet.Hash,
+		Magnet:  magnet.Link,
+		Name:    ct_res.Data.Name,
+		Status:  store.MagnetStatusQueued,
+		AddedAt: time.Now().UTC(),
 	}
 
 	transfer, err := getTransferById(c, params.APIKey, data.Id)
@@ -396,11 +398,12 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 			return nil, err
 		}
 		data := &store.GetMagnetData{
-			Id:     params.Id,
-			Hash:   magnet.Hash,
-			Name:   "",
-			Status: store.MagnetStatusDownloaded,
-			Files:  files,
+			Id:      params.Id,
+			Hash:    magnet.Hash,
+			Name:    "",
+			Status:  store.MagnetStatusDownloaded,
+			Files:   files,
+			AddedAt: time.Now().UTC(),
 		}
 
 		return data, nil
@@ -422,10 +425,11 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		return nil, err
 	}
 	data := &store.GetMagnetData{
-		Id:     transfer.Id,
-		Hash:   magnet.Hash,
-		Name:   transfer.Name,
-		Status: getMagnetStatsForTransfer(transfer),
+		Id:      transfer.Id,
+		Hash:    magnet.Hash,
+		Name:    transfer.Name,
+		Status:  getMagnetStatsForTransfer(transfer),
+		AddedAt: transfer.GetAddedAt(),
 	}
 
 	if transfer.Status == TransferStatusFinished {
@@ -463,10 +467,11 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 
 		for _, m := range sf_res.Data.Content {
 			item := &store.ListMagnetsDataItem{
-				Id:     m.Name,
-				Hash:   CachedMagnetId(m.Name).toHash(),
-				Name:   "",
-				Status: store.MagnetStatusDownloaded,
+				Id:      m.Name,
+				Hash:    CachedMagnetId(m.Name).toHash(),
+				Name:    "",
+				Status:  store.MagnetStatusDownloaded,
+				AddedAt: m.GetAddedAt(),
 			}
 
 			items = append(items, *item)
@@ -478,10 +483,11 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 				return nil, err
 			}
 			item := &store.ListMagnetsDataItem{
-				Id:     t.Id,
-				Hash:   magnet.Hash,
-				Name:   t.Name,
-				Status: getMagnetStatsForTransfer(&t),
+				Id:      t.Id,
+				Hash:    magnet.Hash,
+				Name:    t.Name,
+				Status:  getMagnetStatsForTransfer(&t),
+				AddedAt: t.GetAddedAt(),
 			}
 
 			items = append(items, *item)

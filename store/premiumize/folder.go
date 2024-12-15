@@ -1,6 +1,9 @@
 package premiumize
 
-import "net/url"
+import (
+	"net/url"
+	"time"
+)
 
 type VirusScan string
 
@@ -28,12 +31,16 @@ type ListFolderDataContentItem struct {
 	Name            string          `json:"name"`
 	Type            FolderItemType  `json:"type"`
 	Size            int             `json:"size"`
-	CreatedAt       int             `json:"created_at"`
+	CreatedAt       int64           `json:"created_at"`
 	MimeType        string          `json:"mime_type"`
 	TranscodeStatus TranscodeStatus `json:"transcode_status"`
 	Link            string          `json:"link"`
 	StreamLink      string          `json:"stream_link"`
 	VirusScan       VirusScan       `json:"virus_scan"`
+}
+
+func (c ListFolderDataContentItem) GetAddedAt() time.Time {
+	return time.Unix(c.CreatedAt, 0).UTC()
 }
 
 type ListFoldersData struct {

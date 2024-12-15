@@ -97,12 +97,13 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	t := res.Data
 
 	data := &store.AddMagnetData{
-		Id:     t.Id,
-		Hash:   t.HashString,
-		Magnet: magnet.Link,
-		Name:   t.Name,
-		Status: store.MagnetStatusQueued,
-		Files:  []store.MagnetFile{},
+		Id:      t.Id,
+		Hash:    t.HashString,
+		Magnet:  magnet.Link,
+		Name:    t.Name,
+		Status:  store.MagnetStatusQueued,
+		Files:   []store.MagnetFile{},
+		AddedAt: t.GetAddedAt(),
 	}
 
 	if t.DownloadPercent == 100 {
@@ -139,11 +140,12 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 	}
 	t := res.Data.Value[0]
 	data := &store.GetMagnetData{
-		Id:     t.Id,
-		Hash:   t.HashString,
-		Name:   t.Name,
-		Status: store.MagnetStatusUnknown,
-		Files:  []store.MagnetFile{},
+		Id:      t.Id,
+		Hash:    t.HashString,
+		Name:    t.Name,
+		Status:  store.MagnetStatusUnknown,
+		Files:   []store.MagnetFile{},
+		AddedAt: t.GetAddedAt(),
 	}
 	if t.DownloadPercent == 100 {
 		data.Status = store.MagnetStatusDownloaded
@@ -204,10 +206,11 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 
 		for _, t := range resItems[:min(totalResItems, remainingItems)] {
 			item := &store.ListMagnetsDataItem{
-				Id:     t.Id,
-				Hash:   t.HashString,
-				Name:   t.Name,
-				Status: store.MagnetStatusUnknown,
+				Id:      t.Id,
+				Hash:    t.HashString,
+				Name:    t.Name,
+				Status:  store.MagnetStatusUnknown,
+				AddedAt: t.GetAddedAt(),
 			}
 			if t.DownloadPercent == 100 {
 				item.Status = store.MagnetStatusDownloaded

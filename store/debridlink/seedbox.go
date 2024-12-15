@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type SeedboxTorrentFile struct {
@@ -36,10 +37,14 @@ type SeedboxTorrent struct {
 	Files           []SeedboxTorrentFile    `json:"files"`
 	Trackers        []SeedboxTorrentTracker `json:"trackers"`
 	IsZip           bool                    `json:"isZip"`
-	Created         int                     `json:"created"`
+	Created         int64                   `json:"created"`
 	DownloadPercent int                     `json:"downloadPercent"`
 	DownloadSpeed   int                     `json:"downloadSpeed"`
 	UploadSpeed     int                     `json:"uploadSpeed"`
+}
+
+func (t SeedboxTorrent) GetAddedAt() time.Time {
+	return time.Unix(t.Created, 0).UTC()
 }
 
 type SeedboxTorrentStructureType string

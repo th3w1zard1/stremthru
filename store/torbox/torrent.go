@@ -3,6 +3,7 @@ package torbox
 import (
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 )
@@ -131,6 +132,14 @@ type Torrent struct {
 	Availability     int                  `json:"availability"`
 }
 
+func (t Torrent) GetAddedAt() time.Time {
+	added_at, err := time.Parse(time.RFC3339, t.CreatedAt)
+	if err != nil {
+		return time.Unix(0, 0).UTC()
+	}
+	return added_at.UTC()
+}
+
 type ListTorrentsData []Torrent
 
 type ListTorrentsParams struct {
@@ -158,7 +167,7 @@ func (c APIClient) ListTorrents(params *ListTorrentsParams) (APIResponse[ListTor
 	return newAPIResponse(res, response.Data, response.Detail), err
 }
 
-type GetTorrentData Torrent
+type GetTorrentData = Torrent
 
 type GetTorrentParams struct {
 	Ctx
