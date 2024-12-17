@@ -1,6 +1,9 @@
 package stremio_store
 
-import "github.com/MunifTanjim/stremthru/stremio"
+import (
+	"github.com/MunifTanjim/stremthru/internal/config"
+	"github.com/MunifTanjim/stremthru/stremio"
+)
 
 const CATALOG_ID = "st:store"
 const ID_PREFIX = CATALOG_ID + ":"
@@ -19,7 +22,7 @@ func getManifest(ud *UserData) *stremio.Manifest {
 		ID:          "dev.muniftanjim.stremthru.store",
 		Name:        "Store",
 		Description: "StremThru Store Catalog",
-		Version:     "0.0.0", // x-release-please-version
+		Version:     config.Version,
 		Resources: []stremio.Resource{
 			stremio.Resource{
 				Name:       stremio.ResourceNameMeta,

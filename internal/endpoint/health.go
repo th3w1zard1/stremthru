@@ -63,16 +63,18 @@ type HealthDebugDataUser struct {
 }
 
 type HealthDebugData struct {
-	Time string               `json:"time"`
-	User *HealthDebugDataUser `json:"user,omitempty"`
-	IP   *HealthDebugDataIP   `json:"ip,omitempty"`
+	Time    string               `json:"time"`
+	Version string               `json:"version"`
+	User    *HealthDebugDataUser `json:"user,omitempty"`
+	IP      *HealthDebugDataIP   `json:"ip,omitempty"`
 }
 
 func handleHealthDebug(w http.ResponseWriter, r *http.Request) {
 	ctx := context.GetRequestContext(r)
 
 	data := &HealthDebugData{
-		Time: time.Now().Format(time.RFC3339),
+		Time:    time.Now().Format(time.RFC3339),
+		Version: config.Version,
 	}
 
 	if ctx.IsProxyAuthorized {

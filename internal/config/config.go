@@ -101,6 +101,7 @@ type Config struct {
 	RedisURI          string
 	DatabaseURI       string
 	StremioAddon      StremioAddonConfig
+	Version           string
 }
 
 func parseUri(uri string) (parsedUrl, parsedToken string) {
@@ -177,6 +178,7 @@ var config = func() Config {
 		RedisURI:          getEnv("STREMTHRU_REDIS_URI", ""),
 		DatabaseURI:       databaseUri,
 		StremioAddon:      stremioAddon,
+		Version:           "0.0.0", // x-release-please-version
 	}
 }()
 
@@ -191,3 +193,4 @@ var HasPeer = config.HasPeer
 var RedisURI = config.RedisURI
 var DatabaseURI = config.DatabaseURI
 var StremioAddon = config.StremioAddon
+var Version = config.Version
