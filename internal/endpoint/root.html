@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <title>{{.Title}}</title>
+
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 48px;
+      }
+
+      .container {
+        max-width: 500px;
+      }
+    </style>
+  </head>
+
+  <body class="container">
+    <header>
+      <h1>
+        {{.Title}}
+        <small>
+          <sup>v{{.Version}}</sup>
+        </small>
+      </h1>
+    </header>
+
+    <main>
+      {{if gt (.Addons | len) 0}}
+      <section>
+        <h2>Stremio Addons</h2>
+        <ul>
+          {{range .Addons}}
+          <li>
+            <a href="{{.URL}}">{{.Name}}</a>
+          </li>
+          {{end}}
+        </ul>
+      </section>
+      {{end}}
+    </main>
+
+    <footer>
+    </footer>
+  </body>
+</html>

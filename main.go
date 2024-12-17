@@ -12,6 +12,7 @@ import (
 func main() {
 	mux := http.NewServeMux()
 
+	endpoint.AddRootEndpoint(mux)
 	endpoint.AddHealthEndpoints(mux)
 	endpoint.AddProxyEndpoints(mux)
 	endpoint.AddStoreEndpoints(mux)
