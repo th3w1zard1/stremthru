@@ -34,6 +34,7 @@ func getManifest(ud *UserData) *stremio.Manifest {
 				IDPrefixes: []string{ID_PREFIX},
 			},
 		},
+		Types: []stremio.ContentType{},
 		Catalogs: []stremio.Catalog{
 			stremio.Catalog{
 				Id:   CATALOG_ID,
