@@ -46,7 +46,7 @@ type userDataError struct {
 	storeName  string
 }
 
-func (uderr userDataError) Error() string {
+func (uderr *userDataError) Error() string {
 	var str strings.Builder
 	hasSome := false
 	if uderr.storeName != "" {
@@ -64,7 +64,7 @@ func (uderr userDataError) Error() string {
 	return str.String()
 }
 
-func (ud UserData) GetRequestContext(r *http.Request) (*context.RequestContext, *userDataError) {
+func (ud UserData) GetRequestContext(r *http.Request) (*context.RequestContext, error) {
 	ctx := &context.RequestContext{}
 
 	storeName := ud.StoreName
@@ -224,13 +224,18 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ctx, uderr := ud.GetRequestContext(r)
-	if uderr != nil {
-		if uderr.storeName != "" {
-			name_config.Error = uderr.storeName
-		}
-		if uderr.storeToken != "" {
-			token_config.Error = uderr.storeToken
+	ctx, err := ud.GetRequestContext(r)
+	if err != nil {
+		if uderr, ok := err.(*userDataError); ok {
+			if uderr.storeName != "" {
+				name_config.Error = uderr.storeName
+			}
+			if uderr.storeToken != "" {
+				token_config.Error = uderr.storeToken
+			}
+		} else {
+			SendError(w, err)
+			return
 		}
 	}
 
