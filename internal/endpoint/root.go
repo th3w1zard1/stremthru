@@ -54,5 +54,5 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddRootEndpoint(mux *http.ServeMux) {
-	mux.HandleFunc("/", handleRoot)
+	mux.HandleFunc("/{$}", handleRoot)
 }
