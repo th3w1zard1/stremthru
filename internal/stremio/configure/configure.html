@@ -45,9 +45,9 @@
 
         {{if ne .ManifestURL ""}}
         <div id="manifest_url_section">
-          <label for="manifest_url">Manifest URL</label>
+          <label for="__manifest_url__">Manifest URL</label>
           <fieldset role="group">
-            <input id="manifest_url" value="{{.ManifestURL}}" readonly />
+            <input id="__manifest_url__" value="{{.ManifestURL}}" readonly />
             <button type="button" onclick="copyManifestUrl()">Copy</button>
           </fieldset>
         </div>
@@ -57,7 +57,7 @@
 
     <script>
       function copyManifestUrl() {
-        const manifestUrl = document.querySelector("input#manifest_url")?.value;
+        const manifestUrl = document.querySelector("input#__manifest_url__")?.value;
         if (!manifestUrl) {
           return;
         }
