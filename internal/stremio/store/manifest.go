@@ -1,7 +1,11 @@
 package stremio_store
 
 import (
+	"strings"
+
+	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
+	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
 
@@ -18,10 +22,21 @@ const (
 )
 
 func getManifest(ud *UserData) *stremio.Manifest {
+	name := "Store"
+	description := "StremThru Store Catalog and Search"
+	switch ud.StoreName {
+	case "":
+	case "stremthru":
+	default:
+		name = name + " | " + strings.ToUpper(string(store.StoreName(ud.StoreName).Code()))
+		description = description + " - " + ud.StoreName
+	}
+
+	contactEmail, _ := core.Base64Decode("Z2l0aHViQG11bmlmdGFuamltLmRldg==")
 	manifest := &stremio.Manifest{
 		ID:          "dev.muniftanjim.stremthru.store",
-		Name:        "Store",
-		Description: "StremThru Store Catalog",
+		Name:        name,
+		Description: description,
 		Version:     config.Version,
 		Resources: []stremio.Resource{
 			stremio.Resource{
@@ -54,7 +69,7 @@ func getManifest(ud *UserData) *stremio.Manifest {
 				},
 			},
 		},
-		ContactEmail: "github@muniftanjim.dev",
+		ContactEmail: contactEmail,
 		BehaviorHints: &stremio.BehaviorHints{
 			Configurable:          true,
 			ConfigurationRequired: !ud.HasRequiredValues(),
