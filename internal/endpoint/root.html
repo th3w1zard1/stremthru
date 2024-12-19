@@ -4,11 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%2210 0 100 100%22><text y=%22.90em%22 font-size=%2290%22>✨</text></svg>"></link>
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
     />
     <title>{{.Title}}</title>
+    <meta name="description" content="✨ Companion for Stremio ✨" />
 
     <style>
       body {
@@ -22,30 +24,49 @@
       .container {
         max-width: 500px;
       }
+
+      .center {
+        text-align: center;
+      }
     </style>
   </head>
 
   <body class="container">
-    <header>
+    <header class="center">
       <h1>
         {{.Title}}
         <small>
           <sup>v{{.Version}}</sup>
         </small>
       </h1>
+      <div>
+        <p>✨ Companion for Stremio ✨</p>
+
+        {{.Description}}
+      </div>
     </header>
 
     <main>
       {{if gt (.Addons | len) 0}}
       <section>
         <h2>Stremio Addons</h2>
-        <ul>
-          {{range .Addons}}
-          <li>
-            <a href="{{.URL}}">{{.Name}}</a>
-          </li>
-          {{end}}
-        </ul>
+        <div>
+          <ul>
+            {{range .Addons}}
+            <li>
+              <a href="{{.URL}}">{{.Name}}</a>
+            </li>
+            {{end}}
+          </ul>
+        </div>
+      </section>
+      {{end}}
+      {{range .Sections}}
+      <section>
+        <h2>{{.Title}}</h2>
+        <div>
+          {{.Content}}
+        </div>
       </section>
       {{end}}
     </main>
