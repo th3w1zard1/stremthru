@@ -86,6 +86,11 @@
           evt.detail.elt.querySelector("button[type='submit']").ariaBusy = true;
         }
       });
+      htmx.on("htmx:afterRequest", function(evt) {
+        if (evt.detail.elt.id === "configuration") {
+          evt.detail.elt.querySelector("button[type='submit']").ariaBusy = false;
+        }
+      });
       htmx.on("form#configuration", "change", function(evt) {
         document.querySelector('#manifest_url_section')?.remove();
       }, { once: true });
