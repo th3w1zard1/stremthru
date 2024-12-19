@@ -126,6 +126,10 @@ func getUserData(r *http.Request) (*UserData, error) {
 	return data, nil
 }
 
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/stremio/store/configure", http.StatusFound)
+}
+
 func handleManifest(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
 		shared.ErrorMethodNotAllowed(r).Send(w)
@@ -163,11 +167,12 @@ func getTemplateData() *configure.TemplateData {
 				Required: false,
 			},
 			configure.Config{
-				Key:      "store_token",
-				Type:     "password",
-				Default:  "",
-				Title:    "Store Token",
-				Required: true,
+				Key:         "store_token",
+				Type:        "password",
+				Default:     "",
+				Title:       "Store Token",
+				Description: `StremThru Basic Auth Token (base64) from <a href="https://github.com/MunifTanjim/stremthru?tab=readme-ov-file#configuration" target="_blank"><code>STREMTHRU_PROXY_AUTH</code></a> or API Key for selected Store`,
+				Required:    true,
 			},
 		},
 	}
@@ -729,6 +734,9 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddStremioStoreEndpoints(mux *http.ServeMux) {
+	mux.HandleFunc("/stremio/store", handleRoot)
+	mux.HandleFunc("/stremio/store/{$}", handleRoot)
+
 	mux.HandleFunc("/stremio/store/manifest.json", handleManifest)
 	mux.HandleFunc("/stremio/store/{userData}/manifest.json", handleManifest)
 

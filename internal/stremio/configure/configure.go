@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"embed"
 	"html/template"
+
+	"github.com/MunifTanjim/stremthru/internal/config"
 )
 
 type ConfigType string
@@ -22,17 +24,19 @@ type ConfigOption struct {
 }
 
 type Config struct {
-	Key      string
-	Type     ConfigType
-	Default  string
-	Title    string
-	Options  []ConfigOption
-	Required bool
-	Error    string
+	Key         string
+	Type        ConfigType
+	Default     string
+	Title       string
+	Description template.HTML
+	Options     []ConfigOption
+	Required    bool
+	Error       string
 }
 
 type TemplateData struct {
 	Title       string
+	Version     string
 	Configs     []Config
 	Error       string
 	ManifestURL string
@@ -56,6 +60,7 @@ var templateFs embed.FS
 var ExecuteTemplate = func() TemplateExecutor {
 	tmpl := template.Must(template.ParseFS(templateFs, "*.html"))
 	return func(data *TemplateData, name string) (bytes.Buffer, error) {
+		data.Version = config.Version
 		var buf bytes.Buffer
 		err := tmpl.ExecuteTemplate(&buf, name, data)
 		return buf, err

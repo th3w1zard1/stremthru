@@ -60,7 +60,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	if config.StremioAddon.IsEnabled("store") {
 		td.Addons = append(td.Addons, rootTemplateDataAddon{
 			Name: "Store",
-			URL:  "/stremio/store/configure",
+			URL:  "/stremio/store",
 		})
 	}
 

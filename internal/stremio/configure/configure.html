@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%2210 0 100 100%22><text y=%22.90em%22 font-size=%2290%22>✨</text></svg>"></link>
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
@@ -14,10 +15,27 @@
       crossorigin="anonymous"
     ></script>
     <title>{{.Title}}</title>
+
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 48px;
+      }
+    </style>
   </head>
-  <body>
-    <main class="container">
-      <h1>{{.Title}}</h1>
+  <body class="container">
+    <header>
+      <h1>
+        {{.Title}}
+        <small>
+          <sup>v{{.Version}}</sup>
+        </small>
+      </h1>
+    </header>
+    <main>
       <form id="configuration" action="configure" method="post" hx-boost="true">
         {{range .Configs}}
           {{template "configure_config.html" .}}
