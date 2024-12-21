@@ -44,13 +44,18 @@ type Catalog struct {
 	Id    string         `json:"id"`
 	Name  string         `json:"name"`
 	Extra []CatalogExtra `json:"extra,omitempty"`
+
+	Genres         []string `json:"genres,omitempty"`         //legacy
+	ExtraSupported []string `json:"extraSupported,omitempty"` // legacy
+	ExtraRequired  []string `json:"extraRequired,omitempty"`  // legacy
 }
 
 type BehaviorHints struct {
-	Adult                 bool `json:"adult,omitempty"`
-	P2P                   bool `json:"p2p,omitempty"`
-	Configurable          bool `json:"configurable,omitempty"`
-	ConfigurationRequired bool `json:"configurationRequired,omitempty"`
+	Adult                   bool `json:"adult,omitempty"`
+	P2P                     bool `json:"p2p,omitempty"`
+	Configurable            bool `json:"configurable,omitempty"`
+	ConfigurationRequired   bool `json:"configurationRequired,omitempty"`
+	NewEpisodeNotifications bool `json:"newEpisodeNotifications,omitempty"` // undocumented
 }
 
 func (r *Resource) UnmarshalJSON(data []byte) error {
@@ -78,7 +83,8 @@ type Manifest struct {
 	Types      []ContentType `json:"types"`
 	IDPrefixes []string      `json:"idPrefixes,omitempty"`
 
-	Catalogs []Catalog `json:"catalogs"`
+	AddonCatalogs []Catalog `json:"addonCatalogs,omitempty"`
+	Catalogs      []Catalog `json:"catalogs"`
 
 	Background    string         `json:"background,omitempty"`
 	Logo          string         `json:"logo,omitempty"`
