@@ -297,9 +297,21 @@ The generated direct link should be valid for 24 hours.
 
 #### Store
 
-`/stremio/store/configure`
+`/stremio/store`
 
-StremThru Store Catalog.
+Store Catalog and Search.
+
+#### Wrap
+
+`/stremio/wrap`
+
+Wrap another Addon with StremThru.
+
+#### Sidekick
+
+`/stremio/sidekick`
+
+Extra Features for Stremio.
 
 ### Enums
 
