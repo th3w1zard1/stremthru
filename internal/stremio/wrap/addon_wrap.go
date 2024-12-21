@@ -320,7 +320,7 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 		for i := range res.Data.Streams {
 			stream := &res.Data.Streams[i]
 			if stream.URL != "" {
-				if url, err := shared.CreateProxyLink(r, ctx, stream.URL); err == nil {
+				if url, err := shared.CreateProxyLink(r, ctx, stream.URL); err == nil && url != stream.URL {
 					stream.URL = url
 					stream.Name = "✨ " + stream.Name
 				}
