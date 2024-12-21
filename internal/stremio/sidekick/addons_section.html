@@ -39,29 +39,46 @@
         {{if eq $idx 0}}disabled{{end}}
         hx-post="addons/{{.TransportUrl | url_path_escape}}/move/top"
         hx-target="#addons_section"
+        aria-label="Move to Top"
+        data-tooltip="Top"
       >
-        Top
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="32">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 18.75 7.5-7.5 7.5 7.5" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 7.5-7.5 7.5 7.5" />
+        </svg>
       </button>
       <button
         {{if eq $idx 0}}disabled{{end}}
         hx-post="addons/{{.TransportUrl | url_path_escape}}/move/up"
         hx-target="#addons_section"
+        aria-label="Move Up"
+        data-tooltip="Up"
       >
-        Up
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="32">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+        </svg>
       </button>
       <button
         {{if eq $idx $.LastAddonIndex}}disabled{{end}}
         hx-post="addons/{{.TransportUrl | url_path_escape}}/move/down"
         hx-target="#addons_section"
+        aria-label="Move Down"
+        data-tooltip="Down"
       >
-        Down
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="32">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
       </button>
       <button
         {{if eq $idx $.LastAddonIndex}}disabled{{end}}
         hx-post="addons/{{.TransportUrl | url_path_escape}}/move/bottom"
         hx-target="#addons_section"
+        aria-label="Move to Bottom"
+        data-tooltip="Bottom"
       >
-        Bottom
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="32">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 5.25 7.5 7.5 7.5-7.5m-15 6 7.5 7.5 7.5-7.5" />
+        </svg>
       </button>
     </div>
     <div id="addon_operation_toggle" role="group">
@@ -69,8 +86,19 @@
         hx-post="addons/{{.TransportUrl | url_path_escape}}/toggle"
         hx-target="#addons_section"
         {{if .Flags.Protected}}disabled{{end}}
+        class="{{if .Flags.Protected}}secondary{{end}}"
+        style="
+        {{if not (has_prefix .Manifest.ID "st:disabled:")}}
+          {{if not .Flags.Protected}}
+          --pico-background-color: #ad2201;
+          {{end}}
+        {{end}}"
       >
-        {{if (has_prefix .Manifest.ID "st:disabled:")}}Enable{{else}}Disable{{end}}
+        {{if (has_prefix .Manifest.ID "st:disabled:")}}
+          Enable
+        {{else}}
+          Disable {{if .Flags.Protected}}[Protected]{{end}}
+        {{end}}
       </button>
     </div>
   </article>
