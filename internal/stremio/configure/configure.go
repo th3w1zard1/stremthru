@@ -36,6 +36,7 @@ type Config struct {
 
 type TemplateData struct {
 	Title       string
+	Description string
 	Version     string
 	Configs     []Config
 	Error       string

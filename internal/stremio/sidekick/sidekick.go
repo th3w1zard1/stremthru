@@ -83,7 +83,8 @@ func getCookieValue(w http.ResponseWriter, r *http.Request) (*CookieValue, error
 
 func getTemplateData(cookie *CookieValue, r *http.Request) *TemplateData {
 	td := &TemplateData{
-		Title: "Stremio Sidekick",
+		Title:       "Stremio Sidekick",
+		Description: "Extra Features for Stremio",
 	}
 	if cookie != nil && !cookie.IsExpired {
 		td.IsAuthed = true

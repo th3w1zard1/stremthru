@@ -149,7 +149,8 @@ func handleManifest(w http.ResponseWriter, r *http.Request) {
 
 func getTemplateData() *configure.TemplateData {
 	return &configure.TemplateData{
-		Title: "StremThru Store",
+		Title:       "StremThru Store",
+		Description: "Stremio Addon for Store Catalog and Search",
 		Configs: []configure.Config{
 			configure.Config{
 				Key:     "store_name",

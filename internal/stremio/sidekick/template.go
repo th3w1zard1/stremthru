@@ -16,6 +16,7 @@ var templateFs embed.FS
 
 type TemplateData struct {
 	Title          string
+	Description    string
 	Version        string
 	IsAuthed       bool
 	Email          string

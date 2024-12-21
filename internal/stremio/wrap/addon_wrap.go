@@ -162,7 +162,8 @@ func handleManifest(w http.ResponseWriter, r *http.Request) {
 
 func getTemplateData() *configure.TemplateData {
 	return &configure.TemplateData{
-		Title: "StremThru Wrap",
+		Title:       "StremThru Wrap",
+		Description: "Stremio Addon to Wrap another Addon with StremThru",
 		Configs: []configure.Config{
 			configure.Config{
 				Key:         "manifest_url",
