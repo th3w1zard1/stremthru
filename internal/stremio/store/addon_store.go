@@ -257,8 +257,8 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		user, err := ctx.Store.GetUser(params)
 		if err != nil {
 			token_config.Error = "Invalid Token"
-		} else if user.SubscriptionStatus != store.UserSubscriptionStatusPremium {
-			token_config.Error = "Not Premium"
+		} else if user.SubscriptionStatus == store.UserSubscriptionStatusExpired {
+			token_config.Error = "Subscription Expired"
 		}
 	}
 
