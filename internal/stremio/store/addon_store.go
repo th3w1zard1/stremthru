@@ -159,10 +159,11 @@ func getTemplateData() *configure.TemplateData {
 				Title:   "Store Name",
 				Options: []configure.ConfigOption{
 					configure.ConfigOption{Value: "", Label: "StremThru"},
-					configure.ConfigOption{Value: "realdebrid", Label: "RealDebrid"},
 					configure.ConfigOption{Value: "alldebrid", Label: "AllDebrid"},
 					configure.ConfigOption{Value: "debridlink", Label: "DebridLink"},
+					configure.ConfigOption{Value: "offcloud", Label: "Offcloud"},
 					configure.ConfigOption{Value: "premiumize", Label: "Premiumize"},
+					configure.ConfigOption{Value: "realdebrid", Label: "RealDebrid"},
 					configure.ConfigOption{Value: "torbox", Label: "TorBox"},
 				},
 				Required: false,
@@ -172,10 +173,38 @@ func getTemplateData() *configure.TemplateData {
 				Type:        "password",
 				Default:     "",
 				Title:       "Store Token",
-				Description: `StremThru Basic Auth Token (base64) from <a href="https://github.com/MunifTanjim/stremthru?tab=readme-ov-file#configuration" target="_blank"><code>STREMTHRU_PROXY_AUTH</code></a> or API Key for selected Store`,
+				Description: "",
 				Required:    true,
 			},
 		},
+		Script: `
+function updateTokenFieldDescription() {
+  const descByName = {
+    "*": "API Key",
+    "": "StremThru Basic Auth Token (base64 encoded) from <a href='https://github.com/MunifTanjim/stremthru?tab=readme-ov-file#configuration' target='_blank'><code>STREMTHRU_PROXY_AUTH</code></a>",
+		alldebrid: "AllDebrid <a href='https://alldebrid.com/apikeys' target='_blank'>API Key</a>",
+		debridlink: "DebridLink <a href='https://debrid-link.com/webapp/apikey' target='_blank'>API Key</a>",
+		offcloud: "Offcloud <a href='https://offcloud.com/#/account' target='_blank'>credential</a> in <code>email:password</code> format, e.g. <code>john.doe@example.com:secret-password</code>",
+		premiumize: "Premiumize <a href='https://www.premiumize.me/account' target='_blank'>API Key</a>",
+		realdebrid: "RealDebrid <a href='https://real-debrid.com/apitoken' target='_blank'>API Token</a>",
+		torbox: "TorBox <a href='https://torbox.app/settings' target='_blank'>API Key</a>",
+  };
+  const nameElem = document.querySelector("#store_name");
+  if (!nameElem) {
+    return;
+  }
+  const tokenDescElem = document.querySelector("#store_token + small > span.description");
+  if (tokenDescElem) {
+    tokenDescElem.innerHTML = descByName[nameElem.value] || descByName["*"] || "";
+  }
+}
+
+updateTokenFieldDescription();
+
+document.querySelector("#store_name").addEventListener("change", (e) => {
+	updateTokenFieldDescription();
+});
+`,
 	}
 }
 

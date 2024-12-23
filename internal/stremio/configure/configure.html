@@ -24,6 +24,11 @@
         min-height: 100vh;
         padding: 48px;
       }
+      
+      a > code,
+      span > code {
+        padding: 0;
+      }
     </style>
   </head>
   <body class="container">
@@ -97,6 +102,8 @@
       htmx.on("form#configuration", "change", function(evt) {
         document.querySelector('#manifest_url_section')?.remove();
       }, { once: true });
+
+      {{.Script}}
     </script>
   </body>
 </html>

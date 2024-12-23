@@ -41,6 +41,7 @@ type TemplateData struct {
 	Configs     []Config
 	Error       string
 	ManifestURL string
+	Script      template.JS
 }
 
 func (td *TemplateData) HasError() bool {
