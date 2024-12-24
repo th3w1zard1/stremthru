@@ -11,7 +11,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/stremio/api"
 )
 
-//go:embed index.html addons_section.html
+//go:embed index.html addons_section.html login.html
 var templateFs embed.FS
 
 type TemplateData struct {
@@ -23,6 +23,14 @@ type TemplateData struct {
 	Addons         []stremio_api.Addon
 	AddonOperation string
 	LastAddonIndex int
+	Login          struct {
+		Email    string
+		Password string
+		Error    struct {
+			Email    string
+			Password string
+		}
+	}
 }
 
 type TemplateExecutor func(data *TemplateData, name string) (bytes.Buffer, error)

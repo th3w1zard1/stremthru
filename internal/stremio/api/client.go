@@ -67,9 +67,16 @@ type ResponseEnvelop interface {
 	GetError() error
 }
 
+type ErrorCode int
+
+const (
+	ErrorCodeUserNotFound    ErrorCode = 2
+	ErrorCodeWrongPassphrase ErrorCode = 3
+)
+
 type ResponseError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code    ErrorCode `json:"code"`
+	Message string    `json:"message"`
 }
 
 func (e *ResponseError) Error() string {

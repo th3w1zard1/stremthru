@@ -77,23 +77,7 @@
         {{template "addons_section.html" .}}
       </details>
       {{else}}
-        <form id="login" action="login" method="post" hx-boost="true">
-          <input 
-            name="email"
-            type="email"
-            placeholder="Email"
-            aria-label="Email"
-            autocomplete="email"
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            aria-label="Password"
-            autocomplete="current-password"
-          />
-          <button type="submit">Log In</button>
-        </form>
+        {{template "login.html" .}}
       {{end}}
     </main>
 

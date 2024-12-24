@@ -90,6 +90,10 @@ func getTemplateData(cookie *CookieValue, r *http.Request) *TemplateData {
 		td.IsAuthed = true
 		td.Email = cookie.Email()
 	}
+	if !td.IsAuthed {
+		td.Login.Email = ""
+		td.Login.Password = ""
+	}
 
 	td.AddonOperation = r.URL.Query().Get("addon_operation")
 	if td.AddonOperation == "" {
@@ -138,14 +142,31 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		Email:    email,
 		Password: password,
 	})
-	if err != nil {
-		SendError(w, err)
+	if err == nil {
+		setCookie(w, res.Data.AuthKey, res.Data.User.Email)
+		http.Redirect(w, r, "/stremio/sidekick", http.StatusFound)
 		return
 	}
 
-	setCookie(w, res.Data.AuthKey, res.Data.User.Email)
-
-	http.Redirect(w, r, "/stremio/sidekick", http.StatusFound)
+	if rerr, ok := err.(*stremio_api.ResponseError); ok {
+		td := getTemplateData(nil, r)
+		td.Login.Email = email
+		td.Login.Password = password
+		switch rerr.Code {
+		case stremio_api.ErrorCodeUserNotFound:
+			td.Login.Error.Email = rerr.Message
+		case stremio_api.ErrorCodeWrongPassphrase:
+			td.Login.Error.Password = rerr.Message
+		}
+		buf, err := ExecuteTemplate(td, "login.html")
+		if err != nil {
+			SendError(w, err)
+			return
+		}
+		SendHTML(w, 200, buf)
+	} else {
+		SendError(w, err)
+	}
 }
 
 func handleLogout(w http.ResponseWriter, r *http.Request) {
