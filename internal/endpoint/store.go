@@ -335,4 +335,5 @@ func AddStoreEndpoints(mux *http.ServeMux) {
 	mux.HandleFunc("/v0/store/magnets/{magnetId}", withStore(handleStoreMagnet))
 	mux.HandleFunc("/v0/store/link/generate", withStore(handleStoreLinkGenerate))
 	mux.HandleFunc("/v0/store/link/access/{token}", withContext(handleStoreLinkAccess))
+	mux.HandleFunc("/v0/store/link/access/{token}/{filename}", withContext(handleStoreLinkAccess))
 }

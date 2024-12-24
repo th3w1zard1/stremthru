@@ -2,6 +2,7 @@ package shared
 
 import (
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
@@ -78,6 +79,10 @@ func CreateProxyLink(r *http.Request, ctx *context.RequestContext, link string) 
 	}
 
 	proxyLink = proxyLink.JoinPath(token)
+
+	if filename := filepath.Base(link); filename != "" {
+		proxyLink = proxyLink.JoinPath(filename)
+	}
 
 	return proxyLink.String(), nil
 }
