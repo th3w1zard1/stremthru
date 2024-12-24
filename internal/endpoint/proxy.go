@@ -3,37 +3,9 @@ package endpoint
 import (
 	"net/http"
 	"net/url"
-	"strings"
 
-	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 )
-
-func parseBasicAuthToken(token string) (encoded, username, password string, ok bool) {
-	decoded := token
-
-	if strings.ContainsRune(decoded, ':') {
-		encoded = core.Base64Encode(decoded)
-	} else {
-		encoded = decoded
-		d, err := core.Base64Decode(encoded)
-		if err != nil {
-			return "", "", "", false
-		}
-		decoded = d
-	}
-
-	username, password, ok = strings.Cut(strings.TrimSpace(decoded), ":")
-
-	return encoded, username, password, ok
-}
-
-func extractProxyAuthToken(r *http.Request) (token string, hasToken bool) {
-	token = r.Header.Get("Proxy-Authorization")
-	r.Header.Del("Proxy-Authorization")
-	token = strings.TrimPrefix(token, "Basic ")
-	return token, token != ""
-}
 
 func handleProxy(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
@@ -66,7 +38,7 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddProxyEndpoints(mux *http.ServeMux) {
-	withMiddleware := Middleware(ProxyAuthContext, ProxyAuthRequired, ProxyAuthRequired)
+	withMiddleware := Middleware(ProxyAuthContext, ProxyAuthRequired)
 
 	mux.HandleFunc("/proxy", withMiddleware(handleProxy))
 	mux.HandleFunc("/v0/proxy", withMiddleware(handleProxy))

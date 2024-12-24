@@ -28,16 +28,23 @@ func Middleware(middlewares ...MiddlewareFunc) MiddlewareFunc {
 	}
 }
 
+func extractProxyAuthToken(r *http.Request) (token string, hasToken bool) {
+	token = r.Header.Get("Proxy-Authorization")
+	r.Header.Del("Proxy-Authorization")
+	token = strings.TrimPrefix(token, "Basic ")
+	return token, token != ""
+}
+
 func ProxyAuthContext(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.GetRequestContext(r)
 
 		token, hasToken := extractProxyAuthToken(r)
-		_, username, password, ok := parseBasicAuthToken(token)
+		auth, err := core.ParseBasicAuth(token)
 
-		ctx.IsProxyAuthorized = hasToken && ok && config.ProxyAuthPassword.GetPassword(username) == password
-		ctx.ProxyAuthUser = username
-		ctx.ProxyAuthPassword = password
+		ctx.IsProxyAuthorized = hasToken && err == nil && config.ProxyAuthPassword.GetPassword(auth.Username) == auth.Password
+		ctx.ProxyAuthUser = auth.Username
+		ctx.ProxyAuthPassword = auth.Password
 
 		next.ServeHTTP(w, r)
 	})
