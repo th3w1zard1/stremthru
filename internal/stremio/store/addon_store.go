@@ -697,7 +697,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleStrem(w http.ResponseWriter, r *http.Request) {
-	if !IsMethod(r, http.MethodGet) || !IsMethod(r, http.MethodHead) {
+	if !IsMethod(r, http.MethodGet) && !IsMethod(r, http.MethodHead) {
 		shared.ErrorMethodNotAllowed(r).Send(w)
 		return
 	}
