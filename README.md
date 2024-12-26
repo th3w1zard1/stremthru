@@ -20,6 +20,11 @@ Companion for Stremio.
 - [RealDebrid](https://real-debrid.com)
 - [TorBox](https://torbox.app)
 
+### SDK
+
+- [JavaScript](./sdk/js)
+- [Python](./sdk/py)
+
 ## Configuration
 
 Configuration is done using environment variables.
@@ -43,11 +48,20 @@ These will be used for proxy authorization.
 
 **`STREMTHRU_STORE_AUTH`**
 
-Comma separated list of store credentials, in `username:store_name:api_key` format.
+Comma separated list of store credentials, in `username:store_name:store_token` format.
 
 For proxy-authorized requests, these credentials will be used.
 
 If `username` is `*`, it is used as fallback for users without explicit store credentials.
+
+| Store      | `store_name` | `store_token`        |
+| ---------- | ------------ | -------------------- |
+| AllDebrid  | `alldebrid`  | `<api-key>`          |
+| DebridLink | `debridlink` | `<api-key>`          |
+| Offcloud   | `offcloud`   | `<email>:<password>` |
+| Premiumize | `premiumize` | `<api-key>`          |
+| RealDebrid | `realdebrid` | `<api-token>`        |
+| Torbox     | `torbox`     | `<api-key>`          |
 
 **`STREMTHRU_PEER_URI`**
 
@@ -55,7 +69,7 @@ URI for another StremThru instance, in format `https://:<pass>@<host>[:<port>]`.
 
 **`STREMTHRU_REDIS_URI`**
 
-URI for Redis, in format `https://<user>:<pass>@<host>[:<port>][/<db>]`.
+URI for Redis, in format `redis://<user>:<pass>@<host>[:<port>][/<db>]`.
 
 If provided, it'll be used for caching instead of in-memory storage.
 
@@ -264,6 +278,9 @@ Check manget links.
 
 If `.status` is `cached`, `.files` will have the list of files.
 
+> [!NOTE]
+> For `offcloud`, the `.files` list is always empty.
+
 If `.files[].index` is `-1`, the index of the file is unknown and you should rely on `.name` instead.
 
 If `.files[].size` is `-1`, the size of the file is unknown.
@@ -292,7 +309,8 @@ Generate direct link for a file link.
 }
 ```
 
-The generated direct link should be valid for 24 hours.
+> [!NOTE]
+> The generated direct link should be valid for 6 hours.
 
 ### Stremio Addon
 
