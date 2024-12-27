@@ -2,7 +2,7 @@
 #addons_list:not([data-operation="move"]) #addon_operation_move {
   display: none;
 }
-#addons_list:not([data-operation="toggle"]) #addon_operation_toggle {
+#addons_list:not([data-operation="manage"]) #addon_operation_manage {
   display: none;
 }
 </style>
@@ -14,7 +14,7 @@
     <select name="addon_operation" aria-label="Addon Operation" required onchange="onAddonOperationChange(this)">
       <option disabled value="">Operation</option>
       <option {{if eq .AddonOperation "move"}}selected{{end}} value="move">Move</option>
-      <option {{if eq .AddonOperation "toggle"}}selected{{end}} value="toggle">Toggle</option>
+      <option {{if eq .AddonOperation "manage"}}selected{{end}} value="manage">Manage</option>
     </select>
   </div>
   <div>
@@ -90,7 +90,7 @@
         </svg>
       </button>
     </div>
-    <div id="addon_operation_toggle" role="group">
+    <div id="addon_operation_manage" role="group">
       <button
         hx-post="addons/{{.TransportUrl | url_path_escape}}/toggle"
         hx-target="#addons_section"
@@ -109,10 +109,43 @@
           Disable {{if .Flags.Protected}}[Protected]{{end}}
         {{end}}
       </button>
+      <button
+        hx-post="addons/{{.TransportUrl | url_path_escape}}/reload"
+        hx-target="#addons_section"
+        hx-trigger="confirmed"
+        data-name="{{.Manifest.Name}}"
+        data-version="{{.Manifest.Version}}"
+        data-manifest-url="{{.TransportUrl}}"
+        data-configure-url="{{get_configure_url .}}"
+        onclick="onAddonReload(this)"
+      >
+        Reload
+      </button>
     </div>
   </article>
   {{end}}
 </div>
+
+<dialog id="addon_reload_modal">
+  <article>
+    <header>
+      <button aria-label="Close" rel="prev" onclick="onAddonReloadModalClose()"></button>
+      <h3>
+        <span id="addon_reload_name"></span>
+        <small><sup>v<span id="addon_reload_version"></span></sup></small>
+      </h3>
+    </header>
+    <form>
+      <label for="addon_reload_manifest_url">Manifest URL *</label>
+      <fieldset role="group">
+        <input type="url" id="addon_reload_manifest_url" name="manifest_url" value="" required>
+        <a id="add_reload_configure_url" type="button" href="" target="_blank">Configure</a>
+      </fieldset>
+
+      <button type="submit">Reload</button>
+    </form>
+  </article>
+</dialog>
 
 </section>
 
@@ -125,5 +158,44 @@ function onAddonOperationChange(el) {
   const url = new URL(window.location.href)
   url.searchParams.set("addon_operation", operation);
   window.history.replaceState(null, "", url.href);
+}
+
+function onAddonReloadModalClose() {
+  const modal = document.querySelector("dialog#addon_reload_modal");
+  modal.removeAttribute("open");
+  document.querySelector("html").classList.remove("modal-is-open");
+}
+
+function onAddonReload(btn) {
+  const modal = document.querySelector("dialog#addon_reload_modal");
+
+  modal.querySelector("#addon_reload_name").textContent = btn.dataset.name;
+  modal.querySelector("#addon_reload_version").textContent = btn.dataset.version;
+  modal.querySelector("#addon_reload_manifest_url").value = btn.dataset.manifestUrl;
+  
+  const configureUrl = btn.dataset.configureUrl;
+  if (configureUrl) {
+    modal.querySelector("#add_reload_configure_url").style.display = "";
+    modal.querySelector("#add_reload_configure_url").href = btn.dataset.configureUrl;
+  } else {
+    modal.querySelector("#add_reload_configure_url").style.display = "none";
+  }
+
+  modal.querySelector("form").addEventListener("submit", function(e) {
+    e.preventDefault();
+    btn.setAttribute("hx-vals", `{"manifest_url":"${modal.querySelector("#addon_reload_manifest_url").value}"}`);
+    onAddonReloadModalClose();
+    htmx.trigger(btn, "confirmed");
+  }, { once: true });
+
+  modal.addEventListener("click", function(e) {
+    const content = modal.querySelector("article");
+    if (!content.contains(e.target)) {
+      onAddonReloadModalClose();
+    }
+  }, { once: true });
+
+  document.querySelector("html").classList.add("modal-is-open");
+  modal.setAttribute("open", "");
 }
 </script>

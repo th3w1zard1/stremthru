@@ -305,6 +305,86 @@ func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 	SendHTML(w, 200, buf)
 }
 
+func handleAddonReload(w http.ResponseWriter, r *http.Request) {
+	if !IsMethod(r, http.MethodPost) {
+		shared.ErrorMethodNotAllowed(r).Send(w)
+		return
+	}
+
+	cookie, err := getCookieValue(w, r)
+	if err != nil {
+		SendError(w, err)
+		return
+	}
+
+	params := &stremio_api.GetAddonsParams{}
+	params.APIKey = cookie.AuthKey()
+	get_res, err := client.GetAddons(params)
+	if err != nil {
+		SendError(w, err)
+		return
+	}
+
+	currAddons := get_res.Data.Addons
+	totalAddons := len(currAddons)
+
+	td := getTemplateData(cookie, r)
+	td.Addons = make([]stremio_api.Addon, 0, totalAddons)
+	td.Addons = append(td.Addons, currAddons...)
+
+	transportUrl := r.PathValue("transportUrl")
+
+	idx := -1
+	for i := range td.Addons {
+		if td.Addons[i].TransportUrl == transportUrl {
+			idx = i
+			break
+		}
+	}
+
+	if idx != -1 {
+		addon := &td.Addons[idx]
+
+		manifestUrl := r.FormValue("manifest_url")
+		if manifestUrl == "" {
+			manifestUrl = addon.TransportUrl
+		}
+
+		if transportUrl, err := url.Parse(manifestUrl); err == nil {
+			transportUrl.Path = strings.TrimSuffix(transportUrl.Path, "/manifest.json")
+
+			if manifest, err := addon_client.GetManifest(&stremio_addon.GetManifestParams{
+				BaseURL: transportUrl,
+			}); err == nil && manifest.Data.ID == addon.Manifest.ID {
+				refreshedAddon := stremio_api.Addon{
+					TransportUrl:  manifestUrl,
+					TransportName: addon.TransportName,
+					Manifest:      manifest.Data,
+					Flags:         addon.Flags,
+				}
+
+				td.Addons[idx] = refreshedAddon
+			}
+		}
+
+		set_params := &stremio_api.SetAddonsParams{
+			Addons: td.Addons,
+		}
+		set_params.APIKey = cookie.AuthKey()
+		set_res, err := client.SetAddons(set_params)
+		if err != nil || !set_res.Data.Success {
+			td.Addons = currAddons
+		}
+	}
+
+	buf, err := ExecuteTemplate(td, "addons_section.html")
+	if err != nil {
+		SendError(w, err)
+		return
+	}
+	SendHTML(w, 200, buf)
+}
+
 func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodPost) {
 		shared.ErrorMethodNotAllowed(r).Send(w)
@@ -413,5 +493,6 @@ func AddStremioSidekickEndpoints(mux *http.ServeMux) {
 
 	mux.HandleFunc("/stremio/sidekick/addons", handleAddons)
 	mux.HandleFunc("/stremio/sidekick/addons/{transportUrl}/move/{direction}", handleAddonMove)
+	mux.HandleFunc("/stremio/sidekick/addons/{transportUrl}/reload", handleAddonReload)
 	mux.HandleFunc("/stremio/sidekick/addons/{transportUrl}/toggle", handleAddonToggle)
 }
