@@ -18,6 +18,12 @@ const (
 	ConfigTypeSelect   ConfigType = "select"
 )
 
+type ConfigAction struct {
+	Visible bool
+	Label   string
+	OnClick template.JS
+}
+
 type ConfigOption struct {
 	Value string
 	Label string
@@ -32,6 +38,7 @@ type Config struct {
 	Options     []ConfigOption
 	Required    bool
 	Error       string
+	Action      ConfigAction
 }
 
 type TemplateData struct {

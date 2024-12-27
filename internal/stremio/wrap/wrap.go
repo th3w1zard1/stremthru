@@ -199,6 +199,10 @@ func getTemplateData() *configure.TemplateData {
 				Title:       "Upstream Manifest URL",
 				Description: "Manifest URL for the Upstream Addon",
 				Required:    true,
+				Action: configure.ConfigAction{
+					Label:   "Configure",
+					OnClick: "onUpstreamManifestConfigure()",
+				},
 			},
 			configure.Config{
 				Key:     "store",
@@ -225,7 +229,12 @@ func getTemplateData() *configure.TemplateData {
 				Required:    true,
 			},
 		},
-		Script: configure.GetScriptStoreTokenDescription("store", "token"),
+		Script: configure.GetScriptStoreTokenDescription("store", "token") + `
+function onUpstreamManifestConfigure() {
+  const url = document.querySelector("input[name='manifest_url']").value.replace(/\/manifest.json$/,'') + "/configure";
+  window.open(url, "_blank");
+}
+`,
 	}
 }
 
@@ -254,65 +263,61 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if IsMethod(r, http.MethodGet) {
-		if ud.HasRequiredValues() {
+	if ud.encoded != "" {
+		var manifest_url_config *configure.Config
+		var store_config *configure.Config
+		var token_config *configure.Config
+		for i := range td.Configs {
+			conf := &td.Configs[i]
+			switch conf.Key {
+			case "manifest_url":
+				manifest_url_config = conf
+			case "store":
+				store_config = conf
+			case "token":
+				token_config = conf
+			}
+		}
+
+		ctx, err := ud.GetRequestContext(r)
+		if err != nil {
+			if uderr, ok := err.(*userDataError); ok {
+				manifest_url_config.Error = uderr.manifestUrl
+				store_config.Error = uderr.store
+				token_config.Error = uderr.token
+			} else {
+				SendError(w, err)
+				return
+			}
+		}
+
+		if ctx.Store == nil {
+			if ud.StoreName == "" {
+				token_config.Error = "Invalid Token"
+			} else {
+				store_config.Error = "Invalid Store"
+			}
+		}
+
+		if manifest_url_config.Error == "" {
+			manifest, err := addon.GetManifest(&stremio_addon.GetManifestParams{BaseURL: ud.baseUrl, ClientIP: ctx.ClientIP})
+			if err != nil {
+				manifest_url_config.Error = "Failed to fetch Manifest"
+			} else if manifest.Data.BehaviorHints != nil && manifest.Data.BehaviorHints.Configurable {
+				manifest_url_config.Action.Visible = true
+			}
+		}
+	}
+
+	hasError := td.HasError()
+
+	if IsMethod(r, http.MethodGet) || hasError {
+		if !hasError && ud.HasRequiredValues() {
 			if eud, err := ud.GetEncoded(); err == nil {
 				td.ManifestURL = ExtractRequestBaseURL(r).JoinPath("/stremio/wrap/" + eud + "/manifest.json").String()
 			}
 		}
 
-		page, err := configure.GetPage(td)
-		if err != nil {
-			SendError(w, err)
-			return
-		}
-		SendHTML(w, 200, page)
-		return
-	}
-
-	var manifest_url_config *configure.Config
-	var store_config *configure.Config
-	var token_config *configure.Config
-	for i := range td.Configs {
-		conf := &td.Configs[i]
-		switch conf.Key {
-		case "manifest_url":
-			manifest_url_config = conf
-		case "store":
-			store_config = conf
-		case "token":
-			token_config = conf
-		}
-	}
-
-	ctx, err := ud.GetRequestContext(r)
-	if err != nil {
-		if uderr, ok := err.(*userDataError); ok {
-			manifest_url_config.Error = uderr.manifestUrl
-			store_config.Error = uderr.store
-			token_config.Error = uderr.token
-		} else {
-			SendError(w, err)
-			return
-		}
-	}
-
-	if ctx.Store == nil {
-		if ud.StoreName == "" {
-			token_config.Error = "Invalid Token"
-		} else {
-			store_config.Error = "Invalid Store"
-		}
-	}
-
-	if manifest_url_config.Error == "" {
-		_, err := addon.GetManifest(&stremio_addon.GetManifestParams{BaseURL: ud.baseUrl, ClientIP: ctx.ClientIP})
-		if err != nil {
-			manifest_url_config.Error = "Failed to fetch Manifest"
-		}
-	}
-
-	if td.HasError() {
 		page, err := configure.GetPage(td)
 		if err != nil {
 			SendError(w, err)
