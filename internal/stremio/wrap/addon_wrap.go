@@ -170,7 +170,13 @@ func handleManifest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := addon.GetManifest(&stremio_addon.GetManifestParams{BaseURL: ud.baseUrl})
+	ctx, err := ud.GetRequestContext(r)
+	if err != nil {
+		SendError(w, err)
+		return
+	}
+
+	res, err := addon.GetManifest(&stremio_addon.GetManifestParams{BaseURL: ud.baseUrl, ClientIP: ctx.ClientIP})
 	if err != nil {
 		SendError(w, err)
 		return
@@ -300,7 +306,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if manifest_url_config.Error == "" {
-		_, err := addon.GetManifest(&stremio_addon.GetManifestParams{BaseURL: ud.baseUrl})
+		_, err := addon.GetManifest(&stremio_addon.GetManifestParams{BaseURL: ud.baseUrl, ClientIP: ctx.ClientIP})
 		if err != nil {
 			manifest_url_config.Error = "Failed to fetch Manifest"
 		}
@@ -347,19 +353,20 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	extra := r.PathValue("extra")
 
+	ctx, err := ud.GetRequestContext(r)
+	if err != nil {
+		SendError(w, err)
+		return
+	}
+
 	if resource == string(stremio.ResourceNameStream) {
 		res, err := addon.FetchStream(&stremio_addon.FetchStreamParams{
-			BaseURL: ud.baseUrl,
-			Type:    contentType,
-			Id:      id,
-			Extra:   extra,
+			BaseURL:  ud.baseUrl,
+			Type:     contentType,
+			Id:       id,
+			Extra:    extra,
+			ClientIP: ctx.ClientIP,
 		})
-		if err != nil {
-			SendError(w, err)
-			return
-		}
-
-		ctx, err := ud.GetRequestContext(r)
 		if err != nil {
 			SendError(w, err)
 			return
@@ -428,6 +435,7 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 		Type:     contentType,
 		Id:       id,
 		Extra:    extra,
+		ClientIP: ctx.ClientIP,
 	})
 }
 

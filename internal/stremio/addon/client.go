@@ -113,12 +113,27 @@ func (c Client) Request(method string, url *url.URL, params request.Context, v a
 	return res, nil
 }
 
+func addClientIPHeader(params request.Ctx, clientIp string) {
+	if clientIp == "" {
+		return
+	}
+
+	if params.Headers == nil {
+		params.Headers = &http.Header{}
+	}
+
+	params.Headers.Set("X-Client-Ip", clientIp)
+	params.Headers.Set("X-Forwarded-For", clientIp)
+}
+
 type GetManifestParams struct {
 	request.Ctx
-	BaseURL *url.URL
+	BaseURL  *url.URL
+	ClientIP string
 }
 
 func (c Client) GetManifest(params *GetManifestParams) (request.APIResponse[stremio.Manifest], error) {
+	addClientIPHeader(params.Ctx, params.ClientIP)
 	response := &stremio.Manifest{}
 	res, err := c.Request("GET", params.BaseURL.JoinPath("manifest.json"), params, response)
 	return request.NewAPIResponse(res, *response), err
@@ -126,18 +141,20 @@ func (c Client) GetManifest(params *GetManifestParams) (request.APIResponse[stre
 
 type FetchStreamParams struct {
 	request.Ctx
-	BaseURL *url.URL
-	Type    string
-	Id      string
-	Extra   string
+	BaseURL  *url.URL
+	Type     string
+	Id       string
+	Extra    string
+	ClientIP string
 }
 
 func (c Client) FetchStream(params *FetchStreamParams) (request.APIResponse[stremio.StreamHandlerResponse], error) {
-	response := &stremio.StreamHandlerResponse{}
 	path := "stream/" + params.Type + "/" + params.Id
 	if params.Extra != "" {
 		path = path + "/" + params.Extra
 	}
+	addClientIPHeader(params.Ctx, params.ClientIP)
+	response := &stremio.StreamHandlerResponse{}
 	res, err := c.Request("GET", params.BaseURL.JoinPath(path), params, response)
 	return request.NewAPIResponse(res, *response), err
 }
@@ -149,6 +166,7 @@ type ProxyResourceParams struct {
 	Type     string
 	Id       string
 	Extra    string
+	ClientIP string
 }
 
 func (c Client) ProxyResource(w http.ResponseWriter, r *http.Request, params *ProxyResourceParams) {
@@ -156,5 +174,6 @@ func (c Client) ProxyResource(w http.ResponseWriter, r *http.Request, params *Pr
 	if params.Extra != "" {
 		path = path + "/" + params.Extra
 	}
+	addClientIPHeader(params.Ctx, params.ClientIP)
 	shared.ProxyResponse(w, r, params.BaseURL.JoinPath(path).String())
 }
