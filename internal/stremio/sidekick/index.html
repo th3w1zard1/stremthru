@@ -58,26 +58,15 @@
       </div>
     </header>
     <main>
-      {{if .IsAuthed}}
-      <section id="account_section">
-        <div class="flex-row align-center justify-space-between">
-          <div>
-            <p>Welcome, <em>{{.Email}}</em>!</p>
-          </div>
-          <div>
-            <button hx-post="logout" hx-target="body">Logout</button>
-          </div>
-        </div>
-      </section>
+      {{template "account_section.html" .}}
 
+      {{if .IsAuthed}}
       <details open>
         <summary role="button" class="secondary">
           Addons
         </summary>
         {{template "addons_section.html" .}}
       </details>
-      {{else}}
-        {{template "login.html" .}}
       {{end}}
     </main>
 

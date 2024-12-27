@@ -1,0 +1,40 @@
+<section id="account_section">
+{{if .IsAuthed}}
+  <div class="flex-row align-center justify-space-between">
+    <div>
+      <p>Welcome, <em>{{.Email}}</em>!</p>
+    </div>
+    <div>
+      <button hx-post="logout" hx-target="body">Logout</button>
+    </div>
+  </div>
+{{else}}
+  <form id="login" action="login" method="post" hx-boost="true" hx-post="login" hx-target="#login">
+    <input 
+      name="email"
+      type="email"
+      placeholder="Email"
+      aria-label="Email"
+      autocomplete="email"
+      value="{{.Login.Email}}"
+      required
+      {{if ne .Login.Error.Email ""}}aria-invalid="true"{{end}}
+    />
+    <small>{{if ne .Login.Error.Email ""}}<span class="error">{{.Login.Error.Email}}</span>{{end}}</small>
+
+    <input
+      type="password"
+      name="password"
+      placeholder="Password"
+      aria-label="Password"
+      autocomplete="current-password"
+      value="{{.Login.Password}}"
+      required
+      {{if ne .Login.Error.Password ""}}aria-invalid="true"{{end}}
+    />
+    <small>{{if ne .Login.Error.Password ""}}<span class="error">{{.Login.Error.Password}}</span>{{end}}</small>
+
+    <button type="submit">Log In</button>
+  </form>
+{{end}}
+</section>

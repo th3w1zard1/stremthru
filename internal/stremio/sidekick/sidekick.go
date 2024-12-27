@@ -144,7 +144,13 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	})
 	if err == nil {
 		setCookie(w, res.Data.AuthKey, res.Data.User.Email)
-		http.Redirect(w, r, "/stremio/sidekick", http.StatusFound)
+		if r.Header.Get("hx-request") == "true" {
+			w.Header().Add("hx-refresh", "true")
+			w.Header().Add("hx-redirect", "/stremio/sidekick")
+			w.WriteHeader(200)
+		} else {
+			http.Redirect(w, r, "/stremio/sidekick", http.StatusFound)
+		}
 		return
 	}
 
@@ -158,7 +164,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		case stremio_api.ErrorCodeWrongPassphrase:
 			td.Login.Error.Password = rerr.Message
 		}
-		buf, err := ExecuteTemplate(td, "login.html")
+		buf, err := ExecuteTemplate(td, "account_section.html")
 		if err != nil {
 			SendError(w, err)
 			return

@@ -11,7 +11,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/stremio/api"
 )
 
-//go:embed index.html addons_section.html login.html
+//go:embed *.html
 var templateFs embed.FS
 
 type TemplateData struct {
