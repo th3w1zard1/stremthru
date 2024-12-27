@@ -42,6 +42,12 @@ var funcMap = template.FuncMap{
 	"has_prefix": func(value, prefix string) bool {
 		return strings.HasPrefix(value, prefix)
 	},
+	"get_configure_url": func(value stremio_api.Addon) string {
+		if value.Manifest.BehaviorHints != nil && value.Manifest.BehaviorHints.Configurable {
+			return strings.Replace(value.TransportUrl, "/manifest.json", "/configure", 1)
+		}
+		return ""
+	},
 }
 
 var ExecuteTemplate = func() TemplateExecutor {

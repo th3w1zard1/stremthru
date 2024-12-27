@@ -27,12 +27,21 @@
 <div id="addons_list" data-operation="{{.AddonOperation}}">
   {{range $idx, $addon := .Addons}}
   <article>
-    <h3>
-      {{.Manifest.Name}}
-      <small>
-        <sup>v{{.Manifest.Version}}</sup>
-      </small>
-    </h3>
+    <header class="flex-row justify-space-between align-center">
+      <div>
+        <h3>
+          {{.Manifest.Name}}
+          <small>
+            <sup>v{{.Manifest.Version}}</sup>
+          </small>
+        </h3>
+      </div>
+      <div>
+        {{with (get_configure_url .)}}
+          <a role="button" href="{{.}}" target="_blank">Configure</a>
+        {{end}}
+      </div>
+    </header>
 
     <div id="addon_operation_move" role="group">
       <button
