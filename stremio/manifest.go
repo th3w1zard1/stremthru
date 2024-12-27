@@ -79,3 +79,7 @@ type Manifest struct {
 	ContactEmail  string         `json:"contactEmail,omitempty"`
 	BehaviorHints *BehaviorHints `json:"behaviorHints,omitempty"`
 }
+
+func (m *Manifest) IsValid() bool {
+	return m.ID != "" && m.Name != "" && m.Version != ""
+}

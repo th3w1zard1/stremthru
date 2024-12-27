@@ -2,6 +2,7 @@ package stremio_addon
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -136,6 +137,9 @@ func (c Client) GetManifest(params *GetManifestParams) (request.APIResponse[stre
 	addClientIPHeader(params.Ctx, params.ClientIP)
 	response := &stremio.Manifest{}
 	res, err := c.Request("GET", params.BaseURL.JoinPath("manifest.json"), params, response)
+	if err == nil && !response.IsValid() {
+		err = errors.New("invalid manifest")
+	}
 	return request.NewAPIResponse(res, *response), err
 }
 
