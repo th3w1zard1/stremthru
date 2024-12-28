@@ -394,6 +394,7 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 		isCachedByHash := map[string]bool{}
 		cmParams := &store.CheckMagnetParams{Magnets: hashes}
 		cmParams.APIKey = ctx.StoreAuthToken
+		cmParams.ClientIP = ctx.ClientIP
 		cmRes, err := ctx.Store.CheckMagnet(cmParams)
 		if err != nil {
 			SendError(w, err)
