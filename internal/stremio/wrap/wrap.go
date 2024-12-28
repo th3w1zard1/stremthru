@@ -419,7 +419,11 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					continue
 				}
-				stream.URL = shared.ExtractRequestBaseURL(r).JoinPath("/stremio/wrap/" + eud + "/_/strem/" + magnet.Hash + "/" + strconv.Itoa(stream.FileIndex) + "/" + stream.BehaviorHints.Filename).String()
+				url := shared.ExtractRequestBaseURL(r).JoinPath("/stremio/wrap/" + eud + "/_/strem/" + magnet.Hash + "/" + strconv.Itoa(stream.FileIndex) + "/")
+				if stream.BehaviorHints != nil && stream.BehaviorHints.Filename != "" {
+					url = url.JoinPath(stream.BehaviorHints.Filename)
+				}
+				stream.URL = url.String()
 				stream.InfoHash = ""
 				stream.FileIndex = 0
 			} else if stream.URL != "" {
