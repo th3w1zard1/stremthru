@@ -157,7 +157,8 @@ type CheckMagnetParams struct {
 }
 
 func (c APIClient) CheckMagnet(params *CheckMagnetParams) (request.APIResponse[store.CheckMagnetData], error) {
-	params.Form = &url.Values{"magnet": params.Magnets}
+	params.Query = &url.Values{"magnet": params.Magnets}
+	params.Query.Set("client_ip", params.ClientIP)
 	params.Headers = &http.Header{
 		"X-StremThru-Store-Name":          []string{string(params.StoreName)},
 		"X-StremThru-Store-Authorization": []string{"Bearer " + params.StoreToken},

@@ -135,6 +135,7 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 			StoreToken: storeToken,
 		}
 		params.Magnets = hashes
+		params.ClientIP = clientIp
 		res, err := Peer.CheckMagnet(params)
 		if err != nil {
 			log.Printf("[buddy:upstream] failed to check magnet: %v\n", err)
