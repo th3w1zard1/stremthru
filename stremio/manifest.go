@@ -25,6 +25,7 @@ func (r *Resource) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &name); err == nil {
 		r.Name = ResourceName(name)
 		r.Types = []ContentType{}
+		r.IDPrefixes = []string{}
 		return nil
 	}
 	rsrc := &resource{}
@@ -33,6 +34,14 @@ func (r *Resource) UnmarshalJSON(data []byte) error {
 	r.Types = rsrc.Types
 	r.IDPrefixes = rsrc.IDPrefixes
 	return err
+}
+
+func (r *Resource) MarshalJSON() ([]byte, error) {
+	if len(r.Types) == 0 && len(r.IDPrefixes) == 0 {
+		return json.Marshal(r.Name)
+	}
+	rsrc := resource(*r)
+	return json.Marshal(&rsrc)
 }
 
 type CatalogExtra struct {

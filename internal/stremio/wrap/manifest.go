@@ -12,11 +12,5 @@ func getManifest(upstream *stremio.Manifest, ud *UserData) *stremio.Manifest {
 		Configurable:          true,
 		ConfigurationRequired: !ud.HasRequiredValues(),
 	}
-	for i := range manifest.Resources {
-		r := &manifest.Resources[i]
-		if r.Name == stremio.ResourceNameCatalog && len(r.Types) == 0 {
-			r.Types = manifest.Types
-		}
-	}
 	return manifest
 }
