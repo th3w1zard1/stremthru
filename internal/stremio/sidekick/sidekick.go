@@ -1,6 +1,7 @@
 package stremio_sidekick
 
 import (
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -73,6 +74,7 @@ func getCookieValue(w http.ResponseWriter, r *http.Request) (*CookieValue, error
 
 	v, err := url.ParseQuery(cookie.Value)
 	if err != nil {
+		log.Printf("[stremio/sidekick] failed to parse cookie value: %v\n", err)
 		unsetCookie(w)
 		value.IsExpired = true
 		return value, nil
@@ -293,6 +295,9 @@ func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 		set_params.APIKey = cookie.AuthKey()
 		set_res, err := client.SetAddons(set_params)
 		if err != nil || !set_res.Data.Success {
+			if err != nil {
+				log.Printf("[stremio/sidekick] failed to set addons: %v\n", err)
+			}
 			td.Addons = currAddons
 		}
 	}
@@ -373,6 +378,9 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 		set_params.APIKey = cookie.AuthKey()
 		set_res, err := client.SetAddons(set_params)
 		if err != nil || !set_res.Data.Success {
+			if err != nil {
+				log.Printf("[stremio/sidekick] failed to set addons: %v\n", err)
+			}
 			td.Addons = currAddons
 		}
 	}
@@ -472,6 +480,9 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 		set_params.APIKey = cookie.AuthKey()
 		set_res, err := client.SetAddons(set_params)
 		if err != nil || !set_res.Data.Success {
+			if err != nil {
+				log.Printf("[stremio/sidekick] failed to set addons: %v\n", err)
+			}
 			td.Addons = currAddons
 		}
 	}
