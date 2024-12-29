@@ -2,6 +2,7 @@ package stremio_wrap
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -302,6 +303,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		if manifest_url_config.Error == "" {
 			manifest, err := addon.GetManifest(&stremio_addon.GetManifestParams{BaseURL: ud.baseUrl, ClientIP: ctx.ClientIP})
 			if err != nil {
+				log.Printf("[stremio/wrap] failed to fetch manifest: %v\n", err)
 				manifest_url_config.Error = "Failed to fetch Manifest"
 			} else if manifest.Data.BehaviorHints != nil && manifest.Data.BehaviorHints.Configurable {
 				manifest_url_config.Action.Visible = true
