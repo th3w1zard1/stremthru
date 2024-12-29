@@ -523,6 +523,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	amParams.APIKey = ctx.StoreAuthToken
 	amRes, err := ctx.Store.AddMagnet(amParams)
 	if err != nil {
+		log.Printf("[stremio/wrap] failed to add magnet: %v\n", err)
 		redirectToStaticVideo(w, r, cacheKey, "download_failed")
 		return
 	}
@@ -538,6 +539,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 
 	magnet, err = waitForMagnetStatus(ctx, magnet, store.MagnetStatusDownloaded, 12, 5*time.Second)
 	if err != nil {
+		log.Printf("[stremio/wrap] failed wait for magnet status: %v\n", err)
 		if magnet.Status == store.MagnetStatusQueued || magnet.Status == store.MagnetStatusDownloading || magnet.Status == store.MagnetStatusProcessing {
 			redirectToStaticVideo(w, r, cacheKey, "downloading")
 			return
@@ -560,6 +562,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if link == "" {
+		log.Printf("[stremio/wrap] no matching file found for magnet: %s\n", magnet.Hash)
 		redirectToStaticVideo(w, r, cacheKey, "no_matching_file")
 		return
 	}
@@ -571,12 +574,14 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	glParams.APIKey = ctx.StoreAuthToken
 	glRes, err := ctx.Store.GenerateLink(glParams)
 	if err != nil {
+		log.Printf("[stremio/wrap] failed to generate link: %v\n", err)
 		redirectToStaticVideo(w, r, cacheKey, "500")
 		return
 	}
 
 	glRes, err = shared.GenerateStremThruLink(r, ctx, glRes.Link)
 	if err != nil {
+		log.Printf("[stremio/wrap] failed to generate stremthru link: %v\n", err)
 		redirectToStaticVideo(w, r, cacheKey, "500")
 		return
 	}
