@@ -70,6 +70,7 @@ type ResponseEnvelop interface {
 type ErrorCode int
 
 const (
+	ErrorCodeSessionNotFound ErrorCode = 1
 	ErrorCodeUserNotFound    ErrorCode = 2
 	ErrorCodeWrongPassphrase ErrorCode = 3
 )

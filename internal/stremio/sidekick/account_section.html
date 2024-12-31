@@ -1,4 +1,18 @@
 <section id="account_section">
+  <style>
+    form#login:not([data-method="password"]) input[name="email"],
+    form#login:not([data-method="password"]) input[name="email"] + small,
+    form#login:not([data-method="password"]) input[name="password"],
+    form#login:not([data-method="password"]) input[name="password"] + small {
+      display: none;
+    }
+    form#login:not([data-method="token"]) input[name="token"],
+    form#login:not([data-method="token"]) input[name="token"] + small,
+    form#login:not([data-method="token"]) #login_method_token_help {
+      display: none;
+    }
+  </style>
+
 {{if .IsAuthed}}
   <div class="flex-row align-center justify-space-between">
     <div>
@@ -9,7 +23,21 @@
     </div>
   </div>
 {{else}}
-  <form id="login" action="login" method="post" hx-boost="true" hx-post="login" hx-target="#login">
+  <form id="login" action="login" method="post" hx-boost="true" hx-post="login" hx-target="#account_section" hx-swap="outerHTML" data-method="{{.LoginMethod}}">
+    <input name="method" type="hidden" value="{{.LoginMethod}}" />
+
+    <input 
+      name="token"
+      type="password"
+      placeholder="Auth Token"
+      aria-label="Auth Token"
+      autocomplete="off"
+      value="{{.Login.Token}}"
+      {{if ne .LoginMethod "token"}}disabled{{else}}required{{end}}
+      {{if ne .Login.Error.Token ""}}aria-invalid="true"{{end}}
+    />
+    <small>{{if ne .Login.Error.Token ""}}<span class="error">{{.Login.Error.Token}}</span>{{end}}</small>
+
     <input 
       name="email"
       type="email"
@@ -17,7 +45,7 @@
       aria-label="Email"
       autocomplete="email"
       value="{{.Login.Email}}"
-      required
+      {{if ne .LoginMethod "password"}}disabled{{else}}required{{end}}
       {{if ne .Login.Error.Email ""}}aria-invalid="true"{{end}}
     />
     <small>{{if ne .Login.Error.Email ""}}<span class="error">{{.Login.Error.Email}}</span>{{end}}</small>
@@ -29,12 +57,67 @@
       aria-label="Password"
       autocomplete="current-password"
       value="{{.Login.Password}}"
-      required
+      {{if ne .LoginMethod "password"}}disabled{{else}}required{{end}}
       {{if ne .Login.Error.Password ""}}aria-invalid="true"{{end}}
     />
     <small>{{if ne .Login.Error.Password ""}}<span class="error">{{.Login.Error.Password}}</span>{{end}}</small>
 
-    <button type="submit">Log In</button>
+
+    <div role="group">
+      <button class="secondary grow-0" onclick="onLoginMethodChange()">Switch Method</button>
+      <button type="submit" class="grow">Log In</button>
+    </div>
+
+
+    <details open id="login_method_token_help">
+      <summary role="button" class="outline secondary">How to get Auth Token?</summary>
+      <ul>
+        <li>Go to <a href="https://web.stremio.com" target="_blank">web.stremio.com</a> and login.</li>
+        <li>Open the Console in your browser's Developer Tools.</li>
+        <li>
+          Run the following code snippet: <code>JSON.parse(localStorage.getItem("profile")).auth.key</code>
+        </li>
+        <li>The output is the auth token for your Stremio account.</li>
+      </ul>
+    </details>
   </form>
+
+  <script>
+  function onLoginMethodChange() {
+    const form = document.querySelector("form#login")
+    const field = {
+      method: form.querySelector("input[name='method']"),
+      email: form.querySelector("input[name='email']"),
+      password: form.querySelector("input[name='password']"),
+      token: form.querySelector("input[name='token']"),
+    };
+    const currMethod = form.dataset.method;
+    let nextMethod;
+
+    if (currMethod == "token") {
+      nextMethod = "password";
+      field.email.disabled = false;
+      field.email.required = true;
+      field.password.disabled = false;
+      field.password.required = true;
+      field.token.disabled = true;
+      field.token.required = false;
+    } else {
+      nextMethod = "token";
+      field.email.disabled = true;
+      field.email.required = false;
+      field.password.disabled = true;
+      field.password.required = false;
+      field.token.disabled = false;
+      field.token.required = true;
+    }
+
+    field.method.value = nextMethod;
+    form.dataset.method = nextMethod;
+    const url = new URL(window.location.href)
+    url.searchParams.set("login_method", nextMethod);
+    window.history.replaceState(null, "", url.href);
+  }
+  </script>
 {{end}}
 </section>

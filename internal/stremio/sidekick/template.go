@@ -23,12 +23,15 @@ type TemplateData struct {
 	Addons         []stremio_api.Addon
 	AddonOperation string
 	LastAddonIndex int
+	LoginMethod    string
 	Login          struct {
 		Email    string
 		Password string
+		Token    string
 		Error    struct {
 			Email    string
 			Password string
+			Token    string
 		}
 	}
 }

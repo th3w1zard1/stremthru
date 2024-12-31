@@ -97,6 +97,19 @@ func getTemplateData(cookie *CookieValue, r *http.Request) *TemplateData {
 		td.Login.Password = ""
 	}
 
+	td.LoginMethod = r.URL.Query().Get("login_method")
+	if td.LoginMethod == "" {
+		hxCurrUrl := r.Header.Get("hx-current-url")
+		if hxCurrUrl != "" {
+			if hxUrl, err := url.Parse(hxCurrUrl); err == nil {
+				td.LoginMethod = hxUrl.Query().Get("login_method")
+			}
+		}
+	}
+	if td.LoginMethod == "" {
+		td.LoginMethod = "password"
+	}
+
 	td.AddonOperation = r.URL.Query().Get("addon_operation")
 	if td.AddonOperation == "" {
 		hxCurrUrl := r.Header.Get("hx-current-url")
@@ -137,43 +150,83 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email := r.FormValue("email")
-	password := r.FormValue("password")
+	method := r.FormValue("method")
 
-	res, err := client.Login(&stremio_api.LoginParams{
-		Email:    email,
-		Password: password,
-	})
-	if err == nil {
-		setCookie(w, res.Data.AuthKey, res.Data.User.Email)
-		if r.Header.Get("hx-request") == "true" {
-			w.Header().Add("hx-refresh", "true")
-			w.Header().Add("hx-redirect", "/stremio/sidekick")
-			w.WriteHeader(200)
-		} else {
-			http.Redirect(w, r, "/stremio/sidekick", http.StatusFound)
-		}
-		return
-	}
+	if method == "password" {
+		email := r.FormValue("email")
+		password := r.FormValue("password")
 
-	if rerr, ok := err.(*stremio_api.ResponseError); ok {
-		td := getTemplateData(nil, r)
-		td.Login.Email = email
-		td.Login.Password = password
-		switch rerr.Code {
-		case stremio_api.ErrorCodeUserNotFound:
-			td.Login.Error.Email = rerr.Message
-		case stremio_api.ErrorCodeWrongPassphrase:
-			td.Login.Error.Password = rerr.Message
-		}
-		buf, err := ExecuteTemplate(td, "account_section.html")
-		if err != nil {
-			SendError(w, err)
+		res, err := client.Login(&stremio_api.LoginParams{
+			Email:    email,
+			Password: password,
+		})
+		if err == nil {
+			setCookie(w, res.Data.AuthKey, res.Data.User.Email)
+			if r.Header.Get("hx-request") == "true" {
+				w.Header().Add("hx-refresh", "true")
+				w.Header().Add("hx-redirect", "/stremio/sidekick")
+				w.WriteHeader(200)
+			} else {
+				http.Redirect(w, r, "/stremio/sidekick", http.StatusFound)
+			}
 			return
 		}
-		SendHTML(w, 200, buf)
+
+		if rerr, ok := err.(*stremio_api.ResponseError); ok {
+			td := getTemplateData(nil, r)
+			td.Login.Email = email
+			td.Login.Password = password
+			switch rerr.Code {
+			case stremio_api.ErrorCodeUserNotFound:
+				td.Login.Error.Email = rerr.Message
+			case stremio_api.ErrorCodeWrongPassphrase:
+				td.Login.Error.Password = rerr.Message
+			}
+			buf, err := ExecuteTemplate(td, "account_section.html")
+			if err != nil {
+				SendError(w, err)
+				return
+			}
+			SendHTML(w, 200, buf)
+		} else {
+			SendError(w, err)
+		}
+	} else if method == "token" {
+		token := r.FormValue("token")
+
+		params := &stremio_api.GetUserParams{}
+		params.APIKey = token
+		res, err := client.GetUser(params)
+		if err == nil {
+			setCookie(w, token, res.Data.Email)
+			if r.Header.Get("hx-request") == "true" {
+				w.Header().Add("hx-refresh", "true")
+				w.Header().Add("hx-redirect", "/stremio/sidekick")
+				w.WriteHeader(200)
+			} else {
+				http.Redirect(w, r, "/stremio/sidekick", http.StatusFound)
+			}
+			return
+		}
+
+		if rerr, ok := err.(*stremio_api.ResponseError); ok {
+			td := getTemplateData(nil, r)
+			td.Login.Token = token
+			switch rerr.Code {
+			case stremio_api.ErrorCodeSessionNotFound:
+				td.Login.Error.Token = rerr.Message
+			}
+			buf, err := ExecuteTemplate(td, "account_section.html")
+			if err != nil {
+				SendError(w, err)
+				return
+			}
+			SendHTML(w, 200, buf)
+		} else {
+			SendError(w, err)
+		}
 	} else {
-		SendError(w, err)
+		shared.ErrorBadRequest(r, "invalid login method").Send(w)
 	}
 }
 
