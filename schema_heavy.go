@@ -67,7 +67,6 @@ func RunSchemaMigration(uri db.ConnectionURI) {
 		log.Fatalf("[schema] failed to initialize: %v\n", err)
 	}
 	dsn := uri.DSN(dsnModifiers...)
-	println(dsn)
 	res, err := client.SchemaApply(context.Background(), &atlasexec.SchemaApplyParams{
 		AutoApprove: true,
 		To:          "file://schema.hcl",
