@@ -12,7 +12,18 @@ import (
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/request"
 )
+
+func GetHTTPClient(withProxy bool) *http.Client {
+	transport := request.DefaultHTTPTransport.Clone()
+	if !withProxy {
+		transport.Proxy = nil
+	}
+	return &http.Client{
+		Transport: transport,
+	}
+}
 
 func IsMethod(r *http.Request, method string) bool {
 	return r.Method == method

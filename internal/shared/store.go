@@ -19,12 +19,24 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var adStore = alldebrid.NewStore()
-var dlStore = debridlink.NewStoreClient()
-var pmStore = premiumize.NewStoreClient(&premiumize.StoreClientConfig{})
-var ocStore = offcloud.NewStoreClient()
-var rdStore = realdebrid.NewStoreClient()
-var tbStore = torbox.NewStoreClient()
+var adStore = alldebrid.NewStoreClient(&alldebrid.StoreClientConfig{
+	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabled("alldebrid")),
+})
+var dlStore = debridlink.NewStoreClient(&debridlink.StoreClientConfig{
+	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabled("debridlink")),
+})
+var pmStore = premiumize.NewStoreClient(&premiumize.StoreClientConfig{
+	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabled("premiumize")),
+})
+var ocStore = offcloud.NewStoreClient(&offcloud.StoreClientConfig{
+	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabled("offcloud")),
+})
+var rdStore = realdebrid.NewStoreClient(&realdebrid.StoreClientConfig{
+	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabled("realdebrid")),
+})
+var tbStore = torbox.NewStoreClient(&torbox.StoreClientConfig{
+	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabled("torbox")),
+})
 
 func GetStore(name string) store.Store {
 	switch store.StoreName(name) {

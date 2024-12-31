@@ -42,6 +42,10 @@ func torrentStatusToMagnetStatus(status TorrentStatus) store.MagnetStatus {
 	}
 }
 
+type StoreClientConfig struct {
+	HTTPClient *http.Client
+}
+
 type StoreClient struct {
 	Name           store.StoreName
 	client         *APIClient
@@ -50,9 +54,11 @@ type StoreClient struct {
 	hashByIdCache  cache.Cache[string]
 }
 
-func NewStoreClient() *StoreClient {
+func NewStoreClient(config *StoreClientConfig) *StoreClient {
 	c := &StoreClient{}
-	c.client = NewAPIClient(&APIClientConfig{})
+	c.client = NewAPIClient(&APIClientConfig{
+		HTTPClient: config.HTTPClient,
+	})
 	c.Name = store.StoreNameRealDebrid
 
 	c.getMagnetCache = func() cache.Cache[store.GetMagnetData] {

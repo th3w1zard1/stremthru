@@ -14,6 +14,7 @@ import (
 )
 
 type StoreClientConfig struct {
+	HTTPClient       *http.Client
 	ParentFolderName string
 }
 
@@ -31,7 +32,9 @@ func NewStoreClient(config *StoreClientConfig) *StoreClient {
 	}
 
 	c := &StoreClient{}
-	c.client = NewAPIClient(&APIClientConfig{})
+	c.client = NewAPIClient(&APIClientConfig{
+		HTTPClient: config.HTTPClient,
+	})
 	c.Name = store.StoreNamePremiumize
 	c.config = config
 

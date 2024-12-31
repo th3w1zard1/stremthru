@@ -1,6 +1,7 @@
 package offcloud
 
 import (
+	"net/http"
 	"path/filepath"
 	"time"
 
@@ -8,14 +9,20 @@ import (
 	"github.com/MunifTanjim/stremthru/store"
 )
 
+type StoreClientConfig struct {
+	HTTPClient *http.Client
+}
+
 type StoreClient struct {
 	Name   store.StoreName
 	client *APIClient
 }
 
-func NewStoreClient() *StoreClient {
+func NewStoreClient(config *StoreClientConfig) *StoreClient {
 	c := &StoreClient{}
-	c.client = NewAPIClient(&APIClientConfig{})
+	c.client = NewAPIClient(&APIClientConfig{
+		HTTPClient: config.HTTPClient,
+	})
 	c.Name = store.StoreNameOffcloud
 
 	return c

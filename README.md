@@ -63,6 +63,12 @@ If `username` is `*`, it is used as fallback for users without explicit store cr
 | RealDebrid | `realdebrid` | `<api-token>`        |
 | Torbox     | `torbox`     | `<api-key>`          |
 
+**`STREMTHRU_STORE_TUNNEL`**
+
+Comma separated list of tunnel config for stores, in `store_name:boolean` format.
+
+If `store_name` is `*`, it is used as fallback.
+
 **`STREMTHRU_PEER_URI`**
 
 URI for another StremThru instance, in format `https://:<pass>@<host>[:<port>]`.

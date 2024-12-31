@@ -11,6 +11,10 @@ import (
 	"github.com/MunifTanjim/stremthru/store"
 )
 
+type StoreClientConfig struct {
+	HTTPClient *http.Client
+}
+
 type StoreClient struct {
 	Name              store.StoreName
 	client            *APIClient
@@ -20,9 +24,11 @@ type StoreClient struct {
 	generateLinkCache cache.Cache[store.GenerateLinkData]
 }
 
-func NewStoreClient() *StoreClient {
+func NewStoreClient(config *StoreClientConfig) *StoreClient {
 	c := &StoreClient{}
-	c.client = NewAPIClient(&APIClientConfig{})
+	c.client = NewAPIClient(&APIClientConfig{
+		HTTPClient: config.HTTPClient,
+	})
 	c.Name = store.StoreNameTorBox
 
 	c.getUserCache = func() cache.Cache[store.User] {

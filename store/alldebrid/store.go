@@ -12,15 +12,21 @@ import (
 	"github.com/MunifTanjim/stremthru/store"
 )
 
+type StoreClientConfig struct {
+	HTTPClient *http.Client
+}
+
 type StoreClient struct {
 	Name             store.StoreName
 	client           *APIClient
 	listMagnetsCache cache.Cache[[]store.ListMagnetsDataItem]
 }
 
-func NewStore() *StoreClient {
+func NewStoreClient(config *StoreClientConfig) *StoreClient {
 	c := &StoreClient{}
-	c.client = NewAPIClient(&APIClientConfig{})
+	c.client = NewAPIClient(&APIClientConfig{
+		HTTPClient: config.HTTPClient,
+	})
 	c.Name = store.StoreNameAlldebrid
 
 	c.listMagnetsCache = func() cache.Cache[[]store.ListMagnetsDataItem] {

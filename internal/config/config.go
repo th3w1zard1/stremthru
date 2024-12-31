@@ -90,6 +90,22 @@ func (sa StremioAddonConfig) IsEnabled(name string) bool {
 	return false
 }
 
+type StoreTunnelConfig struct {
+	disabled bool
+}
+
+type StoreTunnelConfigMap map[string]StoreTunnelConfig
+
+func (stc StoreTunnelConfigMap) IsEnabled(name string) bool {
+	if c, ok := stc[name]; ok {
+		return !c.disabled
+	}
+	if name != "*" {
+		return stc.IsEnabled("*")
+	}
+	return true
+}
+
 type Config struct {
 	Port              string
 	StoreAuthToken    StoreAuthTokenMap
@@ -105,6 +121,7 @@ type Config struct {
 	Version           string
 	LandingPage       string
 	ServerStartTime   time.Time
+	StoreTunnel       StoreTunnelConfigMap
 }
 
 func parseUri(uri string) (parsedUrl, parsedToken string) {
@@ -169,6 +186,19 @@ var config = func() Config {
 		}),
 	}
 
+	storeTunnelList := strings.FieldsFunc(getEnv("STREMTHRU_STORE_TUNNEL", "*:true"), func(c rune) bool {
+		return c == ','
+	})
+
+	storeTunnelMap := make(StoreTunnelConfigMap)
+	for _, storeTunnel := range storeTunnelList {
+		if store, tunnel, ok := strings.Cut(storeTunnel, ":"); ok {
+			storeTunnelMap[store] = StoreTunnelConfig{
+				disabled: tunnel == "false",
+			}
+		}
+	}
+
 	return Config{
 		Port:              getEnv("STREMTHRU_PORT", "8080"),
 		ProxyAuthPassword: proxyAuthPasswordMap,
@@ -184,6 +214,7 @@ var config = func() Config {
 		Version:           "0.21.0", // x-release-please-version
 		LandingPage:       getEnv("STREMTHRU_LANDING_PAGE", "{}"),
 		ServerStartTime:   time.Now(),
+		StoreTunnel:       storeTunnelMap,
 	}
 }()
 
@@ -201,3 +232,4 @@ var StremioAddon = config.StremioAddon
 var Version = config.Version
 var LandingPage = config.LandingPage
 var ServerStartTime = config.ServerStartTime
+var StoreTunnel = config.StoreTunnel
