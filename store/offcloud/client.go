@@ -19,7 +19,7 @@ type APIClientConfig struct {
 	BaseURL    string // default: https://offcloud.com
 	APIKey     string
 	HTTPClient *http.Client
-	agent      string
+	UserAgent  string
 }
 
 type APIClient struct {
@@ -35,8 +35,8 @@ type APIClient struct {
 }
 
 func NewAPIClient(conf *APIClientConfig) *APIClient {
-	if conf.agent == "" {
-		conf.agent = "stremthru"
+	if conf.UserAgent == "" {
+		conf.UserAgent = "stremthru"
 	}
 
 	if conf.BaseURL == "" {
@@ -57,7 +57,7 @@ func NewAPIClient(conf *APIClientConfig) *APIClient {
 	c.BaseURL = baseUrl
 	c.HTTPClient = conf.HTTPClient
 	c.apiKey = conf.APIKey
-	c.agent = conf.agent
+	c.agent = conf.UserAgent
 
 	c.reqQuery = func(query *url.Values, params request.Context) {
 	}

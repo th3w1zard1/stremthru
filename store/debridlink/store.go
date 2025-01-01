@@ -12,6 +12,7 @@ import (
 
 type StoreClientConfig struct {
 	HTTPClient *http.Client
+	UserAgent  string
 }
 
 type StoreClient struct {
@@ -23,6 +24,7 @@ func NewStoreClient(config *StoreClientConfig) *StoreClient {
 	c := &StoreClient{}
 	c.client = NewAPIClient(&APIClientConfig{
 		HTTPClient: config.HTTPClient,
+		UserAgent:  config.UserAgent,
 	})
 	c.Name = store.StoreNameDebridLink
 	return c
