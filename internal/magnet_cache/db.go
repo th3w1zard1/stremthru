@@ -66,15 +66,15 @@ type MagnetCache struct {
 // If Buddy is available, refresh data more frequently.
 var cachedStaleTime = func() time.Duration {
 	if config.HasBuddy {
-		return 1 * time.Hour
+		return 6 * time.Hour
 	}
 	return 12 * time.Hour
 }()
 var uncachedStaleTime = func() time.Duration {
 	if config.HasBuddy {
-		return 30 * time.Minute
+		return 1 * time.Hour
 	}
-	return 1 * time.Hour
+	return 2 * time.Hour
 }()
 
 func (mc MagnetCache) IsStale() bool {
