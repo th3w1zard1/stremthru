@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/request"
@@ -22,6 +23,7 @@ func GetHTTPClient(withProxy bool) *http.Client {
 	}
 	return &http.Client{
 		Transport: transport,
+		Timeout:   90 * time.Second,
 	}
 }
 
@@ -124,7 +126,11 @@ func copyHeaders(src http.Header, dest http.Header) {
 	}
 }
 
-var httpClient = core.DefaultHTTPClient
+var httpClient = func() *http.Client {
+	return &http.Client{
+		Transport: request.DefaultHTTPTransport,
+	}
+}()
 
 func ProxyResponse(w http.ResponseWriter, r *http.Request, url string) {
 	request, err := http.NewRequest(r.Method, url, nil)

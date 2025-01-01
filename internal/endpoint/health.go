@@ -6,9 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
+	"github.com/MunifTanjim/stremthru/internal/request"
+	"github.com/MunifTanjim/stremthru/internal/shared"
 )
 
 type HealthData struct {
@@ -41,9 +42,7 @@ func getIp(client *http.Client) (string, error) {
 }
 
 func getMachineIp() (string, error) {
-	transport := core.DefaultHTTPTransport.Clone()
-	transport.Proxy = nil
-	client := &http.Client{Transport: transport}
+	client := shared.GetHTTPClient(false)
 	return getIp(client)
 }
 
@@ -85,7 +84,7 @@ func handleHealthDebug(w http.ResponseWriter, r *http.Request) {
 				Names:   config.StoreAuthToken.ListStores(ctx.ProxyAuthUser),
 			},
 		}
-		exposedIp, _ := getIp(core.DefaultHTTPClient)
+		exposedIp, _ := getIp(request.DefaultHTTPClient)
 		machineIp, _ := getMachineIp()
 		data.IP = &HealthDebugDataIP{
 			Exposed: exposedIp,

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 var DefaultHTTPTransport = func() *http.Transport {
@@ -19,6 +20,7 @@ var DefaultHTTPTransport = func() *http.Transport {
 var DefaultHTTPClient = func() *http.Client {
 	return &http.Client{
 		Transport: DefaultHTTPTransport,
+		Timeout:   90 * time.Second,
 	}
 }()
 

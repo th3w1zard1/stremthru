@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/request"
@@ -19,6 +20,7 @@ var DefaultHTTPTransport = func() *http.Transport {
 var DefaultHTTPClient = func() *http.Client {
 	return &http.Client{
 		Transport: DefaultHTTPTransport,
+		Timeout:   120 * time.Second,
 	}
 }()
 

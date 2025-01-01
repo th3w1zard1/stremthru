@@ -10,15 +10,8 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/request"
 )
 
-var DefaultHTTPTransport = func() *http.Transport {
-	transport := request.DefaultHTTPTransport.Clone()
-	return transport
-}()
-var DefaultHTTPClient = func() *http.Client {
-	return &http.Client{
-		Transport: DefaultHTTPTransport,
-	}
-}()
+var DefaultHTTPTransport = request.DefaultHTTPTransport
+var DefaultHTTPClient = request.DefaultHTTPClient
 
 type ClientConfig struct {
 	BaseURL    string
