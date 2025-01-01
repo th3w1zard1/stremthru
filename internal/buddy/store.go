@@ -1,6 +1,7 @@
 package buddy
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 
@@ -20,6 +21,18 @@ var Peer = peer.NewAPIClient(&peer.APIClientConfig{
 	APIKey:  config.PeerAuthToken,
 })
 
+func LogError(msg string, err error) {
+	var e core.StremThruError
+	if sterr, ok := err.(core.StremThruError); ok {
+		e = sterr
+	} else {
+		e = &core.Error{Cause: err}
+	}
+	e.Pack()
+
+	log.Printf("%s: %v\n", msg, e)
+}
+
 func TrackMagnet(s store.Store, hash string, files []store.MagnetFile, sid string, cacheMiss bool, storeToken string) {
 	mcFiles := magnet_cache.Files{}
 	if !cacheMiss {
@@ -38,7 +51,7 @@ func TrackMagnet(s store.Store, hash string, files []store.MagnetFile, sid strin
 			SId:       sid,
 		}
 		if _, err := Buddy.TrackMagnetCache(params); err != nil {
-			log.Printf("[buddy] failed to track magnet cache for %s:%s: %v\n", s.GetName(), hash, err)
+			LogError(fmt.Sprintf("[buddy] failed to track magnet cache for %s:%s", s.GetName(), hash), err)
 		}
 	}
 
@@ -52,7 +65,7 @@ func TrackMagnet(s store.Store, hash string, files []store.MagnetFile, sid strin
 			SId:        sid,
 		}
 		if _, err := Peer.TrackMagnet(params); err != nil {
-			log.Printf("[buddy:upstream] failed to track magnet cache for %s:%s: %v\n", s.GetName(), hash, err)
+			LogError(fmt.Sprintf("[buddy:upstream] failed to track magnet cache for %s:%s: %v\n", s.GetName(), hash), err)
 		}
 	}
 }
@@ -114,7 +127,7 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 		params.SId = sid
 		res, err := Buddy.CheckMagnetCache(params)
 		if err != nil {
-			log.Printf("[buddy] failed to check magnet: %v\n", err)
+			LogError("[buddy] failed to check magnet", err)
 		} else {
 			filesByHash := map[string]magnet_cache.Files{}
 			for _, item := range res.Data.Items {
@@ -150,7 +163,7 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 		params.SId = sid
 		res, err := Peer.CheckMagnet(params)
 		if err != nil {
-			log.Printf("[buddy:upstream] failed to check magnet: %v\n", err)
+			LogError("[buddy:upstream] failed to check magnet", err)
 		} else {
 			filesByHash := map[string]magnet_cache.Files{}
 			for _, item := range res.Data.Items {
