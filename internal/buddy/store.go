@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
@@ -125,10 +126,13 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 			ClientIP: clientIp,
 		}
 		params.SId = sid
+		start := time.Now()
 		res, err := Buddy.CheckMagnetCache(params)
+		duration := time.Since(start)
 		if err != nil {
-			LogError("[buddy] failed to check magnet", err)
+			LogError(fmt.Sprintf("[buddy] failed to check magnet, took %v", duration), err)
 		} else {
+			log.Printf("[buddy] check manget, took %v\n", duration)
 			filesByHash := map[string]magnet_cache.Files{}
 			for _, item := range res.Data.Items {
 				res_item := store.CheckMagnetDataItem{
@@ -161,10 +165,13 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 		params.Magnets = hashes
 		params.ClientIP = clientIp
 		params.SId = sid
+		start := time.Now()
 		res, err := Peer.CheckMagnet(params)
+		duration := time.Since(start)
 		if err != nil {
-			LogError("[buddy:upstream] failed to check magnet", err)
+			LogError(fmt.Sprintf("[buddy:upstream] failed to check magnet, took %v", duration), err)
 		} else {
+			log.Printf("[buddy:upstream] check manget, took %v\n", duration)
 			filesByHash := map[string]magnet_cache.Files{}
 			for _, item := range res.Data.Items {
 				files := magnet_cache.Files{}
