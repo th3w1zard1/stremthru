@@ -1,6 +1,7 @@
 package stremio_sidekick
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -349,7 +350,9 @@ func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 		set_res, err := client.SetAddons(set_params)
 		if err != nil || !set_res.Data.Success {
 			if err != nil {
-				log.Printf("[stremio/sidekick] failed to set addons: %v\n", err)
+				err_msg := fmt.Sprintf("[stremio/sidekick] failed to set addons: %v\n", err)
+				log.Print(err_msg)
+				td.AddonError = strings.TrimSpace(err_msg)
 			}
 			td.Addons = currAddons
 		}
@@ -411,9 +414,16 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 		if transportUrl, err := url.Parse(manifestUrl); err == nil {
 			transportUrl.Path = strings.TrimSuffix(transportUrl.Path, "/manifest.json")
 
-			if manifest, err := addon_client.GetManifest(&stremio_addon.GetManifestParams{
+			manifest, err := addon_client.GetManifest(&stremio_addon.GetManifestParams{
 				BaseURL: transportUrl,
-			}); err == nil && manifest.Data.ID == addon.Manifest.ID {
+			})
+			if err != nil {
+				err_msg := fmt.Sprintf("[stremio/sidekick] failed to get manifest: %v\n", err)
+				td.AddonError = strings.TrimSpace(err_msg)
+			} else if manifest.Data.ID != addon.Manifest.ID {
+				err_msg := fmt.Sprintf("[stremio/sidekick] different manifest id\n")
+				td.AddonError = strings.TrimSpace(err_msg)
+			} else {
 				refreshedAddon := stremio_api.Addon{
 					TransportUrl:  manifestUrl,
 					TransportName: addon.TransportName,
@@ -432,7 +442,9 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 		set_res, err := client.SetAddons(set_params)
 		if err != nil || !set_res.Data.Success {
 			if err != nil {
-				log.Printf("[stremio/sidekick] failed to set addons: %v\n", err)
+				err_msg := fmt.Sprintf("[stremio/sidekick] failed to set addons: %v\n", err)
+				log.Print(err_msg)
+				td.AddonError = strings.TrimSpace(err_msg)
 			}
 			td.Addons = currAddons
 		}
@@ -493,9 +505,13 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 				if transportUrl, err = url.Parse(transportUrl.Path); err == nil {
 					transportUrl.Path = strings.TrimSuffix(transportUrl.Path, "/manifest.json")
 
-					if manifest, err := addon_client.GetManifest(&stremio_addon.GetManifestParams{
+					manifest, err := addon_client.GetManifest(&stremio_addon.GetManifestParams{
 						BaseURL: transportUrl,
-					}); err == nil {
+					})
+					if err != nil {
+						err_msg := fmt.Sprintf("[stremio/sidekick] failed to get manifest: %v\n", err)
+						td.AddonError = strings.TrimSpace(err_msg)
+					} else {
 						enabledAddon := stremio_api.Addon{
 							TransportUrl: transportUrl.JoinPath("manifest.json").String(),
 							Manifest:     manifest.Data,
@@ -512,9 +528,13 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 			transportUrl.RawPath = transportUrl.Path
 			transportUrl.Path, _ = url.PathUnescape(transportUrl.Path)
 
-			if manifest, err := addon_client.GetManifest(&stremio_addon.GetManifestParams{
+			manifest, err := addon_client.GetManifest(&stremio_addon.GetManifestParams{
 				BaseURL: transportUrl,
-			}); err == nil {
+			})
+			if err != nil {
+				err_msg := fmt.Sprintf("[stremio/sidekick] failed to get manifest: %v\n", err)
+				td.AddonError = strings.TrimSpace(err_msg)
+			} else {
 				disabledAddon := stremio_api.Addon{
 					TransportUrl: transportUrl.JoinPath("manifest.json").String(),
 					Manifest:     manifest.Data,
@@ -534,7 +554,9 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 		set_res, err := client.SetAddons(set_params)
 		if err != nil || !set_res.Data.Success {
 			if err != nil {
-				log.Printf("[stremio/sidekick] failed to set addons: %v\n", err)
+				err_msg := fmt.Sprintf("[stremio/sidekick] failed to set addons: %v\n", err)
+				log.Print(err_msg)
+				td.AddonError = strings.TrimSpace(err_msg)
 			}
 			td.Addons = currAddons
 		}

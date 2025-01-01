@@ -22,6 +22,7 @@ type TemplateData struct {
 	Email          string
 	Addons         []stremio_api.Addon
 	AddonOperation string
+	AddonError     string
 	LastAddonIndex int
 	LoginMethod    string
 	Login          struct {

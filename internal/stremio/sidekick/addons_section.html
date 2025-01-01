@@ -5,6 +5,10 @@
 #addons_list:not([data-operation="manage"]) #addon_operation_manage {
   display: none;
 }
+#addon_error pre {
+  color: #ad2201;
+  padding: 1rem;
+}
 </style>
 
 <section id="addons_section">
@@ -23,6 +27,12 @@
     </button>
   </div>
 </header>
+
+{{if ne .AddonError ""}}
+<section id="addon_error">
+  <pre>{{.AddonError}}</pre>
+</section>
+{{end}}
 
 <div id="addons_list" data-operation="{{.AddonOperation}}">
   {{range $idx, $addon := .Addons}}
@@ -147,8 +157,6 @@
   </article>
 </dialog>
 
-</section>
-
 <script>
 function onAddonOperationChange(el) {
   const operation = el.value;
@@ -198,4 +206,13 @@ function onAddonReload(btn) {
   document.querySelector("html").classList.add("modal-is-open");
   modal.setAttribute("open", "");
 }
+
+setTimeout(() => {
+    const addon_error = document.querySelector("#addon_error");
+    if (addon_error) {
+    window.scrollTo(0, addon_error.offsetTop);
+    }
+}, 200)
 </script>
+
+</section>
