@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/buddy"
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
@@ -542,6 +543,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	magnet, err = waitForMagnetStatus(ctx, magnet, store.MagnetStatusDownloaded, 12, 5*time.Second)
+	buddy.TrackMagnet(ctx.Store, magnet.Hash, magnet.Files, "*", magnet.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
 	if err != nil {
 		log.Printf("[stremio/wrap] failed wait for magnet status: %v\n", err)
 		if magnet.Status == store.MagnetStatusQueued || magnet.Status == store.MagnetStatusDownloading || magnet.Status == store.MagnetStatusProcessing {
