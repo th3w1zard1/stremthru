@@ -77,13 +77,20 @@ func (r response) send(w http.ResponseWriter, statusCode int) {
 }
 
 func SendError(w http.ResponseWriter, err error) {
+	isUnexpected := false
+
 	var e core.StremThruError
 	if sterr, ok := err.(core.StremThruError); ok {
 		e = sterr
 	} else {
 		e = &core.Error{Cause: err}
+		isUnexpected = true
 	}
 	e.Pack()
+
+	if isUnexpected {
+		log.Printf("unexpected error: %v\n", err)
+	}
 
 	res := &response{}
 	res.Error = e.GetError()
