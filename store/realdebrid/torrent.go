@@ -149,7 +149,7 @@ type GetTorrentInfoData struct {
 	OriginalBytes    int64                    `json:"original_bytes"`    // Total size of the torrent
 	Host             string                   `json:"host"`              // Host main domain
 	Split            int                      `json:"split"`             // Split size of links
-	Progress         int                      `json:"progress"`          // Possible values: 0 to 100
+	Progress         float32                  `json:"progress"`          // Possible values: 0 to 100
 	Status           TorrentStatus            `json:"status"`            // Current status of the torrent
 	Added            string                   `json:"added"`             // Date added (jsonDate format)
 	Files            []GetTorrentInfoDataFile `json:"files"`             // List of files in the torrent
@@ -190,7 +190,7 @@ type ListTorrentsDataItem struct {
 	Bytes    int64         `json:"bytes"`             // Size of selected files only
 	Host     string        `json:"host"`              // Host main domain
 	Split    int           `json:"split"`             // Split size of links
-	Progress int           `json:"progress"`          // Possible values: 0 to 100
+	Progress float32       `json:"progress"`          // Possible values: 0 to 100
 	Status   TorrentStatus `json:"status"`            // Current status of the torrent
 	Added    string        `json:"added"`             // Date added (jsonDate format)
 	Links    []string      `json:"links"`             // List of host URLs
@@ -212,18 +212,22 @@ type listTorrentsData struct {
 
 func (c *listTorrentsData) UnmarshalJSON(data []byte) error {
 	var rerr ResponseError
-	if err := json.Unmarshal(data, &rerr); err == nil {
+	err := json.Unmarshal(data, &rerr)
+	if err == nil {
 		c.ResponseError = &rerr
 		return nil
 	}
 
 	var items ListTorrentsData
-	if err := json.Unmarshal(data, &items); err == nil {
+	err = core.UnmarshalJSON(200, data, &items)
+	if err == nil {
 		c.data = items
 		return nil
 	}
 
-	return core.NewAPIError("failed to parse response")
+	e := core.NewAPIError("failed to parse response")
+	e.Cause = err
+	return e
 }
 
 type ListTorrentsParams struct {
