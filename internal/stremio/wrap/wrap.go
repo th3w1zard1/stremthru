@@ -399,9 +399,7 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 		cmParams := &store.CheckMagnetParams{Magnets: hashes}
 		cmParams.APIKey = ctx.StoreAuthToken
 		cmParams.ClientIP = ctx.ClientIP
-		if strings.Contains(stremId, ":") {
-			cmParams.SId = stremId
-		}
+		cmParams.SId = stremId
 		cmRes, err := ctx.Store.CheckMagnet(cmParams)
 		if err != nil {
 			SendError(w, err)

@@ -60,7 +60,7 @@ func TrackMagnet(s store.Store, hash string, files []store.MagnetFile, sid strin
 }
 
 func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp string, sid string) (*store.CheckMagnetData, error) {
-	if matched, err := regexp.MatchString("^tt[0-9]+:[0-9]{1,2}:[0-9]{1,3}$", sid); err != nil || !matched {
+	if matched, err := regexp.MatchString("^tt[0-9]+(:[0-9]{1,2}:[0-9]{1,3})?$", sid); err != nil || !matched {
 		sid = ""
 	}
 
