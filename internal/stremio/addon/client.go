@@ -172,5 +172,5 @@ func (c Client) ProxyResource(w http.ResponseWriter, r *http.Request, params *Pr
 		path = path + "/" + params.Extra
 	}
 	addClientIPHeader(params.Ctx, params.ClientIP)
-	shared.ProxyResponse(w, r, params.BaseURL.JoinPath(path).String())
+	shared.ProxyResponse(w, r, params.BaseURL.JoinPath(path).String(), true)
 }

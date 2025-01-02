@@ -91,17 +91,28 @@ func (sa StremioAddonConfig) IsEnabled(name string) bool {
 }
 
 type StoreTunnelConfig struct {
-	disabled bool
+	api    bool
+	stream bool
 }
 
 type StoreTunnelConfigMap map[string]StoreTunnelConfig
 
-func (stc StoreTunnelConfigMap) IsEnabled(name string) bool {
+func (stc StoreTunnelConfigMap) IsEnabledForAPI(name string) bool {
 	if c, ok := stc[name]; ok {
-		return !c.disabled
+		return c.api
 	}
 	if name != "*" {
-		return stc.IsEnabled("*")
+		return stc.IsEnabledForAPI("*")
+	}
+	return true
+}
+
+func (stc StoreTunnelConfigMap) IsEnabledForStream(name string) bool {
+	if c, ok := stc[name]; ok {
+		return c.stream
+	}
+	if name != "*" {
+		return stc.IsEnabledForStream("*")
 	}
 	return true
 }
@@ -194,7 +205,8 @@ var config = func() Config {
 	for _, storeTunnel := range storeTunnelList {
 		if store, tunnel, ok := strings.Cut(storeTunnel, ":"); ok {
 			storeTunnelMap[store] = StoreTunnelConfig{
-				disabled: tunnel == "false",
+				api:    tunnel == "true" || tunnel == "api",
+				stream: tunnel == "true",
 			}
 		}
 	}

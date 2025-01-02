@@ -34,7 +34,7 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shared.ProxyResponse(w, r, targetUrl)
+	shared.ProxyResponse(w, r, targetUrl, true)
 }
 
 func AddProxyEndpoints(mux *http.ServeMux) {

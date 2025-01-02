@@ -65,7 +65,13 @@ If `username` is `*`, it is used as fallback for users without explicit store cr
 
 **`STREMTHRU_STORE_TUNNEL`**
 
-Comma separated list of tunnel config for stores, in `store_name:boolean` format.
+Comma separated list of tunnel config for stores, in `store_name:tunnel_config` format.
+
+| `tunnel_config` | Description         |
+| --------------- | ------------------- |
+| `true`          | Enable              |
+| `false`         | Disable             |
+| `api`           | Enable for API only |
 
 If `store_name` is `*`, it is used as fallback.
 

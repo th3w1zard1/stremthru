@@ -126,13 +126,22 @@ func copyHeaders(src http.Header, dest http.Header) {
 	}
 }
 
-var httpClient = func() *http.Client {
+var proxyHttpClientWithTunnel = func() *http.Client {
+	transport := request.DefaultHTTPTransport.Clone()
 	return &http.Client{
-		Transport: request.DefaultHTTPTransport,
+		Transport: transport,
 	}
 }()
 
-func ProxyResponse(w http.ResponseWriter, r *http.Request, url string) {
+var proxyHttpClientWithoutTunnel = func() *http.Client {
+	transport := request.DefaultHTTPTransport.Clone()
+	transport.Proxy = nil
+	return &http.Client{
+		Transport: transport,
+	}
+}()
+
+func ProxyResponse(w http.ResponseWriter, r *http.Request, url string, useTunnel bool) {
 	request, err := http.NewRequest(r.Method, url, nil)
 	if err != nil {
 		e := ErrorInternalServerError(r, "failed to create request")
@@ -143,7 +152,12 @@ func ProxyResponse(w http.ResponseWriter, r *http.Request, url string) {
 
 	copyHeaders(r.Header, request.Header)
 
-	response, err := httpClient.Do(request)
+	proxyHttpClient := proxyHttpClientWithTunnel
+	if !useTunnel {
+		proxyHttpClient = proxyHttpClientWithoutTunnel
+	}
+
+	response, err := proxyHttpClient.Do(request)
 	if err != nil {
 		e := ErrorBadGateway(r, "failed to request url")
 		e.Cause = err

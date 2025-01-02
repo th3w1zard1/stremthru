@@ -20,23 +20,23 @@ import (
 )
 
 var adStore = alldebrid.NewStoreClient(&alldebrid.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabled("alldebrid")),
+	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("alldebrid")),
 })
 var dlStore = debridlink.NewStoreClient(&debridlink.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabled("debridlink")),
+	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("debridlink")),
 })
 var pmStore = premiumize.NewStoreClient(&premiumize.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabled("premiumize")),
+	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("premiumize")),
 })
 var ocStore = offcloud.NewStoreClient(&offcloud.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabled("offcloud")),
+	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("offcloud")),
 })
 var rdStore = realdebrid.NewStoreClient(&realdebrid.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabled("realdebrid")),
+	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("realdebrid")),
 	UserAgent:  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
 })
 var tbStore = torbox.NewStoreClient(&torbox.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabled("torbox")),
+	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("torbox")),
 })
 
 func GetStore(name string) store.Store {
@@ -59,8 +59,9 @@ func GetStore(name string) store.Store {
 }
 
 type proxyLinkTokenData struct {
-	EncLink   string `json:"enc_link"`
-	EncFormat string `json:"enc_format"`
+	EncLink    string `json:"enc_link"`
+	EncFormat  string `json:"enc_format"`
+	SkipTunnel bool   `json:"notun"`
 }
 
 func CreateProxyLink(r *http.Request, ctx *context.RequestContext, link string) (string, error) {
@@ -74,6 +75,7 @@ func CreateProxyLink(r *http.Request, ctx *context.RequestContext, link string) 
 	}
 
 	proxyLink := ExtractRequestBaseURL(r).JoinPath("/v0/store/link/access")
+	useTunnel := config.StoreTunnel.IsEnabledForStream(string(ctx.Store.GetName()))
 
 	token, err := core.CreateJWT(ctx.ProxyAuthPassword, core.JWTClaims[proxyLinkTokenData]{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -82,8 +84,9 @@ func CreateProxyLink(r *http.Request, ctx *context.RequestContext, link string) 
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(6 * time.Hour)),
 		},
 		Data: &proxyLinkTokenData{
-			EncLink:   encryptedLink,
-			EncFormat: core.EncryptionFormat,
+			EncLink:    encryptedLink,
+			EncFormat:  core.EncryptionFormat,
+			SkipTunnel: !useTunnel,
 		},
 	})
 
@@ -123,8 +126,13 @@ func GenerateStremThruLink(r *http.Request, ctx *context.RequestContext, link st
 	return data, nil
 }
 
-var proxyLinkTokenCache = func() cache.Cache[string] {
-	return cache.NewCache[string](&cache.CacheConfig{
+type proxyLink struct {
+	bool
+	string
+}
+
+var proxyLinkTokenCache = func() cache.Cache[proxyLink] {
+	return cache.NewCache[proxyLink](&cache.CacheConfig{
 		Name:     "store:proxyLinkToken",
 		Lifetime: 30 * time.Minute,
 	})
@@ -139,10 +147,10 @@ func getUserSecretFromJWT(t *jwt.Token) (string, []byte, error) {
 	return password, []byte(password), nil
 }
 
-func UnwrapProxyLinkToken(encodedToken string) (string, error) {
-	link := ""
-	if found := proxyLinkTokenCache.Get(encodedToken, &link); found {
-		return link, nil
+func UnwrapProxyLinkToken(encodedToken string) (string, bool, error) {
+	proxyLink := &proxyLink{}
+	if found := proxyLinkTokenCache.Get(encodedToken, proxyLink); found {
+		return proxyLink.string, proxyLink.bool, nil
 	}
 
 	claims := &core.JWTClaims[proxyLinkTokenData]{}
@@ -152,20 +160,21 @@ func UnwrapProxyLinkToken(encodedToken string) (string, error) {
 	}, encodedToken, claims)
 
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
 	secret, _, err := getUserSecretFromJWT(token)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
-	link, err = core.Decrypt(secret, claims.Data.EncLink)
+	proxyLink.bool = !claims.Data.SkipTunnel
+	proxyLink.string, err = core.Decrypt(secret, claims.Data.EncLink)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
-	proxyLinkTokenCache.Add(encodedToken, link)
+	proxyLinkTokenCache.Add(encodedToken, *proxyLink)
 
-	return link, nil
+	return proxyLink.string, proxyLink.bool, nil
 }
