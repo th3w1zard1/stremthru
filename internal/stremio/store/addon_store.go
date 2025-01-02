@@ -2,7 +2,6 @@ package stremio_store
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -259,7 +258,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		params.APIKey = ctx.StoreAuthToken
 		user, err := ctx.Store.GetUser(params)
 		if err != nil {
-			log.Printf("[stremio/store] failed to get user: %v\n", err)
+			core.LogError("[stremio/store] failed to get user", err)
 			token_config.Error = "Invalid Token"
 		} else if user.SubscriptionStatus == store.UserSubscriptionStatusExpired {
 			token_config.Error = "Subscription Expired"
@@ -393,7 +392,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
-			log.Printf("[stremio/store] failed to get request context: %v\n", err)
+			core.LogError("[stremio/store] failed to get request context", err)
 		}
 		shared.ErrorBadRequest(r, "").Send(w)
 		return
@@ -514,7 +513,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
-			log.Printf("[stremio/store] failed to get request context: %v\n", err)
+			core.LogError("[stremio/store] failed to get request context", err)
 		}
 		shared.ErrorBadRequest(r, "").Send(w)
 		return
@@ -595,7 +594,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
-			log.Printf("[stremio/store] failed to get request context: %v\n", err)
+			core.LogError("[stremio/store] failed to get request context", err)
 		}
 		shared.ErrorBadRequest(r, "").Send(w)
 		return
@@ -666,7 +665,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
-			log.Printf("[stremio/store] failed to get request context: %v\n", err)
+			core.LogError("[stremio/store] failed to get request context", err)
 		}
 		w.WriteHeader(204)
 		w.Write([]byte{})
@@ -704,7 +703,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
-			log.Printf("[stremio/store] failed to get request context: %v\n", err)
+			core.LogError("[stremio/store] failed to get request context", err)
 		}
 		shared.ErrorBadRequest(r, "").Send(w)
 		return
@@ -717,7 +716,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	}
 	fileIdx, err := strconv.Atoi(fileIdxStr)
 	if err != nil {
-		log.Printf("[stremio/store] failed to parse file index: %v\n", err)
+		core.LogError("[stremio/store] failed to parse file index", err)
 		shared.ErrorNotFound(r).Send(w)
 		return
 	}

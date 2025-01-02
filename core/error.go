@@ -186,3 +186,18 @@ func NewUpstreamError(msg string) *UpstreamError {
 	err.Msg = msg
 	return err
 }
+
+func PackError(err error) error {
+	var e StremThruError
+	if sterr, ok := err.(StremThruError); ok {
+		e = sterr
+	} else {
+		e = &Error{Cause: err}
+	}
+	e.Pack()
+	return e.GetError()
+}
+
+func LogError(msg string, err error) {
+	log.Printf("%s: %v\n", msg, PackError(err))
+}

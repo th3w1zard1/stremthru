@@ -304,7 +304,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		if manifest_url_config.Error == "" {
 			manifest, err := addon.GetManifest(&stremio_addon.GetManifestParams{BaseURL: ud.baseUrl, ClientIP: ctx.ClientIP})
 			if err != nil {
-				log.Printf("[stremio/wrap] failed to fetch manifest: %v\n", err)
+				core.LogError("[stremio/wrap] failed to fetch manifest", err)
 				manifest_url_config.Error = "Failed to fetch Manifest"
 			} else if manifest.Data.BehaviorHints != nil && manifest.Data.BehaviorHints.Configurable {
 				manifest_url_config.Action.Visible = true
@@ -528,7 +528,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	amParams.APIKey = ctx.StoreAuthToken
 	amRes, err := ctx.Store.AddMagnet(amParams)
 	if err != nil {
-		log.Printf("[stremio/wrap] failed to add magnet: %v\n", err)
+		core.LogError("[stremio/wrap] failed to add magnet", err)
 		redirectToStaticVideo(w, r, cacheKey, "download_failed")
 		return
 	}
@@ -545,7 +545,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	magnet, err = waitForMagnetStatus(ctx, magnet, store.MagnetStatusDownloaded, 12, 5*time.Second)
 	buddy.TrackMagnet(ctx.Store, magnet.Hash, magnet.Files, "*", magnet.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
 	if err != nil {
-		log.Printf("[stremio/wrap] failed wait for magnet status: %v\n", err)
+		core.LogError("[stremio/wrap] failed wait for magnet status", err)
 		if magnet.Status == store.MagnetStatusQueued || magnet.Status == store.MagnetStatusDownloading || magnet.Status == store.MagnetStatusProcessing {
 			redirectToStaticVideo(w, r, cacheKey, "downloading")
 			return
@@ -580,14 +580,14 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	glParams.APIKey = ctx.StoreAuthToken
 	glRes, err := ctx.Store.GenerateLink(glParams)
 	if err != nil {
-		log.Printf("[stremio/wrap] failed to generate link: %v\n", err)
+		core.LogError("[stremio/wrap] failed to generate link", err)
 		redirectToStaticVideo(w, r, cacheKey, "500")
 		return
 	}
 
 	glRes, err = shared.GenerateStremThruLink(r, ctx, glRes.Link)
 	if err != nil {
-		log.Printf("[stremio/wrap] failed to generate stremthru link: %v\n", err)
+		core.LogError("[stremio/wrap] failed to generate stremthru link", err)
 		redirectToStaticVideo(w, r, cacheKey, "500")
 		return
 	}
