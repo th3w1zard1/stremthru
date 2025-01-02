@@ -10,6 +10,8 @@ import (
 )
 
 func main() {
+	config.PrintConfig()
+
 	mux := http.NewServeMux()
 
 	endpoint.AddRootEndpoint(mux)
