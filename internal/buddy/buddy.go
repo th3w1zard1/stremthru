@@ -17,7 +17,7 @@ var DefaultHTTPTransport = func() *http.Transport {
 var DefaultHTTPClient = func() *http.Client {
 	return &http.Client{
 		Transport: DefaultHTTPTransport,
-		Timeout:   120 * time.Second,
+		Timeout:   60 * time.Second,
 	}
 }()
 
