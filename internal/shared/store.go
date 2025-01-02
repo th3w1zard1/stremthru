@@ -133,8 +133,8 @@ func GenerateStremThruLink(r *http.Request, ctx *context.RequestContext, link st
 }
 
 type proxyLink struct {
-	bool
-	string
+	Value string
+	NoTun bool
 }
 
 var proxyLinkTokenCache = func() cache.Cache[proxyLink] {
@@ -156,7 +156,7 @@ func getUserSecretFromJWT(t *jwt.Token) (string, []byte, error) {
 func UnwrapProxyLinkToken(encodedToken string) (string, bool, error) {
 	proxyLink := &proxyLink{}
 	if found := proxyLinkTokenCache.Get(encodedToken, proxyLink); found {
-		return proxyLink.string, proxyLink.bool, nil
+		return proxyLink.Value, proxyLink.NoTun, nil
 	}
 
 	claims := &core.JWTClaims[proxyLinkTokenData]{}
@@ -174,13 +174,13 @@ func UnwrapProxyLinkToken(encodedToken string) (string, bool, error) {
 		return "", false, err
 	}
 
-	proxyLink.bool = !claims.Data.SkipTunnel
-	proxyLink.string, err = core.Decrypt(secret, claims.Data.EncLink)
+	proxyLink.NoTun = !claims.Data.SkipTunnel
+	proxyLink.Value, err = core.Decrypt(secret, claims.Data.EncLink)
 	if err != nil {
 		return "", false, err
 	}
 
 	proxyLinkTokenCache.Add(encodedToken, *proxyLink)
 
-	return proxyLink.string, proxyLink.bool, nil
+	return proxyLink.Value, proxyLink.NoTun, nil
 }
