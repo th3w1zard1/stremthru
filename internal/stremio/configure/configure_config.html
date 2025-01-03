@@ -5,7 +5,7 @@
   <select id="{{.Key}}" name="{{.Key}}" {{if .Required}}required{{end}} {{if ne .Error ""}}aria-invalid="true"{{end}}>
     {{ $Default := .Default }}
     {{range .Options}}
-      <option value="{{.Value}}" {{if eq $Default .Value}}selected{{end}}>{{.Label}}</option>
+      <option value="{{.Value}}" {{if eq $Default .Value}}selected{{end}} {{if .Disabled}}disabled{{end}}>{{.Label}}</option>
     {{end}}
   </select>
 {{else}}
