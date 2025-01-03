@@ -137,6 +137,10 @@ func getUserData(r *http.Request) (*UserData, error) {
 
 	if IsMethod(r, http.MethodPost) {
 		data.ManifestURL = r.FormValue("manifest_url")
+		if strings.HasPrefix(data.ManifestURL, "stremio:") {
+			data.ManifestURL = "https:" + strings.TrimPrefix(data.ManifestURL, "stremio:")
+		}
+
 		data.StoreName = r.FormValue("store")
 		data.StoreToken = r.FormValue("token")
 		encoded, err := data.GetEncoded()
