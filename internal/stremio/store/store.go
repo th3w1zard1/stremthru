@@ -458,7 +458,9 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	totalItems := len(items)
 	items = items[min(extra.Skip, totalItems):min(extra.Skip+limit, totalItems)]
 
-	res.Metas = items
+	if len(items) > 0 {
+		res.Metas = items
+	}
 
 	SendResponse(w, 200, res)
 }
