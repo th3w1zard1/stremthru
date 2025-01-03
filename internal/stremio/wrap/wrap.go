@@ -219,6 +219,7 @@ func getTemplateData() *configure.TemplateData {
 					configure.ConfigOption{Value: "", Label: "StremThru"},
 					configure.ConfigOption{Value: "alldebrid", Label: "AllDebrid"},
 					configure.ConfigOption{Value: "debridlink", Label: "DebridLink"},
+					configure.ConfigOption{Value: "easydebrid", Label: "EasyDebrid"},
 					configure.ConfigOption{Value: "offcloud", Label: "Offcloud"},
 					configure.ConfigOption{Value: "premiumize", Label: "Premiumize"},
 					configure.ConfigOption{Value: "realdebrid", Label: "RealDebrid"},
