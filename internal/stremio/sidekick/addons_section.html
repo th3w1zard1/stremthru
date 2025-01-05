@@ -201,7 +201,7 @@ function onAddonReload(btn) {
     if (!content.contains(e.target)) {
       onAddonReloadModalClose();
     }
-  }, { once: true });
+  });
 
   document.querySelector("html").classList.add("modal-is-open");
   modal.setAttribute("open", "");
@@ -210,7 +210,7 @@ function onAddonReload(btn) {
 setTimeout(() => {
     const addon_error = document.querySelector("#addon_error");
     if (addon_error) {
-    window.scrollTo(0, addon_error.offsetTop);
+      window.scrollTo(0, addon_error.offsetTop);
     }
 }, 200)
 </script>
