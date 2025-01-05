@@ -609,15 +609,28 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	link := ""
+	var file *store.MagnetFile
 	for i := range magnet.Files {
 		f := &magnet.Files[i]
 		if f.Name == fileName || (fileIdx != -1 && f.Idx == fileIdx) {
-			link = f.Link
+			file = f
 			break
 		}
 	}
 
+	if file == nil {
+		for i := range magnet.Files {
+			f := &magnet.Files[i]
+			if file == nil || file.Size < f.Size {
+				file = f
+			}
+		}
+	}
+
+	link := ""
+	if file != nil {
+		link = file.Link
+	}
 	if link == "" {
 		log.Printf("[stremio/wrap] no matching file found for magnet: %s\n", magnet.Hash)
 		redirectToStaticVideo(w, r, cacheKey, "no_matching_file")
