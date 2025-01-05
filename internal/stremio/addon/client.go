@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/request"
@@ -15,7 +16,12 @@ import (
 )
 
 var DefaultHTTPTransport = request.DefaultHTTPTransport
-var DefaultHTTPClient = request.DefaultHTTPClient
+var DefaultHTTPClient = func() *http.Client {
+	return &http.Client{
+		Transport: DefaultHTTPTransport,
+		Timeout:   30 * time.Second,
+	}
+}()
 
 type ClientConfig struct {
 	HTTPClient *http.Client
