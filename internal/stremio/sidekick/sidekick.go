@@ -420,9 +420,11 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 			})
 			if err != nil {
 				err_msg := fmt.Sprintf("[stremio/sidekick] failed to get manifest: %v\n", core.PackError(err))
+				log.Print(err_msg)
 				td.AddonError = strings.TrimSpace(err_msg)
 			} else if manifest.Data.ID != addon.Manifest.ID && manifest.Data.Name != addon.Manifest.Name {
 				err_msg := fmt.Sprintf("[stremio/sidekick] both manifest id and name changed\n")
+				log.Print(err_msg)
 				td.AddonError = strings.TrimSpace(err_msg)
 			} else {
 				refreshedAddon := stremio_api.Addon{
@@ -511,6 +513,7 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 					})
 					if err != nil {
 						err_msg := fmt.Sprintf("[stremio/sidekick] failed to get manifest: %v\n", core.PackError(err))
+						log.Print(err_msg)
 						td.AddonError = strings.TrimSpace(err_msg)
 					} else {
 						enabledAddon := stremio_api.Addon{
@@ -534,6 +537,7 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 			})
 			if err != nil {
 				err_msg := fmt.Sprintf("[stremio/sidekick] failed to get manifest: %v\n", core.PackError(err))
+				log.Print(err_msg)
 				td.AddonError = strings.TrimSpace(err_msg)
 			} else {
 				disabledAddon := stremio_api.Addon{
