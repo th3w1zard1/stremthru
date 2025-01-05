@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/request"
@@ -59,6 +60,13 @@ func (e *ResponseError) Error() string {
 
 func processResponseBody(res *http.Response, err error, v any) error {
 	if err != nil {
+		return err
+	}
+
+	contentType := res.Header.Get("Content-Type")
+	if !strings.Contains(contentType, "application/json") {
+		err := core.NewAPIError("unxpected content-type: " + contentType)
+		err.StatusCode = res.StatusCode
 		return err
 	}
 
