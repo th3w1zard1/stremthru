@@ -154,8 +154,10 @@ func getUserData(r *http.Request) (*UserData, error) {
 
 	if data.ManifestURL != "" {
 		if baseUrl, err := url.Parse(data.ManifestURL); err == nil {
-			baseUrl.Path = strings.TrimSuffix(baseUrl.Path, "/manifest.json")
-			data.baseUrl = baseUrl
+			if strings.HasSuffix(baseUrl.Path, "/manifest.json") {
+				baseUrl.Path = strings.TrimSuffix(baseUrl.Path, "/manifest.json")
+				data.baseUrl = baseUrl
+			}
 		}
 	}
 
@@ -320,14 +322,6 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if ctx.Store == nil {
-			if ud.StoreName == "" {
-				token_config.Error = "Invalid Token"
-			} else {
-				store_config.Error = "Invalid Store"
-			}
-		}
-
 		if manifest_url_config.Error == "" {
 			manifest, err := addon.GetManifest(&stremio_addon.GetManifestParams{BaseURL: ud.baseUrl, ClientIP: ctx.ClientIP})
 			if err != nil {
@@ -335,6 +329,24 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				manifest_url_config.Error = "Failed to fetch Manifest"
 			} else if manifest.Data.BehaviorHints != nil && manifest.Data.BehaviorHints.Configurable {
 				manifest_url_config.Action.Visible = true
+			}
+		}
+
+		if manifest_url_config.Error == "" {
+			if ctx.Store == nil {
+				if ud.StoreName == "" {
+					token_config.Error = "Invalid Token"
+				} else {
+					store_config.Error = "Invalid Store"
+				}
+			} else {
+				params := &store.GetUserParams{}
+				params.APIKey = ctx.StoreAuthToken
+				_, err := ctx.Store.GetUser(params)
+				if err != nil {
+					core.LogError("[stremio/wrap] failed to access store", err)
+					token_config.Error = "Failed to access store"
+				}
 			}
 		}
 	}
