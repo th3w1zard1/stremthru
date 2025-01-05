@@ -413,7 +413,12 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if transportUrl, err := url.Parse(manifestUrl); err == nil {
-			transportUrl.Path = strings.TrimSuffix(transportUrl.Path, "/manifest.json")
+			rawPath := transportUrl.RawPath
+			if rawPath == "" {
+				rawPath = transportUrl.Path
+			}
+			transportUrl.RawPath = strings.TrimSuffix(rawPath, "/manifest.json")
+			transportUrl.Path, _ = url.PathUnescape(transportUrl.RawPath)
 
 			manifest, err := addon_client.GetManifest(&stremio_addon.GetManifestParams{
 				BaseURL: transportUrl,
@@ -528,9 +533,8 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			transportUrl := shared.ExtractRequestBaseURL(r)
-			transportUrl.Path = "/stremio/disabled/" + url.PathEscape(addon.TransportUrl)
-			transportUrl.RawPath = transportUrl.Path
-			transportUrl.Path, _ = url.PathUnescape(transportUrl.Path)
+			transportUrl.RawPath = "/stremio/disabled/" + url.PathEscape(addon.TransportUrl)
+			transportUrl.Path = "/stremio/disabled/" + addon.TransportUrl
 
 			manifest, err := addon_client.GetManifest(&stremio_addon.GetManifestParams{
 				BaseURL: transportUrl,
