@@ -85,45 +85,6 @@ func getCookieValue(w http.ResponseWriter, r *http.Request) (*CookieValue, error
 	return value, nil
 }
 
-func getTemplateData(cookie *CookieValue, r *http.Request) *TemplateData {
-	td := &TemplateData{
-		Title:       "Stremio Sidekick",
-		Description: "Extra Features for Stremio",
-	}
-	if cookie != nil && !cookie.IsExpired {
-		td.IsAuthed = true
-		td.Email = cookie.Email()
-	}
-	if !td.IsAuthed {
-		td.Login.Email = ""
-		td.Login.Password = ""
-	}
-
-	td.LoginMethod = r.URL.Query().Get("login_method")
-	if td.LoginMethod == "" {
-		hxCurrUrl := r.Header.Get("hx-current-url")
-		if hxCurrUrl != "" {
-			if hxUrl, err := url.Parse(hxCurrUrl); err == nil {
-				td.LoginMethod = hxUrl.Query().Get("login_method")
-			}
-		}
-	}
-	if td.LoginMethod == "" {
-		td.LoginMethod = "password"
-	}
-
-	td.AddonOperation = r.URL.Query().Get("addon_operation")
-	if td.AddonOperation == "" {
-		hxCurrUrl := r.Header.Get("hx-current-url")
-		if hxCurrUrl != "" {
-			if hxUrl, err := url.Parse(hxCurrUrl); err == nil {
-				td.AddonOperation = hxUrl.Query().Get("addon_operation")
-			}
-		}
-	}
-	return td
-}
-
 func handleRoot(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasSuffix(r.URL.Path, "/") {
 		http.Redirect(w, r, r.URL.Path+"/", http.StatusFound)
@@ -138,7 +99,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 
 	td := getTemplateData(cookie, r)
 
-	buf, err := GetPage(td)
+	buf, err := getPage(td)
 	if err != nil {
 		SendError(w, err)
 		return
@@ -184,7 +145,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 			case stremio_api.ErrorCodeWrongPassphrase:
 				td.Login.Error.Password = rerr.Message
 			}
-			buf, err := ExecuteTemplate(td, "account_section.html")
+			buf, err := executeTemplate(td, "sidekick_account_section.html")
 			if err != nil {
 				SendError(w, err)
 				return
@@ -218,7 +179,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 			case stremio_api.ErrorCodeSessionNotFound:
 				td.Login.Error.Token = rerr.Message
 			}
-			buf, err := ExecuteTemplate(td, "account_section.html")
+			buf, err := executeTemplate(td, "sidekick_account_section.html")
 			if err != nil {
 				SendError(w, err)
 				return
@@ -266,7 +227,7 @@ func handleAddons(w http.ResponseWriter, r *http.Request) {
 	td := getTemplateData(cookie, r)
 	td.Addons = res.Data.Addons
 
-	buf, err := ExecuteTemplate(td, "addons_section.html")
+	buf, err := executeTemplate(td, "sidekick_addons_section.html")
 	if err != nil {
 		SendError(w, err)
 		return
@@ -359,7 +320,7 @@ func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	buf, err := ExecuteTemplate(td, "addons_section.html")
+	buf, err := executeTemplate(td, "sidekick_addons_section.html")
 	if err != nil {
 		SendError(w, err)
 		return
@@ -458,7 +419,7 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	buf, err := ExecuteTemplate(td, "addons_section.html")
+	buf, err := executeTemplate(td, "sidekick_addons_section.html")
 	if err != nil {
 		SendError(w, err)
 		return
@@ -571,7 +532,7 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	buf, err := ExecuteTemplate(td, "addons_section.html")
+	buf, err := executeTemplate(td, "sidekick_addons_section.html")
 	if err != nil {
 		SendError(w, err)
 		return
