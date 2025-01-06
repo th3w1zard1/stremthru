@@ -16,7 +16,7 @@ func GetScriptStoreTokenDescription(storeNameId, storeTokenId string) template.J
 		torbox: "TorBox <a href='https://torbox.app/settings' target='_blank'>API Key</a>",
   };
   const nameElem = document.querySelector("#` + storeNameId + `");
-  if (!nameElem) {
+  if (!nameElem || !nameElem.options[nameElem.selectedIndex].textContent) {
     return;
   }
   const tokenDescElem = document.querySelector("#` + storeTokenId + ` + small > span.description");
