@@ -580,14 +580,24 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var file *store.MagnetFile
-	for i := range magnet.Files {
-		f := &magnet.Files[i]
-		if f.Name == fileName || (fileIdx != -1 && f.Idx == fileIdx) {
-			file = f
-			break
+	if fileName != "" {
+		for i := range magnet.Files {
+			f := &magnet.Files[i]
+			if f.Name == fileName {
+				file = f
+				break
+			}
 		}
 	}
-
+	if file == nil && fileIdx != -1 {
+		for i := range magnet.Files {
+			f := &magnet.Files[i]
+			if f.Idx == fileIdx {
+				file = f
+				break
+			}
+		}
+	}
 	if file == nil {
 		for i := range magnet.Files {
 			f := &magnet.Files[i]
