@@ -17,6 +17,7 @@ Companion for Stremio.
 - [Debrid-Link](https://debrid-link.com)
 - [EasyDebrid](https://easydebrid.com)
 - [Offcloud](https://offcloud.com)
+- [PikPak](https://mypikpak.com)
 - [Premiumize](https://www.premiumize.me)
 - [RealDebrid](https://real-debrid.com)
 - [TorBox](https://torbox.app)
