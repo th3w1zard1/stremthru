@@ -460,9 +460,7 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 			idx++
 		}
 
-		if len(streams) > 0 {
-			res.Data.Streams = streams
-		}
+		res.Data.Streams = streams
 
 		SendResponse(w, 200, res.Data)
 		return
