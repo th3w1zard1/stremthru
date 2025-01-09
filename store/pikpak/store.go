@@ -214,27 +214,27 @@ type LockedFileLink string
 
 const lockedFileLinkPrefix = "stremthru://store/pikpak/"
 
-func (l LockedFileLink) encodeData(magnetId, fileId string) string {
-	return core.Base64Encode(magnetId + ":" + fileId)
+func (l LockedFileLink) encodeData(rootFileId, fileId string) string {
+	return core.Base64Encode(rootFileId + ":" + fileId)
 }
 
-func (l LockedFileLink) decodeData(encoded string) (magnetId, fileId string, err error) {
+func (l LockedFileLink) decodeData(encoded string) (rootFileId, fileId string, err error) {
 	decoded, err := core.Base64Decode(encoded)
 	if err != nil {
 		return "", "", err
 	}
-	magnetId, fileId, found := strings.Cut(decoded, ":")
+	rootFileId, fileId, found := strings.Cut(decoded, ":")
 	if !found {
 		return "", "", err
 	}
-	return magnetId, fileId, nil
+	return rootFileId, fileId, nil
 }
 
-func (l LockedFileLink) create(magnetId, fileId string) string {
-	return lockedFileLinkPrefix + l.encodeData(magnetId, fileId)
+func (l LockedFileLink) create(rootFileId, fileId string) string {
+	return lockedFileLinkPrefix + l.encodeData(rootFileId, fileId)
 }
 
-func (l LockedFileLink) parse() (magnetId, fileId string, err error) {
+func (l LockedFileLink) parse() (rootFileId, fileId string, err error) {
 	encoded := strings.TrimPrefix(string(l), lockedFileLinkPrefix)
 	return l.decodeData(encoded)
 }
@@ -350,7 +350,7 @@ func (s *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		} else {
 			data.Files = append(data.Files, store.MagnetFile{
 				Idx:  0,
-				Link: LockedFileLink("").create(data.Id, ""),
+				Link: LockedFileLink("").create(data.Id, data.Id),
 				Name: data.Name,
 				Path: "/" + data.Name,
 				Size: toSize(res.Data.Size),
