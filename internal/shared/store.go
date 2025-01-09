@@ -9,6 +9,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
+	"github.com/MunifTanjim/stremthru/internal/request"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/store/alldebrid"
 	"github.com/MunifTanjim/stremthru/store/debridlink"
@@ -22,29 +23,29 @@ import (
 )
 
 var adStore = alldebrid.NewStoreClient(&alldebrid.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("alldebrid")),
+	HTTPClient: request.GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("alldebrid")),
 })
 var dlStore = debridlink.NewStoreClient(&debridlink.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("debridlink")),
+	HTTPClient: request.GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("debridlink")),
 })
 var edStore = easydebrid.NewStoreClient(&easydebrid.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("easydebrid")),
+	HTTPClient: request.GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("easydebrid")),
 })
 var pmStore = premiumize.NewStoreClient(&premiumize.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("premiumize")),
+	HTTPClient: request.GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("premiumize")),
 })
 var ppStore = pikpak.NewStoreClient(&pikpak.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("pikpak")),
+	HTTPClient: request.GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("pikpak")),
 })
 var ocStore = offcloud.NewStoreClient(&offcloud.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("offcloud")),
+	HTTPClient: request.GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("offcloud")),
 })
 var rdStore = realdebrid.NewStoreClient(&realdebrid.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("realdebrid")),
+	HTTPClient: request.GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("realdebrid")),
 	UserAgent:  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
 })
 var tbStore = torbox.NewStoreClient(&torbox.StoreClientConfig{
-	HTTPClient: GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("torbox")),
+	HTTPClient: request.GetHTTPClient(config.StoreTunnel.IsEnabledForAPI("torbox")),
 })
 
 func GetStore(name string) store.Store {

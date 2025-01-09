@@ -10,22 +10,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/request"
 )
-
-func GetHTTPClient(withProxy bool) *http.Client {
-	transport := request.DefaultHTTPTransport.Clone()
-	if !withProxy {
-		transport.Proxy = nil
-	}
-	return &http.Client{
-		Transport: transport,
-		Timeout:   90 * time.Second,
-	}
-}
 
 func IsMethod(r *http.Request, method string) bool {
 	return r.Method == method

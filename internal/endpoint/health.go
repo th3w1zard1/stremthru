@@ -9,7 +9,6 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
 	"github.com/MunifTanjim/stremthru/internal/request"
-	"github.com/MunifTanjim/stremthru/internal/shared"
 )
 
 type HealthData struct {
@@ -42,7 +41,7 @@ func getIp(client *http.Client) (string, error) {
 }
 
 func getMachineIp() (string, error) {
-	client := shared.GetHTTPClient(false)
+	client := request.GetHTTPClient(false)
 	return getIp(client)
 }
 
