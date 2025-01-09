@@ -10,6 +10,7 @@ import (
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/buddy"
+	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
@@ -27,8 +28,9 @@ type StoreClientConfig struct {
 }
 
 type StoreClient struct {
-	Name   store.StoreName
-	client *APIClient
+	Name             store.StoreName
+	client           *APIClient
+	listMagnetsCache cache.Cache[[]store.ListMagnetsDataItem]
 }
 
 func NewStoreClient(config *StoreClientConfig) *StoreClient {
@@ -39,7 +41,18 @@ func NewStoreClient(config *StoreClientConfig) *StoreClient {
 	})
 	c.Name = store.StoreNamePikPak
 
+	c.listMagnetsCache = func() cache.Cache[[]store.ListMagnetsDataItem] {
+		return cache.NewCache[[]store.ListMagnetsDataItem](&cache.CacheConfig{
+			Name:     "store:pikpak:listMagnets",
+			Lifetime: 5 * time.Minute,
+		})
+	}()
+
 	return c
+}
+
+func (s *StoreClient) getCacheKey(ctx Ctx, key string) string {
+	return ctx.GetDeviceId() + ":" + key
 }
 
 func (s *StoreClient) GetName() store.StoreName {
@@ -167,6 +180,9 @@ func (s *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	if err != nil {
 		return nil, err
 	}
+
+	s.listMagnetsCache.Remove(s.getCacheKey(ctx, ""))
+
 	data.Id = res.Data.Task.FileId
 	if task, err := s.waitForTaskComplete(ctx, res.Data.Task.Id, 3, 5*time.Second); task != nil {
 		if err != nil {
@@ -407,61 +423,98 @@ func (s *StoreClient) getMyPackFolder(ctx Ctx) (*File, error) {
 
 func (s *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListMagnetsData, error) {
 	ctx := Ctx{Ctx: params.Ctx}
-	myPackFolder, err := s.getMyPackFolder(ctx)
-	if err != nil {
-		return nil, err
+
+	lm := []store.ListMagnetsDataItem{}
+
+	if !s.listMagnetsCache.Get(s.getCacheKey(ctx, ""), &lm) {
+		items := []store.ListMagnetsDataItem{}
+		pageToken := ""
+		for {
+			myPackFolder, err := s.getMyPackFolder(ctx)
+			if err != nil {
+				return nil, err
+			}
+			res, err := s.client.ListFiles(&ListFilesParams{
+				Ctx:      Ctx{Ctx: params.Ctx},
+				Limit:    500,
+				ParentId: myPackFolder.Id,
+				Filters: map[string]map[string]any{
+					"trashed": map[string]any{"eq": false},
+					"phase":   map[string]any{"eq": FilePhaseComplete},
+				},
+				PageToken: pageToken,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			for i := range res.Data.Files {
+				f := &res.Data.Files[i]
+				addedAt, err := time.Parse(time.RFC3339, f.CreatedTime)
+				if err != nil {
+					addedAt = time.Now()
+				}
+				if !strings.HasPrefix(f.Params.URL, "magnet:") {
+					continue
+				}
+				magnet, err := core.ParseMagnetLink(f.Params.URL)
+				if err != nil {
+					continue
+				}
+				item := store.ListMagnetsDataItem{
+					Id:      f.Id,
+					Name:    f.Name,
+					Hash:    magnet.Hash,
+					Status:  store.MagnetStatusDownloading,
+					AddedAt: addedAt,
+				}
+				if f.Phase == FilePhaseComplete {
+					item.Status = store.MagnetStatusDownloaded
+				}
+				items = append(items, item)
+			}
+
+			pageToken = res.Data.NextPageToken
+			if pageToken == "" {
+				break
+			}
+		}
+
+		lm = items
+		s.listMagnetsCache.Add(s.getCacheKey(ctx, ""), items)
 	}
-	res, err := s.client.ListFiles(&ListFilesParams{
-		Ctx:      Ctx{Ctx: params.Ctx},
-		ParentId: myPackFolder.Id,
-		Filters: map[string]map[string]any{
-			"trashed": map[string]any{"eq": false},
-			"phase":   map[string]any{"eq": FilePhaseComplete},
-		},
-	})
-	if err != nil {
-		return nil, err
+
+	totalItems := len(lm)
+	startIdx := params.Offset
+	if startIdx > totalItems {
+		startIdx = totalItems
 	}
+	endIdx := startIdx + params.Limit
+	if endIdx > totalItems {
+		endIdx = totalItems
+	}
+	items := lm[startIdx:endIdx]
+
 	data := &store.ListMagnetsData{
-		Items: []store.ListMagnetsDataItem{},
+		Items:      items,
+		TotalItems: totalItems,
 	}
-	for i := range res.Data.Files {
-		f := &res.Data.Files[i]
-		addedAt, err := time.Parse(time.RFC3339, f.CreatedTime)
-		if err != nil {
-			addedAt = time.Now()
-		}
-		if !strings.HasPrefix(f.Params.URL, "magnet:") {
-			continue
-		}
-		magnet, err := core.ParseMagnetLink(f.Params.URL)
-		if err != nil {
-			continue
-		}
-		item := store.ListMagnetsDataItem{
-			Id:      f.Id,
-			Name:    f.Name,
-			Hash:    magnet.Hash,
-			Status:  store.MagnetStatusDownloading,
-			AddedAt: addedAt,
-		}
-		if f.Phase == FilePhaseComplete {
-			item.Status = store.MagnetStatusDownloaded
-		}
-		data.Items = append(data.Items, item)
-	}
-	data.TotalItems = len(data.Items)
+
 	return data, nil
 }
 
 func (s *StoreClient) RemoveMagnet(params *store.RemoveMagnetParams) (*store.RemoveMagnetData, error) {
+	ctx := Ctx{Ctx: params.Ctx}
 	_, err := s.client.Trash(&TrashParams{
-		Ctx: Ctx{Ctx: params.Ctx},
+		Ctx: ctx,
 		Ids: []string{params.Id},
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	s.listMagnetsCache.Remove(s.getCacheKey(ctx, ""))
+
 	data := &store.RemoveMagnetData{
 		Id: params.Id,
 	}
