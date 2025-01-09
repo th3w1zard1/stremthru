@@ -16,6 +16,7 @@ var ErrByCode = map[int]string{
 	16:   "unauthenticated",
 	4002: "captcha_invalid",
 	4022: "invalid_account_or_password",
+	4126: "invalid_grant",
 }
 
 type ErrorDetail struct {

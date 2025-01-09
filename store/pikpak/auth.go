@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/kv"
 )
@@ -323,14 +324,24 @@ func (c APIClient) withAccessToken(ctx *Ctx) error {
 	}
 
 	if ctx.auth.IsAuthed() {
+		shouldTryToLogin := false
 		if ctx.auth.IsExpiring() {
 			if err := c.refreshAuthToken(ctx); err != nil {
 				log.Printf("[pikpak] failed to refresh access token: %v", deviceId)
+				if uerr, ok := err.(*core.UpstreamError); ok {
+					if rerr, ok := uerr.UpstreamCause.(*ResponseContainer); ok {
+						if rerr.Err == "invalid_grant" {
+							shouldTryToLogin = true
+						}
+					}
+				}
 			} else {
 				log.Printf("[pikpak] refreshed access token: %v", deviceId)
 			}
 		}
-		return nil
+		if !shouldTryToLogin {
+			return nil
+		}
 	}
 
 	user := ctx.GetUser()
