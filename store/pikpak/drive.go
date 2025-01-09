@@ -199,7 +199,7 @@ func (c APIClient) ListFiles(params *ListFilesParams) (APIResponse[ListFilesData
 	if params.Limit == 0 {
 		params.Query.Add("limit", "100")
 	} else {
-		params.Query.Add("limit", string(params.Limit))
+		params.Query.Add("limit", strconv.Itoa(params.Limit))
 	}
 	if params.ParentId != "" {
 		params.Query.Add("parent_id", params.ParentId)

@@ -46,7 +46,7 @@ func (s *StoreClient) GetName() store.StoreName {
 	return s.Name
 }
 
-func (s *StoreClient) getTask(ctx Ctx, taskId string) (*Task, error) {
+func (s *StoreClient) getRecentTask(ctx Ctx, taskId string) (*Task, error) {
 	res, err := s.client.ListTasks(&ListTasksParams{
 		Ctx:   ctx,
 		Limit: 200,
@@ -71,14 +71,14 @@ func (s *StoreClient) getTask(ctx Ctx, taskId string) (*Task, error) {
 }
 
 func (s *StoreClient) waitForTaskComplete(ctx Ctx, taskId string, maxRetry int, retryInterval time.Duration) (*Task, error) {
-	t, err := s.getTask(ctx, taskId)
+	t, err := s.getRecentTask(ctx, taskId)
 	if err != nil {
 		return nil, err
 	}
 	retry := 0
 	for (t.Phase != FilePhaseComplete && t.Phase != FilePhaseError) && retry < maxRetry {
 		time.Sleep(retryInterval)
-		task, err := s.getTask(ctx, t.Id)
+		task, err := s.getRecentTask(ctx, t.Id)
 		if err != nil {
 			return t, err
 		}
@@ -93,12 +93,71 @@ func (s *StoreClient) waitForTaskComplete(ctx Ctx, taskId string, maxRetry int, 
 	return t, nil
 }
 
+func (s *StoreClient) getFileByMagnetHash(ctx Ctx, hash string) (*File, error) {
+	myPackFolder, err := s.getMyPackFolder(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := s.client.ListFiles(&ListFilesParams{
+		Ctx:      ctx,
+		Limit:    500,
+		ParentId: myPackFolder.Id,
+		Filters: map[string]map[string]any{
+			"trashed": map[string]any{"eq": false},
+			"phase":   map[string]any{"eq": FilePhaseComplete},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	for i := range res.Data.Files {
+		f := &res.Data.Files[i]
+		if strings.Contains(f.Params.URL, hash) {
+			return f, nil
+		}
+	}
+	return nil, nil
+}
+
 func (s *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnetData, error) {
 	magnet, err := core.ParseMagnetLink(params.Magnet)
 	if err != nil {
 		return nil, err
 	}
 	ctx := Ctx{Ctx: params.Ctx}
+
+	file, err := s.getFileByMagnetHash(ctx, magnet.Hash)
+	if err != nil {
+		return nil, err
+	}
+
+	data := &store.AddMagnetData{
+		Hash:    magnet.Hash,
+		Magnet:  magnet.Link,
+		Name:    "",
+		Status:  store.MagnetStatusQueued,
+		Files:   []store.MagnetFile{},
+		AddedAt: time.Now(),
+	}
+
+	if file != nil {
+		data.Id = file.Id
+
+		mRes, err := s.GetMagnet(&store.GetMagnetParams{
+			Ctx: ctx.Ctx,
+			Id:  data.Id,
+		})
+		if err != nil {
+			return nil, err
+		}
+		data.Name = mRes.Name
+		data.Status = mRes.Status
+		data.Files = mRes.Files
+		data.AddedAt = mRes.AddedAt
+		return data, nil
+	}
+
 	res, err := s.client.AddFile(&AddFileParams{
 		Ctx: ctx,
 		URL: AddFileParamsURL{
@@ -108,15 +167,7 @@ func (s *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	if err != nil {
 		return nil, err
 	}
-	data := &store.AddMagnetData{
-		Id:      res.Data.Task.FileId,
-		Hash:    magnet.Hash,
-		Magnet:  magnet.Link,
-		Name:    "",
-		Status:  store.MagnetStatusDownloading,
-		Files:   []store.MagnetFile{},
-		AddedAt: time.Now(),
-	}
+	data.Id = res.Data.Task.FileId
 	if task, err := s.waitForTaskComplete(ctx, res.Data.Task.Id, 3, 5*time.Second); task != nil {
 		if err != nil {
 			log.Printf("[pikpak] error waiting for task complete %v\n", err)
