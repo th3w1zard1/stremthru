@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/config"
+	"github.com/MunifTanjim/stremthru/internal/context"
 	"github.com/MunifTanjim/stremthru/internal/request"
 )
 
@@ -196,4 +198,14 @@ func ExtractRequestBaseURL(r *http.Request) *url.URL {
 		Scheme: extractRequestScheme(r),
 		Host:   extractRequestHost(r),
 	}
+}
+
+func GetClientIP(r *http.Request, ctx *context.RequestContext) string {
+	if !ctx.IsProxyAuthorized {
+		return core.GetClientIP(r)
+	}
+	if ctx.Store != nil && !config.StoreTunnel.IsEnabledForStream(string(ctx.Store.GetName())) {
+		return config.IP.GetMachineIP()
+	}
+	return ""
 }
