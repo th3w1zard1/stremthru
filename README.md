@@ -121,6 +121,19 @@ If `store_name` is `*`, it is used as fallback.
 
 When enabled, `STREMTHRU_HTTP_PROXY` and `STREMTHRU_HTTPS_PROXY` will be used to tunnel traffic for the store.
 
+#### `STREMTHRU_STORE_CONTENT_PROXY`
+
+Comma separated list of store content proxy config, in `store_name:content_proxy_config` format.
+
+| `content_proxy_config` | Description         |
+| ---------------------- | ------------------- |
+| `true`                 | Enable              |
+| `false`                | Disable             |
+
+If `store_name` is `*`, it is used as fallback.
+
+When enabled, StremThru will proxy the content from the store.
+
 #### `STREMTHRU_PEER_URI`
 
 URI for peer StremThru instance, in format `https://:<pass>@<host>[:<port>]`.

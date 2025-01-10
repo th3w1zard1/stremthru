@@ -78,7 +78,8 @@ type proxyLinkTokenData struct {
 }
 
 func CreateProxyLink(r *http.Request, ctx *context.RequestContext, link string) (string, error) {
-	if !ctx.IsProxyAuthorized || ctx.StoreAuthToken != config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, string(ctx.Store.GetName())) {
+	storeName := string(ctx.Store.GetName())
+	if !ctx.IsProxyAuthorized || !config.StoreContentProxy.IsEnabled(storeName) || ctx.StoreAuthToken != config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, storeName) {
 		return link, nil
 	}
 
