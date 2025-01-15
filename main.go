@@ -28,6 +28,8 @@ func main() {
 	addr := ":" + config.Port
 	server := &http.Server{Addr: addr, Handler: mux}
 
+	server.SetKeepAlivesEnabled(false)
+
 	log.Println("stremthru listening on " + addr)
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("failed to start stremthru: %v", err)
