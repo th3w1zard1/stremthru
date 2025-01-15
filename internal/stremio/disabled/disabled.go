@@ -33,7 +33,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/stremio/sidekick/?addon_operation=manage", http.StatusFound)
+	http.Redirect(w, r, "/stremio/sidekick/?addon_operation=manage&try_load_addons=1", http.StatusFound)
 }
 
 func AddStremioDisabledEndpoints(mux *http.ServeMux) {
