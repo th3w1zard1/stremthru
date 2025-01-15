@@ -39,6 +39,8 @@ type APIClient struct {
 
 	reqQuery  func(query *url.Values, params request.Context)
 	reqHeader func(query *http.Header, params request.Context)
+
+	checkMagnetRetryAfter *time.Time
 }
 
 func NewAPIClient(conf *APIClientConfig) *APIClient {
@@ -150,6 +152,22 @@ func (c APIClient) Request(method, path string, params request.Context, v Respon
 		return res, err
 	}
 	return res, nil
+}
+
+func (c *APIClient) IsHaltedCheckMagnet() bool {
+	if c.checkMagnetRetryAfter == nil {
+		return true
+	}
+	if c.checkMagnetRetryAfter.Before(time.Now()) {
+		c.checkMagnetRetryAfter = nil
+		return true
+	}
+	return false
+}
+
+func (c *APIClient) HaltCheckMagnet() {
+	retryAfter := time.Now().Add(10 * time.Second)
+	c.checkMagnetRetryAfter = &retryAfter
 }
 
 type CheckMagnetParams struct {

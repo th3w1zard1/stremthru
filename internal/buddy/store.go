@@ -153,6 +153,9 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 	}
 
 	if config.HasPeer {
+		if Peer.IsHaltedCheckMagnet() {
+			return data, nil
+		}
 		params := &peer.CheckMagnetParams{
 			StoreName:  s.GetName(),
 			StoreToken: storeToken,
@@ -163,6 +166,9 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 		start := time.Now()
 		res, err := Peer.CheckMagnet(params)
 		duration := time.Since(start)
+		if duration.Seconds() > 10 {
+			Peer.HaltCheckMagnet()
+		}
 		if err != nil {
 			core.LogError(fmt.Sprintf("[buddy:upstream] failed to check magnet, took %v", duration), err)
 			return data, nil
