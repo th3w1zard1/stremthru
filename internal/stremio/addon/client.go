@@ -186,5 +186,6 @@ func (c Client) ProxyResource(w http.ResponseWriter, r *http.Request, params *Pr
 		path = path + "/" + params.Extra
 	}
 	addClientIPHeader(params.Ctx, params.ClientIP)
+	w.Header().Del("Access-Control-Allow-Origin")
 	shared.ProxyResponse(w, r, params.BaseURL.JoinPath(path).String(), true)
 }
