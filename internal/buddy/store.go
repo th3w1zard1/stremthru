@@ -56,12 +56,14 @@ func TrackMagnet(s store.Store, hash string, files []store.MagnetFile, sid strin
 			IsMiss:     cacheMiss,
 			SId:        sid,
 		}
-		start := time.Now()
-		if _, err := Peer.TrackMagnet(params); err != nil {
-			core.LogError(fmt.Sprintf("[buddy:upstream] failed to track magnet cache for %s:%s, took %v", s.GetName(), hash, time.Since(start)), err)
-		} else {
-			log.Printf("[buddy:upstream] track magnet cache for %s:%s, took %v", s.GetName(), hash, time.Since(start))
-		}
+		go func() {
+			start := time.Now()
+			if _, err := Peer.TrackMagnet(params); err != nil {
+				core.LogError(fmt.Sprintf("[buddy:upstream] failed to track magnet cache for %s:%s, took %v", s.GetName(), hash, time.Since(start)), err)
+			} else {
+				log.Printf("[buddy:upstream] track magnet cache for %s:%s, took %v", s.GetName(), hash, time.Since(start))
+			}
+		}()
 	}
 }
 
