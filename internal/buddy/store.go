@@ -149,7 +149,7 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 				data.Items = append(data.Items, res_item)
 				filesByHash[item.Hash] = files
 			}
-			magnet_cache.BulkTouch(s.GetName().Code(), filesByHash, sid)
+			go magnet_cache.BulkTouch(s.GetName().Code(), filesByHash, sid)
 			return data, nil
 		}
 	}
@@ -187,7 +187,7 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 				filesByHash[item.Hash] = files
 				data.Items = append(data.Items, item)
 			}
-			magnet_cache.BulkTouch(s.GetName().Code(), filesByHash, sid)
+			go magnet_cache.BulkTouch(s.GetName().Code(), filesByHash, sid)
 			return data, nil
 		}
 	}
