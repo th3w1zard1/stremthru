@@ -577,7 +577,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		sid = "*"
 	}
 
-	buddy.TrackMagnet(ctx.Store, magnet.Hash, magnet.Files, sid, magnet.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
+	go buddy.TrackMagnet(ctx.Store, magnet.Hash, magnet.Files, sid, magnet.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
 
 	if err != nil {
 		core.LogError("[stremio/wrap] failed wait for magnet status", err)
