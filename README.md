@@ -382,7 +382,7 @@ Generate direct link for a file link.
 ```
 
 > [!NOTE]
-> The generated direct link should be valid for 6 hours.
+> The generated direct link should be valid for 12 hours.
 
 ### Stremio Addon
 

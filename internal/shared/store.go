@@ -102,7 +102,7 @@ func CreateProxyLink(r *http.Request, ctx *context.RequestContext, link string, 
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    "stremthru",
 			Subject:   ctx.ProxyAuthUser,
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(6 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(12 * time.Hour)),
 		},
 		Data: &proxyLinkTokenData{
 			EncLink:    encryptedLink,
