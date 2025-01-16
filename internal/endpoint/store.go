@@ -353,7 +353,8 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddStoreEndpoints(mux *http.ServeMux) {
-	withContext := Middleware(ProxyAuthContext)
+	withCors := Middleware(shared.EnableCORS)
+	withContextAndCors := Middleware(ProxyAuthContext, shared.EnableCORS)
 	withStore := Middleware(ProxyAuthContext, StoreContext, StoreRequired)
 
 	mux.HandleFunc("/v0/store/user", withStore(handleStoreUser))
@@ -361,8 +362,9 @@ func AddStoreEndpoints(mux *http.ServeMux) {
 	mux.HandleFunc("/v0/store/magnets/check", withStore(handleStoreMagnetsCheck))
 	mux.HandleFunc("/v0/store/magnets/{magnetId}", withStore(handleStoreMagnet))
 	mux.HandleFunc("/v0/store/link/generate", withStore(handleStoreLinkGenerate))
-	mux.HandleFunc("/v0/store/link/access/{token}", withContext(handleStoreLinkAccess))
-	mux.HandleFunc("/v0/store/link/access/{token}/{filename}", withContext(handleStoreLinkAccess))
 
-	mux.HandleFunc("/v0/store/_/static/{video}", handleStatic)
+	mux.HandleFunc("/v0/store/link/access/{token}", withContextAndCors(handleStoreLinkAccess))
+	mux.HandleFunc("/v0/store/link/access/{token}/{filename}", withContextAndCors(handleStoreLinkAccess))
+
+	mux.HandleFunc("/v0/store/_/static/{video}", withCors(handleStatic))
 }
