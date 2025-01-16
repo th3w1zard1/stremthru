@@ -396,10 +396,11 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		stremId := strings.TrimSuffix(id, ".json")
+
 		storeNamePrefix := ""
 		isCachedByHash := map[string]bool{}
 		if len(hashes) > 0 {
-			stremId := strings.TrimSuffix(id, ".json")
 			cmParams := &store.CheckMagnetParams{Magnets: hashes}
 			cmParams.APIKey = ctx.StoreAuthToken
 			cmParams.ClientIP = ctx.ClientIP
@@ -430,6 +431,7 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 				if stream.BehaviorHints != nil && stream.BehaviorHints.Filename != "" {
 					url = url.JoinPath(stream.BehaviorHints.Filename)
 				}
+				url.RawQuery = "sid=" + stremId
 				stream.URL = url.String()
 				stream.InfoHash = ""
 				stream.FileIndex = 0
@@ -568,7 +570,15 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	magnet, err = waitForMagnetStatus(ctx, magnet, store.MagnetStatusDownloaded, 3, 5*time.Second)
-	buddy.TrackMagnet(ctx.Store, magnet.Hash, magnet.Files, "*", magnet.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
+
+	query := r.URL.Query()
+	sid := query.Get("sid")
+	if sid == "" {
+		sid = "*"
+	}
+
+	buddy.TrackMagnet(ctx.Store, magnet.Hash, magnet.Files, sid, magnet.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
+
 	if err != nil {
 		core.LogError("[stremio/wrap] failed wait for magnet status", err)
 		if magnet.Status == store.MagnetStatusQueued || magnet.Status == store.MagnetStatusDownloading || magnet.Status == store.MagnetStatusProcessing {
