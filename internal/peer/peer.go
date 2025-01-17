@@ -156,13 +156,13 @@ func (c APIClient) Request(method, path string, params request.Context, v Respon
 
 func (c *APIClient) IsHaltedCheckMagnet() bool {
 	if c.checkMagnetRetryAfter == nil {
-		return true
+		return false
 	}
 	if c.checkMagnetRetryAfter.Before(time.Now()) {
 		c.checkMagnetRetryAfter = nil
-		return true
+		return false
 	}
-	return false
+	return true
 }
 
 func (c *APIClient) HaltCheckMagnet() {
