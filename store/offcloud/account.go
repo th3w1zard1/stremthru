@@ -1,6 +1,10 @@
 package offcloud
 
-import "time"
+import (
+	"encoding/json"
+	"errors"
+	"time"
+)
 
 type GetAccountParams struct {
 	Ctx
@@ -25,12 +29,43 @@ type GetAccountStatsParams struct {
 	Ctx
 }
 
+type GetAccountStatsDataAdditionalTags struct {
+	Mega bool `json:"mega"`
+}
+
+type MembershipType string
+
+const (
+	MembershipTypeLifetime MembershipType = "Lifetime"
+	MembershipTypeNone     MembershipType = ""
+)
+
+type dateOrInt struct{ time.Time }
+
+func (doi *dateOrInt) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		t, err := time.Parse("02-01-2006", str)
+		if err != nil {
+			return err
+		}
+		doi.Time = t
+		return nil
+	}
+	var i int
+	if err := json.Unmarshal(data, &i); err == nil {
+		doi.Time = time.Unix(int64(i), 0)
+		return nil
+	}
+	return errors.New("[offcloud] failed to parse: " + string(data))
+}
+
 type GetAccountStatsData struct {
 	ResponseContainer
-	AdditionalTags map[string]any `json:"additionalTags"`
-	ExpirationDate int64          `json:"expirationDate"`
-	MembershipType any            `json:"membershipType"`
-	Revenue        int            `json:"revenue"`
+	AdditionalTags GetAccountStatsDataAdditionalTags `json:"additionalTags"`
+	ExpirationDate dateOrInt                         `json:"expirationDate"`
+	MembershipType MembershipType                    `json:"membershipType"`
+	Revenue        int                               `json:"revenue"`
 }
 
 func (c APIClient) GetAccountStats(params *GetAccountStatsParams) (APIResponse[GetAccountStatsData], error) {

@@ -197,7 +197,7 @@ func (s *StoreClient) GetUser(params *store.GetUserParams) (*store.User, error) 
 	if err != nil {
 		return nil, err
 	}
-	if stats_res.Data.ExpirationDate > time.Now().Unix() {
+	if stats_res.Data.ExpirationDate.After(time.Now()) {
 		data.SubscriptionStatus = store.UserSubscriptionStatusPremium
 	}
 	return data, nil
