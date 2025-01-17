@@ -11,6 +11,7 @@ function generate() {
   ./scripts/text-to-video.sh --output "./internal/store/video/${name}.mp4" --text "${text}" $@
 }
 
+generate "200" "OK" --indicator "•_•|•_•|-_-"
 generate "401" "Invalid Credentials" --indicator "!!!|"
 generate "403" "Forbidden" --indicator "!!!|"
 generate "500" "Something Went Wrong" --indicator "!!!|"
