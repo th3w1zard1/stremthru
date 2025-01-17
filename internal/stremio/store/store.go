@@ -99,7 +99,7 @@ func (ud UserData) GetRequestContext(r *http.Request) (*context.RequestContext, 
 func getUserData(r *http.Request) (*UserData, error) {
 	data := &UserData{}
 
-	if IsMethod(r, http.MethodGet) {
+	if IsMethod(r, http.MethodGet) || IsMethod(r, http.MethodHead) {
 		data.encoded = r.PathValue("userData")
 		if data.encoded == "" {
 			return data, nil
