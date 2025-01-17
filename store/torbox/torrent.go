@@ -228,7 +228,7 @@ func (c APIClient) RequestDownloadLink(params *RequestDownloadLinkParams) (APIRe
 	form.Add("token", params.APIKey)
 	form.Add("torrent_id", strconv.Itoa(params.TorrentId))
 	if params.FileId != 0 {
-		form.Add("torrent_id", strconv.Itoa(params.TorrentId))
+		form.Add("file_id", strconv.Itoa(params.FileId))
 	}
 	form.Add("zip_link", strconv.FormatBool(params.ZipLink))
 	form.Add("torrent_file", strconv.FormatBool(params.TorrentFile))
