@@ -19,6 +19,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
+	"golang.org/x/sync/singleflight"
 )
 
 var addon = func() *stremio_addon.Client {
@@ -515,6 +516,14 @@ func redirectToStaticVideo(w http.ResponseWriter, r *http.Request, cacheKey stri
 	http.Redirect(w, r, link, http.StatusFound)
 }
 
+var stremGroup singleflight.Group
+
+type stremResult struct {
+	link        string
+	error_log   string
+	error_video string
+}
+
 func handleStrem(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) && !IsMethod(r, http.MethodHead) {
 		shared.ErrorMethodNotAllowed(r).Send(w)
@@ -540,107 +549,127 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stremLink := ""
-
 	cacheKey := strings.Join([]string{ctx.ClientIP, string(ctx.Store.GetName()), ctx.StoreAuthToken, magnetHash, strconv.Itoa(fileIdx), fileName}, ":")
+
+	stremLink := ""
 	if stremLinkCache.Get(cacheKey, &stremLink) {
 		http.Redirect(w, r, stremLink, http.StatusFound)
 		return
 	}
 
-	amParams := &store.AddMagnetParams{
-		Magnet:   magnetHash,
-		ClientIP: ctx.ClientIP,
-	}
-	amParams.APIKey = ctx.StoreAuthToken
-	amRes, err := ctx.Store.AddMagnet(amParams)
-	if err != nil {
-		core.LogError("[stremio/wrap] failed to add magnet", err)
-		redirectToStaticVideo(w, r, cacheKey, "download_failed")
-		return
-	}
-
-	magnet := &store.GetMagnetData{
-		Id:      amRes.Id,
-		Name:    amRes.Name,
-		Hash:    amRes.Hash,
-		Status:  amRes.Status,
-		Files:   amRes.Files,
-		AddedAt: amRes.AddedAt,
-	}
-
-	magnet, err = waitForMagnetStatus(ctx, magnet, store.MagnetStatusDownloaded, 3, 5*time.Second)
-
-	query := r.URL.Query()
-	sid := query.Get("sid")
-	if sid == "" {
-		sid = "*"
-	}
-
-	go buddy.TrackMagnet(ctx.Store, magnet.Hash, magnet.Files, sid, magnet.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
-
-	if err != nil {
-		core.LogError("[stremio/wrap] failed wait for magnet status", err)
-		if magnet.Status == store.MagnetStatusQueued || magnet.Status == store.MagnetStatusDownloading || magnet.Status == store.MagnetStatusProcessing {
-			redirectToStaticVideo(w, r, cacheKey, "downloading")
-			return
+	result, err, _ := stremGroup.Do(cacheKey, func() (interface{}, error) {
+		amParams := &store.AddMagnetParams{
+			Magnet:   magnetHash,
+			ClientIP: ctx.ClientIP,
 		}
-		if magnet.Status == store.MagnetStatusFailed || magnet.Status == store.MagnetStatusInvalid || magnet.Status == store.MagnetStatusUnknown {
-			redirectToStaticVideo(w, r, cacheKey, "download_failed")
-			return
+		amParams.APIKey = ctx.StoreAuthToken
+		amRes, err := ctx.Store.AddMagnet(amParams)
+		if err != nil {
+			return &stremResult{
+				error_log:   "failed to add magnet",
+				error_video: "download_failed",
+			}, err
 		}
-		redirectToStaticVideo(w, r, cacheKey, "500")
-		return
-	}
 
-	var file *store.MagnetFile
-	if fileName != "" {
-		for i := range magnet.Files {
-			f := &magnet.Files[i]
-			if f.Name == fileName {
-				file = f
-				break
+		magnet := &store.GetMagnetData{
+			Id:      amRes.Id,
+			Name:    amRes.Name,
+			Hash:    amRes.Hash,
+			Status:  amRes.Status,
+			Files:   amRes.Files,
+			AddedAt: amRes.AddedAt,
+		}
+
+		magnet, err = waitForMagnetStatus(ctx, magnet, store.MagnetStatusDownloaded, 3, 5*time.Second)
+
+		query := r.URL.Query()
+		sid := query.Get("sid")
+		if sid == "" {
+			sid = "*"
+		}
+
+		go buddy.TrackMagnet(ctx.Store, magnet.Hash, magnet.Files, sid, magnet.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
+
+		if err != nil {
+			strem := &stremResult{
+				error_log:   "failed wait for magnet status",
+				error_video: "500",
+			}
+			if magnet.Status == store.MagnetStatusQueued || magnet.Status == store.MagnetStatusDownloading || magnet.Status == store.MagnetStatusProcessing {
+				strem.error_video = "downloading"
+			} else if magnet.Status == store.MagnetStatusFailed || magnet.Status == store.MagnetStatusInvalid || magnet.Status == store.MagnetStatusUnknown {
+				strem.error_video = "download_failed"
+			}
+			return strem, err
+		}
+
+		var file *store.MagnetFile
+		if fileName != "" {
+			for i := range magnet.Files {
+				f := &magnet.Files[i]
+				if f.Name == fileName {
+					file = f
+					break
+				}
 			}
 		}
-	}
-	if file == nil && fileIdx != -1 {
-		for i := range magnet.Files {
-			f := &magnet.Files[i]
-			if f.Idx == fileIdx {
-				file = f
-				break
+		if file == nil && fileIdx != -1 {
+			for i := range magnet.Files {
+				f := &magnet.Files[i]
+				if f.Idx == fileIdx {
+					file = f
+					break
+				}
 			}
 		}
-	}
-	if file == nil {
-		for i := range magnet.Files {
-			f := &magnet.Files[i]
-			if file == nil || file.Size < f.Size {
-				file = f
+		if file == nil {
+			for i := range magnet.Files {
+				f := &magnet.Files[i]
+				if file == nil || file.Size < f.Size {
+					file = f
+				}
 			}
 		}
-	}
 
-	link := ""
-	if file != nil {
-		link = file.Link
-	}
-	if link == "" {
-		log.Printf("[stremio/wrap] no matching file found for magnet: %s\n", magnet.Hash)
-		redirectToStaticVideo(w, r, cacheKey, "no_matching_file")
+		link := ""
+		if file != nil {
+			link = file.Link
+		}
+		if link == "" {
+			return &stremResult{
+				error_log:   "no matching file found for (" + sid + " - " + magnet.Hash + ")",
+				error_video: "no_matching_file",
+			}, nil
+		}
+
+		glRes, err := shared.GenerateStremThruLink(r, ctx, link)
+		if err != nil {
+			return &stremResult{
+				error_log:   "failed to generate stremthru link",
+				error_video: "500",
+			}, err
+		}
+
+		stremLinkCache.Add(cacheKey, glRes.Link)
+
+		return &stremResult{
+			link: glRes.Link,
+		}, nil
+	})
+
+	strem := result.(*stremResult)
+
+	if strem.error_log != "" {
+		if err != nil {
+			core.LogError("[stremio/wrap] "+strem.error_log, err)
+		} else {
+			log.Println("[stremio/wrap] " + strem.error_log)
+		}
+		redirectToStaticVideo(w, r, cacheKey, strem.error_video)
 		return
 	}
 
-	glRes, err := shared.GenerateStremThruLink(r, ctx, link)
-	if err != nil {
-		core.LogError("[stremio/wrap] failed to generate stremthru link", err)
-		redirectToStaticVideo(w, r, cacheKey, "500")
-		return
-	}
-
-	stremLink = glRes.Link
-	stremLinkCache.Add(cacheKey, stremLink)
-	http.Redirect(w, r, stremLink, http.StatusFound)
+	http.Redirect(w, r, strem.link, http.StatusFound)
 }
 
 func AddStremioWrapEndpoints(mux *http.ServeMux) {
