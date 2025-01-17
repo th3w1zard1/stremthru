@@ -17,8 +17,8 @@ const STORE_ACTION_ID_PREFIX = STORE_ACTION_ID + ":"
 const ContentTypeOther = "other"
 
 const (
-	CatalogTypeVideo  = "video"
-	CatalogTypeAction = "action"
+	CatalogGenreVideo     = "Video"
+	CatalogGenreStremThru = "StremThru"
 )
 
 func getManifest(ud *UserData) *stremio.Manifest {
@@ -63,8 +63,8 @@ func getManifest(ud *UserData) *stremio.Manifest {
 						Name: "skip",
 					},
 					stremio.CatalogExtra{
-						Name:    "type",
-						Options: []string{CatalogTypeVideo, CatalogTypeAction},
+						Name:    "genre",
+						Options: []string{CatalogGenreVideo, CatalogGenreStremThru},
 					},
 				},
 			},

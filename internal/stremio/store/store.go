@@ -275,7 +275,7 @@ func getId(r *http.Request) string {
 type ExtraData struct {
 	Search string
 	Skip   int
-	Type   string
+	Genre  string
 }
 
 func getExtra(r *http.Request) *ExtraData {
@@ -290,8 +290,8 @@ func getExtra(r *http.Request) *ExtraData {
 					extra.Skip = skip
 				}
 			}
-			if type_ := q.Get("type"); type_ != "" {
-				extra.Type = type_
+			if genre := q.Get("genre"); genre != "" {
+				extra.Genre = genre
 			}
 		}
 	}
@@ -368,7 +368,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		Metas: []stremio.MetaPreview{},
 	}
 
-	if extra.Type == CatalogTypeAction {
+	if extra.Genre == CatalogGenreStremThru {
 		res.Metas = append(res.Metas, getStoreActionMetaPreview())
 		SendResponse(w, 200, res)
 		return
