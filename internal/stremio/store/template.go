@@ -7,15 +7,15 @@ import (
 
 func getStoreNameConfig() configure.Config {
 	options := []configure.ConfigOption{
-		configure.ConfigOption{Value: "", Label: "StremThru"},
-		configure.ConfigOption{Value: "alldebrid", Label: "AllDebrid"},
-		configure.ConfigOption{Value: "debridlink", Label: "DebridLink"},
-		configure.ConfigOption{Value: "easydebrid", Label: "EasyDebrid"},
-		configure.ConfigOption{Value: "offcloud", Label: "Offcloud"},
-		configure.ConfigOption{Value: "pikpak", Label: "PikPak"},
-		configure.ConfigOption{Value: "premiumize", Label: "Premiumize"},
-		configure.ConfigOption{Value: "realdebrid", Label: "RealDebrid"},
-		configure.ConfigOption{Value: "torbox", Label: "TorBox"},
+		{Value: "", Label: "StremThru"},
+		{Value: "alldebrid", Label: "AllDebrid"},
+		{Value: "debridlink", Label: "DebridLink"},
+		{Value: "easydebrid", Label: "EasyDebrid"},
+		{Value: "offcloud", Label: "Offcloud"},
+		{Value: "pikpak", Label: "PikPak"},
+		{Value: "premiumize", Label: "Premiumize"},
+		{Value: "realdebrid", Label: "RealDebrid"},
+		{Value: "torbox", Label: "TorBox"},
 	}
 	if !config.ProxyStreamEnabled {
 		options[0].Disabled = true
@@ -41,7 +41,7 @@ func getTemplateData() *configure.TemplateData {
 		},
 		Configs: []configure.Config{
 			getStoreNameConfig(),
-			configure.Config{
+			{
 				Key:         "store_token",
 				Type:        "password",
 				Default:     "",

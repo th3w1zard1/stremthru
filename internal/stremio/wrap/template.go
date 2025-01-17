@@ -12,7 +12,7 @@ func getTemplateData() *configure.TemplateData {
 			NavTitle:    "Wrap",
 		},
 		Configs: []configure.Config{
-			configure.Config{
+			{
 				Key:         "manifest_url",
 				Type:        "url",
 				Default:     "",
@@ -25,7 +25,7 @@ func getTemplateData() *configure.TemplateData {
 				},
 			},
 			getStoreNameConfig(),
-			configure.Config{
+			{
 				Key:         "token",
 				Type:        "password",
 				Default:     "",
@@ -33,7 +33,7 @@ func getTemplateData() *configure.TemplateData {
 				Description: "",
 				Required:    true,
 			},
-			configure.Config{
+			{
 				Key:     "cached",
 				Type:    configure.ConfigTypeCheckbox,
 				Title:   "Only Show Cached Content",

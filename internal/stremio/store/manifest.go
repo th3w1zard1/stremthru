@@ -39,11 +39,12 @@ func getManifest(ud *UserData) *stremio.Manifest {
 		Description: description,
 		Version:     config.Version,
 		Resources: []stremio.Resource{
-			stremio.Resource{
+			{
 				Name:       stremio.ResourceNameMeta,
 				Types:      []stremio.ContentType{ContentTypeOther},
 				IDPrefixes: []string{ID_PREFIX},
-			}, stremio.Resource{
+			},
+			{
 				Name:       stremio.ResourceNameStream,
 				Types:      []stremio.ContentType{ContentTypeOther},
 				IDPrefixes: []string{ID_PREFIX},
@@ -51,18 +52,18 @@ func getManifest(ud *UserData) *stremio.Manifest {
 		},
 		Types: []stremio.ContentType{},
 		Catalogs: []stremio.Catalog{
-			stremio.Catalog{
+			{
 				Id:   CATALOG_ID,
 				Name: "Store",
 				Type: ContentTypeOther,
 				Extra: []stremio.CatalogExtra{
-					stremio.CatalogExtra{
+					{
 						Name: "search",
 					},
-					stremio.CatalogExtra{
+					{
 						Name: "skip",
 					},
-					stremio.CatalogExtra{
+					{
 						Name:    "genre",
 						Options: []string{CatalogGenreVideo, CatalogGenreStremThru},
 					},

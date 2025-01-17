@@ -440,15 +440,17 @@ func getStoreActionMeta(r *http.Request, encodedUserData string) stremio.Meta {
 		Description: "Actions for StremThru Store",
 		Released:    released,
 		Videos: []stremio.MetaVideo{
-			stremio.MetaVideo{
+			{
 				Id:       STORE_ACTION_ID_PREFIX + "clear_cache",
 				Title:    "Clear Cache",
 				Released: released,
-				Streams: []stremio.Stream{stremio.Stream{
-					URL:         ExtractRequestBaseURL(r).JoinPath("/stremio/store/" + encodedUserData + "/_/action/" + STORE_ACTION_ID_PREFIX + "clear_cache").String(),
-					Name:        "Clear Cache",
-					Description: "Clear Cached Data for StremThru Store",
-				}},
+				Streams: []stremio.Stream{
+					{
+						URL:         ExtractRequestBaseURL(r).JoinPath("/stremio/store/" + encodedUserData + "/_/action/" + STORE_ACTION_ID_PREFIX + "clear_cache").String(),
+						Name:        "Clear Cache",
+						Description: "Clear Cached Data for StremThru Store",
+					},
+				},
 			},
 		},
 	}

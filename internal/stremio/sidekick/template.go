@@ -84,7 +84,7 @@ func getTemplateData(cookie *CookieValue, r *http.Request) *TemplateData {
 }
 
 var executeTemplate = func() stremio_template.Executor[TemplateData] {
-	return stremio_template.GetExecutor[TemplateData]("stremio/sidekick", func(td *TemplateData) *TemplateData {
+	return stremio_template.GetExecutor("stremio/sidekick", func(td *TemplateData) *TemplateData {
 		td.Version = config.Version
 		if td.Addons == nil {
 			td.Addons = []stremio_api.Addon{}
