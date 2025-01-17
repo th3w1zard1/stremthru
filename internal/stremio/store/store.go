@@ -14,6 +14,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
 	"github.com/MunifTanjim/stremthru/internal/shared"
+	"github.com/MunifTanjim/stremthru/internal/store/video"
 	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
@@ -612,11 +613,6 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	SendResponse(w, 200, res)
 }
 
-func redirectToStaticVideo(w http.ResponseWriter, r *http.Request, videoName string) {
-	link := shared.ExtractRequestBaseURL(r).JoinPath("/v0/store/_/static/" + videoName + ".mp4").String()
-	http.Redirect(w, r, link, http.StatusFound)
-}
-
 func handleAction(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
 		shared.ErrorMethodNotAllowed(r).Send(w)
@@ -639,7 +635,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			core.LogError("[stremio/store] failed to get request context", err)
 		}
-		redirectToStaticVideo(w, r, "500")
+		store_video.Redirect("500", w, r)
 		return
 	}
 
@@ -649,7 +645,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		catalogCache.Remove(cacheKey)
 	}
 
-	redirectToStaticVideo(w, r, "200")
+	store_video.Redirect("200", w, r)
 }
 
 func handleStrem(w http.ResponseWriter, r *http.Request) {
@@ -687,7 +683,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	fileIdx, err := strconv.Atoi(fileIdxStr)
 	if err != nil {
 		core.LogError("[stremio/store] failed to parse file index", err)
-		redirectToStaticVideo(w, r, "500")
+		store_video.Redirect("500", w, r)
 		return
 	}
 
@@ -698,7 +694,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	magnet, err := ctx.Store.GetMagnet(params)
 	if err != nil {
 		core.LogError("[stremio/store] failed to get magnet", err)
-		redirectToStaticVideo(w, r, "500")
+		store_video.Redirect("500", w, r)
 		return
 	}
 
@@ -712,14 +708,14 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 
 	if url == "" {
 		log.Println("[stremio/store] no matching file found for (" + videoIdWithIdx + ")")
-		redirectToStaticVideo(w, r, "no_matching_file")
+		store_video.Redirect("no_matching_file", w, r)
 		return
 	}
 
 	stLink, err := shared.GenerateStremThruLink(r, ctx, url)
 	if err != nil {
 		core.LogError("[stremio/store] failed to generate stremthru link", err)
-		redirectToStaticVideo(w, r, "500")
+		store_video.Redirect("500", w, r)
 		return
 	}
 

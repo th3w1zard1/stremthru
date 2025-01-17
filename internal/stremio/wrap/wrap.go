@@ -15,6 +15,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
 	"github.com/MunifTanjim/stremthru/internal/shared"
+	"github.com/MunifTanjim/stremthru/internal/store/video"
 	"github.com/MunifTanjim/stremthru/internal/stremio/addon"
 	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
 	"github.com/MunifTanjim/stremthru/store"
@@ -511,9 +512,8 @@ var stremLinkCache = cache.NewCache[string](&cache.CacheConfig{
 })
 
 func redirectToStaticVideo(w http.ResponseWriter, r *http.Request, cacheKey string, videoName string) {
-	link := shared.ExtractRequestBaseURL(r).JoinPath("/v0/store/_/static/" + videoName + ".mp4").String()
-	stremLinkCache.AddWithLifetime(cacheKey, link, 1*time.Minute)
-	http.Redirect(w, r, link, http.StatusFound)
+	url := store_video.Redirect(videoName, w, r)
+	stremLinkCache.AddWithLifetime(cacheKey, url, 1*time.Minute)
 }
 
 var stremGroup singleflight.Group

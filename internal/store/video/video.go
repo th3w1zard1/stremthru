@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
+	"github.com/MunifTanjim/stremthru/internal/shared"
 )
 
 //go:embed *.mp4
@@ -36,4 +37,14 @@ func Serve(name string, w http.ResponseWriter, r *http.Request) error {
 	}
 
 	return errors.New("unexpected error from store video")
+}
+
+func GetLink(name string, r *http.Request) string {
+	return shared.ExtractRequestBaseURL(r).JoinPath("/v0/store/_/static/" + name + ".mp4").String()
+}
+
+func Redirect(name string, w http.ResponseWriter, r *http.Request) (url string) {
+	url = GetLink(name, r)
+	http.Redirect(w, r, url, http.StatusFound)
+	return url
 }
