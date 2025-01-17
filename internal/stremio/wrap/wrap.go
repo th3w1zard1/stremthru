@@ -545,6 +545,9 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil || ctx.Store == nil {
+		if err != nil {
+			core.LogError("[stremio/wrap] failed to get request context", err)
+		}
 		shared.ErrorBadRequest(r, "").Send(w)
 		return
 	}
