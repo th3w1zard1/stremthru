@@ -48,11 +48,19 @@ type AddCloudDownloadData struct {
 
 	RequestId    string              `json:"requestId"`
 	FileName     string              `json:"fileName"`
-	URL          string              `json:"url"`
 	Site         string              `json:"site"`
 	Status       CloudDownloadStatus `json:"status"`
-	OriginalLink string              `json:"originalLink"`
+	OriginalLink string              `json:"originalLink"` // e.g. `magnet?:xt=urn:btih:{HASH}`
+	URL          CloudDownloadLink   `json:"url"`          // e.g. `https://{SERVER}.offlcoud.com/cloud/download/{REQUEST_ID}`
 	CreatedOn    time.Time           `json:"createdOn"`
+}
+
+func (acdd *AddCloudDownloadData) GetServer() string {
+	info, err := acdd.URL.parse()
+	if err != nil {
+		return ""
+	}
+	return info.server
 }
 
 func (c APIClient) AddCloudDownload(params *AddCloudDownloadParams) (APIResponse[AddCloudDownloadData], error) {
@@ -123,12 +131,14 @@ func (link CloudDownloadLink) parse() (*parsedCloudDownloadLinkInfo, error) {
 	info.path = u.Path
 	pathParts := strings.Split(info.path, "/")
 	info.requestId = pathParts[3]
-	fileIdx, err := strconv.Atoi(pathParts[4])
-	if err != nil {
-		return nil, err
+	if len(pathParts) > 4 {
+		fileIdx, err := strconv.Atoi(pathParts[4])
+		if err != nil {
+			return nil, err
+		}
+		info.fileIdx = fileIdx
+		info.fileName = pathParts[5]
 	}
-	info.fileIdx = fileIdx
-	info.fileName = pathParts[5]
 	return info, nil
 }
 
@@ -172,12 +182,12 @@ type ListCloudDownloadsParams struct {
 type ListCloudDownloadsDataItem struct {
 	CreatedOn    time.Time           `json:"createdOn"`
 	FileName     string              `json:"fileName"`
-	FileSize     int                 `json:"fileSize"`
+	FileSize     int64               `json:"fileSize"`
 	IsDirectory  bool                `json:"isDirectory"`
 	OriginalLink string              `json:"originalLink"`
 	RequestId    string              `json:"requestId"`
 	Server       string              `json:"server"`
-	Site         string              `json:"site"`
+	Site         string              `json:"site"` // 'BitTorrent'
 	Status       CloudDownloadStatus `json:"status"`
 	UserId       string              `json:"userId"`
 }
@@ -204,8 +214,8 @@ type ListCloudDownloadEntriesParams struct {
 
 type ListCloudDownloadEntriesData struct {
 	ResponseContainer
-	Entries     []string `json:"entries"` // e.g. `{MAGNET_NAME}/{FILE_NAME}`, `/{TORRENT_NAME}.aria2`
-	File        string   `json:"file"`    // e.g. `{MAGNET_NAME}`
+	Entries     []string `json:"entries"` // e.g. `{MAGNET_NAME}/{FILE_PATH}`, `/{MAGNET_NAME}.aria2`
+	File        string   `json:"file"`    // e.g. `{NORMALIZED_MAGNET_NAME}`
 	IsDirectory bool     `json:"isDirectory"`
 	Server      string   `json:"server"`
 }

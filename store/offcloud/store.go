@@ -3,6 +3,7 @@ package offcloud
 import (
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
@@ -34,8 +35,26 @@ func (s *StoreClient) GetName() store.StoreName {
 	return s.Name
 }
 
-func (s *StoreClient) getMagnetFiles(ctx Ctx, requestId string, magnetName string) ([]store.MagnetFile, error) {
+func (s *StoreClient) getMagnetFiles(ctx Ctx, requestId string, server string) ([]store.MagnetFile, error) {
 	files := []store.MagnetFile{}
+	pathByName := map[string]string{}
+	if server != "" {
+		res, err := s.client.ListCloudDownloadEntries(&ListCloudDownloadEntriesParams{
+			Ctx:       ctx,
+			RequestId: requestId,
+			Server:    server,
+		})
+		if err != nil {
+			return files, err
+		}
+		for _, entry := range res.Data.Entries {
+			if core.HasVideoExtension(entry) {
+				_, path, _ := strings.Cut(entry, "/")
+				pathByName[filepath.Base(entry)] = "/" + path
+			}
+		}
+	}
+
 	res, err := s.client.ExploreCloudDownload(&ExploreCloudDownloadParams{
 		Ctx:       ctx,
 		RequestId: requestId,
@@ -44,12 +63,16 @@ func (s *StoreClient) getMagnetFiles(ctx Ctx, requestId string, magnetName strin
 		return files, err
 	}
 	for _, link := range res.Data {
+		if !core.HasVideoExtension(string(link)) {
+			continue
+		}
+
 		info, err := link.parse()
 		if err != nil {
 			return nil, err
 		}
 		size := -1
-		// // too expensive, should enable for non-public deployments later 
+		// // too expensive, should enable for non-public deployments later
 		// if size_res, err := s.client.GetFileSize(&GetFileSizeParams{Ctx: ctx, Link: string(link)}); err == nil {
 		// 	size = size_res.Data
 		// }
@@ -57,8 +80,10 @@ func (s *StoreClient) getMagnetFiles(ctx Ctx, requestId string, magnetName strin
 			Idx:  info.fileIdx,
 			Link: string(link),
 			Name: info.fileName,
-			Path: "/" + magnetName + "/" + filepath.Base(info.fileName),
 			Size: size,
+		}
+		if path, ok := pathByName[file.Name]; ok {
+			file.Path = path
 		}
 		files = append(files, file)
 	}
@@ -70,21 +95,10 @@ func (s *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	if err != nil {
 		return nil, err
 	}
-	lm_params := &store.ListMagnetsParams{
-		Ctx: params.Ctx,
-	}
-	lm_res, err := s.ListMagnets(lm_params)
+
+	cloudDownload, err := s.findCloudDownload(params.Ctx, magnet.Hash)
 	if err != nil {
 		return nil, err
-	}
-
-	var lmi *store.ListMagnetsDataItem
-	for i := range lm_res.Items {
-		item := &lm_res.Items[i]
-		if item.Hash == magnet.Hash {
-			lmi = item
-			break
-		}
 	}
 
 	data := &store.AddMagnetData{
@@ -93,11 +107,15 @@ func (s *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 		Files:  []store.MagnetFile{},
 	}
 
-	if lmi != nil {
-		data.Id = lmi.Id
-		data.Name = lmi.Name
-		data.Status = lmi.Status
-		data.AddedAt = lmi.AddedAt
+	server := ""
+
+	if cloudDownload != nil {
+		data.Id = cloudDownload.RequestId
+		data.Name = cloudDownload.FileName
+		data.Status = getMagnetStatus(cloudDownload.Status)
+		data.AddedAt = cloudDownload.CreatedOn
+
+		server = cloudDownload.Server
 	} else {
 		res, err := s.client.AddCloudDownload(&AddCloudDownloadParams{
 			Ctx: params.Ctx,
@@ -111,15 +129,18 @@ func (s *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 		data.Name = res.Data.FileName
 		data.Status = getMagnetStatus(res.Data.Status)
 		data.AddedAt = res.Data.CreatedOn
+
+		server = res.Data.GetServer()
 	}
 
 	if data.Status == store.MagnetStatusDownloaded {
-		files, err := s.getMagnetFiles(params.Ctx, data.Id, data.Name)
+		files, err := s.getMagnetFiles(params.Ctx, data.Id, server)
 		if err != nil {
 			return nil, err
 		}
 		data.Files = files
 	}
+
 	return data, nil
 }
 
@@ -198,7 +219,7 @@ func (s *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		AddedAt: time.Unix(0, 0),
 	}
 	if data.Status == store.MagnetStatusDownloaded {
-		files, err := s.getMagnetFiles(params.Ctx, data.Id, data.Name)
+		files, err := s.getMagnetFiles(params.Ctx, data.Id, res.Data.Status.Server)
 		if err != nil {
 			return nil, err
 		}
@@ -229,6 +250,22 @@ func (s *StoreClient) GetUser(params *store.GetUserParams) (*store.User, error) 
 		data.SubscriptionStatus = store.UserSubscriptionStatusPremium
 	}
 	return data, nil
+}
+
+func (s *StoreClient) findCloudDownload(ctx Ctx, hash string) (*ListCloudDownloadsDataItem, error) {
+	res, err := s.client.ListCloudDownloads(&ListCloudDownloadsParams{
+		Ctx: ctx,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for i := range res.Data.History {
+		item := &res.Data.History[i]
+		if strings.Contains(item.OriginalLink, hash) {
+			return item, nil
+		}
+	}
+	return nil, nil
 }
 
 func (s *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListMagnetsData, error) {
