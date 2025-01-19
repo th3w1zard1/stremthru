@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"sync"
 	"time"
 
 	"github.com/elastic/go-freelru"
@@ -10,6 +11,7 @@ import (
 type LRUCache[V any] struct {
 	c    *freelru.LRU[string, V]
 	name string
+	m    sync.Mutex
 }
 
 func (cache *LRUCache[V]) GetName() string {
@@ -17,11 +19,17 @@ func (cache *LRUCache[V]) GetName() string {
 }
 
 func (cache *LRUCache[V]) Add(key string, value V) error {
+	cache.m.Lock()
+	defer cache.m.Unlock()
+
 	cache.c.Add(key, value)
 	return nil
 }
 
 func (cache *LRUCache[V]) AddWithLifetime(key string, value V, lifetime time.Duration) error {
+	cache.m.Lock()
+	defer cache.m.Unlock()
+
 	cache.c.AddWithLifetime(key, value, lifetime)
 	return nil
 }
@@ -33,6 +41,9 @@ func (cache *LRUCache[V]) Get(key string, value *V) bool {
 }
 
 func (cache *LRUCache[V]) Remove(key string) {
+	cache.m.Lock()
+	defer cache.m.Unlock()
+
 	cache.c.Remove(key)
 }
 
