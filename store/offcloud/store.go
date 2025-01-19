@@ -70,22 +70,49 @@ func (s *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.client.AddCloudDownload(&AddCloudDownloadParams{
+	lm_params := &store.ListMagnetsParams{
 		Ctx: params.Ctx,
-		URL: magnet.Link,
-	})
+	}
+	lm_res, err := s.ListMagnets(lm_params)
 	if err != nil {
 		return nil, err
 	}
-	data := &store.AddMagnetData{
-		Id:      res.Data.RequestId,
-		Hash:    magnet.Hash,
-		Magnet:  magnet.Link,
-		Name:    res.Data.FileName,
-		Status:  getMagnetStatus(res.Data.Status),
-		Files:   []store.MagnetFile{},
-		AddedAt: res.Data.CreatedOn,
+
+	var lmi *store.ListMagnetsDataItem
+	for i := range lm_res.Items {
+		item := &lm_res.Items[i]
+		if item.Hash == magnet.Hash {
+			lmi = item
+			break
+		}
 	}
+
+	data := &store.AddMagnetData{
+		Hash:   magnet.Hash,
+		Magnet: magnet.Link,
+		Files:  []store.MagnetFile{},
+	}
+
+	if lmi != nil {
+		data.Id = lmi.Id
+		data.Name = lmi.Name
+		data.Status = lmi.Status
+		data.AddedAt = lmi.AddedAt
+	} else {
+		res, err := s.client.AddCloudDownload(&AddCloudDownloadParams{
+			Ctx: params.Ctx,
+			URL: magnet.Link,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		data.Id = res.Data.RequestId
+		data.Name = res.Data.FileName
+		data.Status = getMagnetStatus(res.Data.Status)
+		data.AddedAt = res.Data.CreatedOn
+	}
+
 	if data.Status == store.MagnetStatusDownloaded {
 		files, err := s.getMagnetFiles(params.Ctx, data.Id, data.Name)
 		if err != nil {
