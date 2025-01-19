@@ -121,8 +121,12 @@ func (c Client) Request(method string, url *url.URL, params request.Context, v a
 	return res, nil
 }
 
-func addClientIPHeader(params request.Ctx, clientIp string) {
+func adjustClientIPHeader(params request.Ctx, clientIp string, r *http.Request) {
 	if clientIp == "" {
+		if r != nil {
+			r.Header.Del("X-Client-Ip")
+			r.Header.Del("X-Forwarded-For")
+		}
 		return
 	}
 
@@ -141,7 +145,7 @@ type GetManifestParams struct {
 }
 
 func (c Client) GetManifest(params *GetManifestParams) (request.APIResponse[stremio.Manifest], error) {
-	addClientIPHeader(params.Ctx, params.ClientIP)
+	adjustClientIPHeader(params.Ctx, params.ClientIP, nil)
 	response := &stremio.Manifest{}
 	res, err := c.Request("GET", params.BaseURL.JoinPath("manifest.json"), params, response)
 	if err == nil && !response.IsValid() {
@@ -164,7 +168,7 @@ func (c Client) FetchStream(params *FetchStreamParams) (request.APIResponse[stre
 	if params.Extra != "" {
 		path = path + "/" + params.Extra
 	}
-	addClientIPHeader(params.Ctx, params.ClientIP)
+	adjustClientIPHeader(params.Ctx, params.ClientIP, nil)
 	response := &stremio.StreamHandlerResponse{}
 	res, err := c.Request("GET", params.BaseURL.JoinPath(path), params, response)
 	return request.NewAPIResponse(res, *response), err
@@ -185,7 +189,7 @@ func (c Client) ProxyResource(w http.ResponseWriter, r *http.Request, params *Pr
 	if params.Extra != "" {
 		path = path + "/" + params.Extra
 	}
-	addClientIPHeader(params.Ctx, params.ClientIP)
+	adjustClientIPHeader(params.Ctx, params.ClientIP, r)
 	w.Header().Del("Access-Control-Allow-Origin")
 	shared.ProxyResponse(w, r, params.BaseURL.JoinPath(path).String(), true)
 }
