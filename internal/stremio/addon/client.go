@@ -13,6 +13,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/request"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/stremio"
+	"golang.org/x/sync/singleflight"
 )
 
 var DefaultHTTPTransport = request.DefaultHTTPTransport
@@ -163,15 +164,21 @@ type FetchStreamParams struct {
 	ClientIP string
 }
 
+var fetchStreamGroup singleflight.Group
+
 func (c Client) FetchStream(params *FetchStreamParams) (request.APIResponse[stremio.StreamHandlerResponse], error) {
 	path := "stream/" + params.Type + "/" + params.Id
 	if params.Extra != "" {
 		path = path + "/" + params.Extra
 	}
-	adjustClientIPHeader(params.Ctx, params.ClientIP, nil)
-	response := &stremio.StreamHandlerResponse{}
-	res, err := c.Request("GET", params.BaseURL.JoinPath(path), params, response)
-	return request.NewAPIResponse(res, *response), err
+	url := params.BaseURL.JoinPath(path)
+	apiResponse, err, _ := fetchStreamGroup.Do(url.String(), func() (interface{}, error) {
+		adjustClientIPHeader(params.Ctx, params.ClientIP, nil)
+		response := &stremio.StreamHandlerResponse{}
+		res, err := c.Request("GET", url, params, response)
+		return request.NewAPIResponse(res, *response), err
+	})
+	return apiResponse.(request.APIResponse[stremio.StreamHandlerResponse]), err
 }
 
 type ProxyResourceParams struct {
