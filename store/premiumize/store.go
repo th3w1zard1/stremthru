@@ -321,7 +321,7 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 			Name:    magnet.Name,
 			Status:  store.MagnetStatusDownloaded,
 			Files:   cm.Files,
-			AddedAt: time.Now().UTC(),
+			AddedAt: time.Unix(0, 0).UTC(),
 		}
 
 		c.listMagnetsCache.Remove(c.getCacheKey(params, ""))
@@ -408,7 +408,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 			Name:    "",
 			Status:  store.MagnetStatusDownloaded,
 			Files:   files,
-			AddedAt: time.Now().UTC(),
+			AddedAt: time.Unix(0, 0).UTC(),
 		}
 
 		return data, nil

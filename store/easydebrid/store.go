@@ -89,7 +89,7 @@ func (s *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 		Name:    magnet.Name,
 		Status:  store.MagnetStatusUnknown,
 		Files:   []store.MagnetFile{},
-		AddedAt: time.Now(),
+		AddedAt: time.Unix(0, 0),
 	}
 	if len(res.Data.Result) < 1 {
 		return data, nil
@@ -213,7 +213,7 @@ func (s *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		Name:    magnet.Name,
 		Status:  store.MagnetStatusDownloaded,
 		Files:   []store.MagnetFile{},
-		AddedAt: time.Now(),
+		AddedAt: time.Unix(0, 0),
 	}
 	for idx, f := range detail.Files {
 		if core.HasVideoExtension(f.Name) {

@@ -43,7 +43,7 @@ type ListTransfersDataItem struct {
 }
 
 func (t ListTransfersDataItem) GetAddedAt() time.Time {
-	return time.Now().UTC()
+	return time.Unix(0, 0).UTC()
 }
 
 type ListTransfersData struct {

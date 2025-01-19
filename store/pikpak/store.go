@@ -345,7 +345,7 @@ func (s *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 	}
 	addedAt, err := time.Parse(time.RFC3339, res.Data.CreatedTime)
 	if err != nil {
-		addedAt = time.Now()
+		addedAt = time.Unix(0, 0)
 	}
 	data := &store.GetMagnetData{
 		Id:      res.Data.Id,
@@ -452,7 +452,7 @@ func (s *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 				f := &res.Data.Files[i]
 				addedAt, err := time.Parse(time.RFC3339, f.CreatedTime)
 				if err != nil {
-					addedAt = time.Now()
+					addedAt = time.Unix(0, 0)
 				}
 				if !strings.HasPrefix(f.Params.URL, "magnet:") {
 					continue

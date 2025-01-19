@@ -195,7 +195,7 @@ func (s *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		Hash:    "",
 		Status:  getMagnetStatus(magnet.Status),
 		Files:   []store.MagnetFile{},
-		AddedAt: time.Now(),
+		AddedAt: time.Unix(0, 0),
 	}
 	if data.Status == store.MagnetStatusDownloaded {
 		files, err := s.getMagnetFiles(params.Ctx, data.Id, data.Name)
