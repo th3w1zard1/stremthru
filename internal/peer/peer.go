@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/request"
 	"github.com/MunifTanjim/stremthru/store"
 )
@@ -71,6 +72,7 @@ func NewAPIClient(conf *APIClientConfig) *APIClient {
 
 	c.reqHeader = func(header *http.Header, params request.Context) {
 		header.Set("X-StremThru-Peer-Token", params.GetAPIKey(c.apiKey))
+		header.Set("X-StremThru-Version", config.Version)
 		header.Add("User-Agent", c.agent)
 	}
 
