@@ -49,9 +49,10 @@ func (s *StoreClient) getMagnetFiles(ctx Ctx, requestId string, magnetName strin
 			return nil, err
 		}
 		size := -1
-		if size_res, err := s.client.GetFileSize(&GetFileSizeParams{Ctx: ctx, Link: string(link)}); err == nil {
-			size = size_res.Data
-		}
+		// // too expensive, should enable for non-public deployments later 
+		// if size_res, err := s.client.GetFileSize(&GetFileSizeParams{Ctx: ctx, Link: string(link)}); err == nil {
+		// 	size = size_res.Data
+		// }
 		file := store.MagnetFile{
 			Idx:  info.fileIdx,
 			Link: string(link),
