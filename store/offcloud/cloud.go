@@ -44,6 +44,8 @@ type AddCloudDownloadParams struct {
 
 type AddCloudDownloadData struct {
 	ResponseContainer
+	NotAvailable string `json:"not_available,omitempty"` // 'cloud'
+
 	RequestId    string              `json:"requestId"`
 	FileName     string              `json:"fileName"`
 	URL          string              `json:"url"`
@@ -58,6 +60,12 @@ func (c APIClient) AddCloudDownload(params *AddCloudDownloadParams) (APIResponse
 	params.JSON = params
 	response := &AddCloudDownloadData{}
 	res, err := c.Request("POST", "/api/cloud", params, response)
+	if err == nil && response.NotAvailable != "" {
+		response.Err = "not_available: " + response.NotAvailable
+		error := UpstreamErrorWithCause(response)
+		error.Code = core.ErrorCodeStoreLimitExceeded
+		err = error
+	}
 	return newAPIResponse(res, *response), err
 }
 
