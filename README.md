@@ -75,9 +75,17 @@ Configuration is done using environment variables.
 
 HTTP Proxy URL.
 
-#### `STREMTHRU_HTTPS_PROXY`
+#### `STREMTHRU_TUNNEL`
 
-HTTPS Proxy URL.
+Comma separated list of tunnel config, in `hostname:tunnel_config` format.
+
+| `tunnel_config` | Description                        |
+| --------------- | ---------------------------------- |
+| `true`          | Enable with `STREMTHRU_HTTP_PROXY` |
+| `false`         | Disable                            |
+
+If `hostname` is `*`, and `tunnel_config` is `false`, only explicitly enabled hostnames
+will be tunneled.
 
 #### `STREMTHRU_PROXY_AUTH`
 
@@ -119,16 +127,16 @@ Comma separated list of tunnel config for stores, in `store_name:tunnel_config` 
 
 If `store_name` is `*`, it is used as fallback.
 
-When enabled, `STREMTHRU_HTTP_PROXY` and `STREMTHRU_HTTPS_PROXY` will be used to tunnel traffic for the store.
+When enabled, `STREMTHRU_HTTP_PROXY` will be used to tunnel traffic for the store.
 
 #### `STREMTHRU_STORE_CONTENT_PROXY`
 
 Comma separated list of store content proxy config, in `store_name:content_proxy_config` format.
 
-| `content_proxy_config` | Description         |
-| ---------------------- | ------------------- |
-| `true`                 | Enable              |
-| `false`                | Disable             |
+| `content_proxy_config` | Description |
+| ---------------------- | ----------- |
+| `true`                 | Enable      |
+| `false`                | Disable     |
 
 If `store_name` is `*`, it is used as fallback.
 

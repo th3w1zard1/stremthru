@@ -7,10 +7,22 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/endpoint"
+	"github.com/MunifTanjim/stremthru/store"
 )
 
 func main() {
-	config.PrintConfig()
+	config.PrintConfig(&config.AppState{
+		StoreNames: []string{
+			string(store.StoreNameAlldebrid),
+			string(store.StoreNameDebridLink),
+			string(store.StoreNameEasyDebrid),
+			string(store.StoreNameOffcloud),
+			string(store.StoreNamePikPak),
+			string(store.StoreNamePremiumize),
+			string(store.StoreNameRealDebrid),
+			string(store.StoreNameTorBox),
+		},
+	})
 
 	mux := http.NewServeMux()
 

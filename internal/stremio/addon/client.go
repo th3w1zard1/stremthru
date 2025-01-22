@@ -10,16 +10,16 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/request"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/stremio"
 	"golang.org/x/sync/singleflight"
 )
 
-var DefaultHTTPTransport = request.DefaultHTTPTransport
 var DefaultHTTPClient = func() *http.Client {
 	return &http.Client{
-		Transport: DefaultHTTPTransport,
+		Transport: config.DefaultHTTPTransport,
 		Timeout:   30 * time.Second,
 	}
 }()

@@ -5,12 +5,12 @@ import (
 	"net/url"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/request"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
-var DefaultHTTPTransport = request.DefaultHTTPTransport
-var DefaultHTTPClient = request.DefaultHTTPClient
+var DefaultHTTPClient = config.DefaultHTTPClient
 
 type APIClientConfig struct {
 	BaseURL    string // default: https://www.premiumize.me/api

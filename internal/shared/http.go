@@ -14,7 +14,6 @@ import (
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
-	"github.com/MunifTanjim/stremthru/internal/request"
 )
 
 func IsMethod(r *http.Request, method string) bool {
@@ -117,15 +116,16 @@ func copyHeaders(src http.Header, dest http.Header) {
 }
 
 var proxyHttpClientWithTunnel = func() *http.Client {
-	transport := request.DefaultHTTPTransport.Clone()
+	transport := config.DefaultHTTPTransport.Clone()
+	transport.Proxy = config.Tunnel.GetProxy("forced")
 	return &http.Client{
 		Transport: transport,
 	}
 }()
 
 var proxyHttpClientWithoutTunnel = func() *http.Client {
-	transport := request.DefaultHTTPTransport.Clone()
-	transport.Proxy = nil
+	transport := config.DefaultHTTPTransport.Clone()
+	transport.Proxy = config.Tunnel.GetProxy("none")
 	return &http.Client{
 		Transport: transport,
 	}

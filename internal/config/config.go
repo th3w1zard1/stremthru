@@ -1,17 +1,13 @@
 package config
 
 import (
-	"io"
 	"log"
-	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
-	"github.com/MunifTanjim/stremthru/internal/request"
-	"github.com/MunifTanjim/stremthru/store"
 )
 
 func getEnv(key string, defaultValue string) string {
@@ -123,14 +119,22 @@ type StoreTunnelConfig struct {
 
 type StoreTunnelConfigMap map[string]StoreTunnelConfig
 
-func (stc StoreTunnelConfigMap) IsEnabledForAPI(name string) bool {
+func (stc StoreTunnelConfigMap) isEnabledForAPI(name string) bool {
 	if c, ok := stc[name]; ok {
 		return c.api
 	}
 	if name != "*" {
-		return stc.IsEnabledForAPI("*")
+		return stc.isEnabledForAPI("*")
 	}
 	return true
+}
+
+func (stc StoreTunnelConfigMap) GetAPIProxyType(name string) string {
+	enabled := stc.isEnabledForAPI(name)
+	if enabled {
+		return "forced"
+	}
+	return "none"
 }
 
 func (stc StoreTunnelConfigMap) IsEnabledForStream(name string) bool {
@@ -141,49 +145,6 @@ func (stc StoreTunnelConfigMap) IsEnabledForStream(name string) bool {
 		return stc.IsEnabledForStream("*")
 	}
 	return true
-}
-
-func getIp(client *http.Client) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, "https://checkip.amazonaws.com", nil)
-	if err != nil {
-		return "", err
-	}
-
-	res, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(string(body)), nil
-}
-
-type IPResolver struct {
-	machineIP string
-}
-
-func (ipr *IPResolver) GetMachineIP() string {
-	if ipr.machineIP == "" {
-		client := request.GetHTTPClient(false)
-		ip, err := getIp(client)
-		if err != nil {
-			log.Panicf("Failed to detect Machine IP: %v\n", err)
-		}
-		ipr.machineIP = ip
-	}
-	return ipr.machineIP
-}
-
-func (ipr *IPResolver) GetTunnelIP() (string, error) {
-	ip, err := getIp(request.DefaultHTTPClient)
-	if err != nil {
-		return "", err
-	}
-	return ip, nil
 }
 
 type Config struct {
@@ -223,18 +184,6 @@ func parseUri(uri string) (parsedUrl, parsedToken string) {
 }
 
 var config = func() Config {
-	if value := getEnv("STREMTHRU_HTTP_PROXY", ""); len(value) > 0 {
-		if err := os.Setenv("HTTP_PROXY", value); err != nil {
-			log.Fatal("failed to set http proxy")
-		}
-	}
-
-	if value := getEnv("STREMTHRU_HTTPS_PROXY", ""); len(value) > 0 {
-		if err := os.Setenv("HTTPS_PROXY", value); err != nil {
-			log.Fatal("failed to set https proxy")
-		}
-	}
-
 	proxyAuthCredList := strings.FieldsFunc(getEnv("STREMTHRU_PROXY_AUTH", ""), func(c rune) bool {
 		return c == ','
 	})
@@ -343,9 +292,15 @@ func getRedactedURI(uri string) (string, error) {
 	return u.Redacted(), nil
 }
 
-func PrintConfig() {
-	httpProxy, httpsProxy := getEnv("HTTP_PROXY", ""), getEnv("HTTPS_PROXY", "")
-	hasTunnel := httpProxy != "" || httpsProxy != ""
+type AppState struct {
+	StoreNames []string
+}
+
+func PrintConfig(state *AppState) {
+	hasTunnel := false
+	if proxy := Tunnel.getProxy("*"); proxy != nil && proxy.Host != "" {
+		hasTunnel = true
+	}
 
 	machineIP := IP.GetMachineIP()
 	tunnelIP := ""
@@ -367,12 +322,30 @@ func PrintConfig() {
 
 	if hasTunnel {
 		l.Println(" Tunnel:")
-		if httpProxy != "" {
-			l.Println("    HTTP: " + httpProxy)
+		if defaultProxy := Tunnel.getProxy("*"); defaultProxy != nil {
+			defaultProxyConfig := ""
+			if noProxy := getEnv("NO_PROXY", ""); noProxy == "*" {
+				defaultProxyConfig = " (disabled)"
+			}
+			l.Println("   Default: " + defaultProxy.Redacted() + defaultProxyConfig)
+			l.Println("   [Store]: " + defaultProxy.Redacted())
 		}
-		if httpsProxy != "" {
-			l.Println("   HTTPS: " + httpsProxy)
+
+		if len(Tunnel) > 1 {
+			l.Println("   By Host:")
+			for hostname, proxy := range Tunnel {
+				if hostname == "*" {
+					continue
+				}
+
+				if proxy.Host == "" {
+					l.Println("     " + hostname + ": (disabled)")
+				} else {
+					l.Println("     " + hostname + ": " + proxy.Redacted())
+				}
+			}
 		}
+
 		l.Println()
 	}
 
@@ -404,22 +377,13 @@ func PrintConfig() {
 	}
 
 	l.Println(" Stores:")
-	for _, store := range []store.StoreName{
-		store.StoreNameAlldebrid,
-		store.StoreNameDebridLink,
-		store.StoreNameEasyDebrid,
-		store.StoreNameOffcloud,
-		store.StoreNamePikPak,
-		store.StoreNamePremiumize,
-		store.StoreNameRealDebrid,
-		store.StoreNameTorBox,
-	} {
+	for _, store := range state.StoreNames {
 		storeConfig := ""
 		if usersCount > 0 && StoreContentProxy.IsEnabled(string(store)) {
 			storeConfig += "content_proxy"
 		}
 		if hasTunnel {
-			if StoreTunnel.IsEnabledForAPI(string(store)) {
+			if StoreTunnel.isEnabledForAPI(string(store)) {
 				if storeConfig != "" {
 					storeConfig += ","
 				}

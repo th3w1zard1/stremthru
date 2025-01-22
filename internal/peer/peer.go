@@ -13,14 +13,11 @@ import (
 	"github.com/MunifTanjim/stremthru/store"
 )
 
-var DefaultHTTPTransport = func() *http.Transport {
-	transport := request.DefaultHTTPTransport.Clone()
-	transport.Proxy = nil
-	return transport
-}()
 var DefaultHTTPClient = func() *http.Client {
+	transport := config.DefaultHTTPTransport.Clone()
+	transport.Proxy = config.Tunnel.GetProxy("none")
 	return &http.Client{
-		Transport: DefaultHTTPTransport,
+		Transport: transport,
 		Timeout:   60 * time.Second,
 	}
 }()

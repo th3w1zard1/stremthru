@@ -7,11 +7,11 @@ import (
 	"net/url"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/request"
 )
 
-var DefaultHTTPTransport = request.DefaultHTTPTransport
-var DefaultHTTPClient = request.DefaultHTTPClient
+var DefaultHTTPClient = config.DefaultHTTPClient
 
 type ClientConfig struct {
 	BaseURL    string
