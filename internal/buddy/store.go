@@ -140,7 +140,13 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 				res_files := []store.MagnetFile{}
 				files := magnet_cache.Files{}
 				if item.Status == store.MagnetStatusCached {
+					seenByName := map[string]bool{}
 					for _, f := range item.Files {
+						if _, seen := seenByName[f.Name]; seen {
+							log.Printf("[buddy] found duplicate file hash(%s) name(%s)", item.Hash, f.Name)
+							continue
+						}
+						seenByName[f.Name] = true
 						res_files = append(res_files, store.MagnetFile{Idx: f.Idx, Name: f.Name, Size: f.Size})
 						files = append(files, magnet_cache.File{Idx: f.Idx, Name: f.Name, Size: f.Size, SId: f.SId})
 					}
@@ -180,7 +186,13 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 			for _, item := range res.Data.Items {
 				files := magnet_cache.Files{}
 				if item.Status == store.MagnetStatusCached {
+					seenByName := map[string]bool{}
 					for _, f := range item.Files {
+						if _, seen := seenByName[f.Name]; seen {
+							log.Printf("[buddy:upstream] found duplicate file hash(%s) name(%s)", item.Hash, f.Name)
+							continue
+						}
+						seenByName[f.Name] = true
 						files = append(files, magnet_cache.File{Idx: f.Idx, Name: f.Name, Size: f.Size})
 					}
 				}
