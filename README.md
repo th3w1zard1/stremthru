@@ -77,6 +77,9 @@ HTTP Proxy URL.
 
 #### `STREMTHRU_TUNNEL`
 
+> [!WARNING]
+> Can not override `STREMTHRU_STORE_TUNNEL`.
+
 Comma separated list of tunnel config, in `hostname:tunnel_config` format.
 
 | `tunnel_config` | Description                        |
@@ -116,6 +119,9 @@ If `username` is `*`, it is used as fallback for users without explicit store cr
 | Torbox      | `torbox`     | `<api-key>`          |
 
 #### `STREMTHRU_STORE_TUNNEL`
+
+> [!WARNING]
+> Only used using StremThru to interact with the Store. Not affected by `STREMTHRU_TUNNEL`.
 
 Comma separated list of tunnel config for stores, in `store_name:tunnel_config` format.
 
