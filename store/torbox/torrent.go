@@ -117,7 +117,7 @@ type Torrent struct {
 	Seeds            int                  `json:"seeds"`
 	Peers            int                  `json:"peers"`
 	Ratio            float32              `json:"ratio"`
-	Progress         int                  `json:"progress"`
+	Progress         float32              `json:"progress"`
 	DownloadSpeed    int                  `json:"download_speed"`
 	UploadSpeed      int                  `json:"upload_speed"`
 	Name             string               `json:"name"`
