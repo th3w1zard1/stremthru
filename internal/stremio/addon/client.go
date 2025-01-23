@@ -18,8 +18,9 @@ import (
 )
 
 var DefaultHTTPClient = func() *http.Client {
+	transport := config.DefaultHTTPTransport.Clone()
 	return &http.Client{
-		Transport: config.DefaultHTTPTransport,
+		Transport: transport,
 		Timeout:   30 * time.Second,
 	}
 }()

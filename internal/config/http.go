@@ -128,8 +128,9 @@ var DefaultHTTPTransport = func() *http.Transport {
 }()
 
 var DefaultHTTPClient = func() *http.Client {
+	transport := DefaultHTTPTransport.Clone()
 	return &http.Client{
-		Transport: DefaultHTTPTransport,
+		Transport: transport,
 		Timeout:   90 * time.Second,
 	}
 }()
