@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 )
 
@@ -34,7 +35,7 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shared.ProxyResponse(w, r, targetUrl, true)
+	shared.ProxyResponse(w, r, targetUrl, config.TUNNEL_TYPE_AUTO)
 }
 
 func AddProxyEndpoints(mux *http.ServeMux) {

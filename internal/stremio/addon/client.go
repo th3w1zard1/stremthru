@@ -199,5 +199,5 @@ func (c Client) ProxyResource(w http.ResponseWriter, r *http.Request, params *Pr
 	}
 	adjustClientIPHeader(params.Ctx, params.ClientIP, r)
 	w.Header().Del("Access-Control-Allow-Origin")
-	shared.ProxyResponse(w, r, params.BaseURL.JoinPath(path).String(), true)
+	shared.ProxyResponse(w, r, params.BaseURL.JoinPath(path).String(), config.TUNNEL_TYPE_AUTO)
 }

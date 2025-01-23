@@ -15,7 +15,7 @@ import (
 
 var DefaultHTTPClient = func() *http.Client {
 	transport := config.DefaultHTTPTransport.Clone()
-	transport.Proxy = config.Tunnel.GetProxy("none")
+	transport.Proxy = config.Tunnel.GetProxy(config.TUNNEL_TYPE_NONE)
 	return &http.Client{
 		Transport: transport,
 		Timeout:   60 * time.Second,

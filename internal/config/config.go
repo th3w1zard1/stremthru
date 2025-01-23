@@ -129,22 +129,30 @@ func (stc StoreTunnelConfigMap) isEnabledForAPI(name string) bool {
 	return true
 }
 
-func (stc StoreTunnelConfigMap) GetAPIProxyType(name string) string {
+func (stc StoreTunnelConfigMap) GetTypeForAPI(name string) TunnelType {
 	enabled := stc.isEnabledForAPI(name)
 	if enabled {
-		return "forced"
+		return TUNNEL_TYPE_FORCED
 	}
-	return "none"
+	return TUNNEL_TYPE_NONE
 }
 
-func (stc StoreTunnelConfigMap) IsEnabledForStream(name string) bool {
+func (stc StoreTunnelConfigMap) isEnabledForStream(name string) bool {
 	if c, ok := stc[name]; ok {
 		return c.stream
 	}
 	if name != "*" {
-		return stc.IsEnabledForStream("*")
+		return stc.isEnabledForStream("*")
 	}
 	return true
+}
+
+func (stc StoreTunnelConfigMap) GetTypeForStream(name string) TunnelType {
+	enabled := stc.isEnabledForStream(name)
+	if enabled {
+		return TUNNEL_TYPE_FORCED
+	}
+	return TUNNEL_TYPE_NONE
 }
 
 type Config struct {
@@ -388,7 +396,7 @@ func PrintConfig(state *AppState) {
 					storeConfig += ","
 				}
 				storeConfig += "tunnel:api"
-				if usersCount > 0 && StoreTunnel.IsEnabledForStream(string(store)) {
+				if usersCount > 0 && StoreTunnel.GetTypeForStream(string(store)) == TUNNEL_TYPE_FORCED {
 					storeConfig += "+stream"
 				}
 			}

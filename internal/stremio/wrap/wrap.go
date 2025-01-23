@@ -450,7 +450,7 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 					headers = stream.BehaviorHints.ProxyHeaders.Request
 				}
 
-				if url, err := shared.CreateProxyLink(r, ctx, stream.URL, headers); err == nil && url != stream.URL {
+				if url, err := shared.CreateProxyLink(r, ctx, stream.URL, headers, config.TUNNEL_TYPE_AUTO); err == nil && url != stream.URL {
 					stream.URL = url
 					stream.Name = "✨ " + stream.Name
 				}

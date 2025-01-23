@@ -115,23 +115,31 @@ func copyHeaders(src http.Header, dest http.Header) {
 	}
 }
 
-var proxyHttpClientWithTunnel = func() *http.Client {
-	transport := config.DefaultHTTPTransport.Clone()
-	transport.Proxy = config.Tunnel.GetProxy("forced")
-	return &http.Client{
-		Transport: transport,
-	}
-}()
+var proxyHttpClientByTunnelType = map[config.TunnelType]*http.Client{
+	config.TUNNEL_TYPE_NONE: func() *http.Client {
+		transport := config.DefaultHTTPTransport.Clone()
+		transport.Proxy = config.Tunnel.GetProxy(config.TUNNEL_TYPE_NONE)
+		return &http.Client{
+			Transport: transport,
+		}
+	}(),
+	config.TUNNEL_TYPE_AUTO: func() *http.Client {
+		transport := config.DefaultHTTPTransport.Clone()
+		transport.Proxy = config.Tunnel.GetProxy(config.TUNNEL_TYPE_AUTO)
+		return &http.Client{
+			Transport: transport,
+		}
+	}(),
+	config.TUNNEL_TYPE_FORCED: func() *http.Client {
+		transport := config.DefaultHTTPTransport.Clone()
+		transport.Proxy = config.Tunnel.GetProxy(config.TUNNEL_TYPE_FORCED)
+		return &http.Client{
+			Transport: transport,
+		}
+	}(),
+}
 
-var proxyHttpClientWithoutTunnel = func() *http.Client {
-	transport := config.DefaultHTTPTransport.Clone()
-	transport.Proxy = config.Tunnel.GetProxy("none")
-	return &http.Client{
-		Transport: transport,
-	}
-}()
-
-func ProxyResponse(w http.ResponseWriter, r *http.Request, url string, useTunnel bool) {
+func ProxyResponse(w http.ResponseWriter, r *http.Request, url string, tunnelType config.TunnelType) {
 	request, err := http.NewRequest(r.Method, url, nil)
 	if err != nil {
 		e := ErrorInternalServerError(r, "failed to create request")
@@ -142,10 +150,7 @@ func ProxyResponse(w http.ResponseWriter, r *http.Request, url string, useTunnel
 
 	copyHeaders(r.Header, request.Header)
 
-	proxyHttpClient := proxyHttpClientWithTunnel
-	if !useTunnel {
-		proxyHttpClient = proxyHttpClientWithoutTunnel
-	}
+	proxyHttpClient := proxyHttpClientByTunnelType[tunnelType]
 
 	response, err := proxyHttpClient.Do(request)
 	if err != nil {
@@ -204,7 +209,7 @@ func GetClientIP(r *http.Request, ctx *context.RequestContext) string {
 	if !ctx.IsProxyAuthorized {
 		return core.GetClientIP(r)
 	}
-	if ctx.Store != nil && !config.StoreTunnel.IsEnabledForStream(string(ctx.Store.GetName())) {
+	if ctx.Store != nil && config.StoreTunnel.GetTypeForAPI(string(ctx.Store.GetName())) == config.TUNNEL_TYPE_NONE {
 		return config.IP.GetMachineIP()
 	}
 	return ""

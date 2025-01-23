@@ -23,29 +23,29 @@ import (
 )
 
 var adStore = alldebrid.NewStoreClient(&alldebrid.StoreClientConfig{
-	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetAPIProxyType("alldebrid")),
+	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("alldebrid")),
 })
 var dlStore = debridlink.NewStoreClient(&debridlink.StoreClientConfig{
-	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetAPIProxyType("debridlink")),
+	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("debridlink")),
 })
 var edStore = easydebrid.NewStoreClient(&easydebrid.StoreClientConfig{
-	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetAPIProxyType("easydebrid")),
+	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("easydebrid")),
 })
 var pmStore = premiumize.NewStoreClient(&premiumize.StoreClientConfig{
-	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetAPIProxyType("premiumize")),
+	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("premiumize")),
 })
 var ppStore = pikpak.NewStoreClient(&pikpak.StoreClientConfig{
-	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetAPIProxyType("pikpak")),
+	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("pikpak")),
 })
 var ocStore = offcloud.NewStoreClient(&offcloud.StoreClientConfig{
-	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetAPIProxyType("offcloud")),
+	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("offcloud")),
 })
 var rdStore = realdebrid.NewStoreClient(&realdebrid.StoreClientConfig{
-	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetAPIProxyType("realdebrid")),
+	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("realdebrid")),
 	UserAgent:  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
 })
 var tbStore = torbox.NewStoreClient(&torbox.StoreClientConfig{
-	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetAPIProxyType("torbox")),
+	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("torbox")),
 })
 
 func GetStore(name string) store.Store {
@@ -72,12 +72,12 @@ func GetStore(name string) store.Store {
 }
 
 type proxyLinkTokenData struct {
-	EncLink    string `json:"enc_link"`
-	EncFormat  string `json:"enc_format"`
-	SkipTunnel bool   `json:"notun"`
+	EncLink    string            `json:"enc_link"`
+	EncFormat  string            `json:"enc_format"`
+	TunnelType config.TunnelType `json:"tunt,omitempty"`
 }
 
-func CreateProxyLink(r *http.Request, ctx *context.RequestContext, link string, headers map[string]string) (string, error) {
+func CreateProxyLink(r *http.Request, ctx *context.RequestContext, link string, headers map[string]string, tunnelType config.TunnelType) (string, error) {
 	if !ctx.IsProxyAuthorized {
 		return link, nil
 	}
@@ -95,7 +95,6 @@ func CreateProxyLink(r *http.Request, ctx *context.RequestContext, link string, 
 	}
 
 	proxyLink := ExtractRequestBaseURL(r).JoinPath("/v0/store/link/access")
-	useTunnel := config.StoreTunnel.IsEnabledForStream(string(ctx.Store.GetName()))
 
 	token, err := core.CreateJWT(ctx.ProxyAuthPassword, core.JWTClaims[proxyLinkTokenData]{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -106,7 +105,7 @@ func CreateProxyLink(r *http.Request, ctx *context.RequestContext, link string, 
 		Data: &proxyLinkTokenData{
 			EncLink:    encryptedLink,
 			EncFormat:  core.EncryptionFormat,
-			SkipTunnel: !useTunnel,
+			TunnelType: tunnelType,
 		},
 	})
 
@@ -138,7 +137,8 @@ func GenerateStremThruLink(r *http.Request, ctx *context.RequestContext, link st
 
 	storeName := string(ctx.Store.GetName())
 	if config.StoreContentProxy.IsEnabled(storeName) && ctx.StoreAuthToken == config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, storeName) {
-		proxyLink, err := CreateProxyLink(r, ctx, data.Link, nil)
+		tunnelType := config.StoreTunnel.GetTypeForStream(string(ctx.Store.GetName()))
+		proxyLink, err := CreateProxyLink(r, ctx, data.Link, nil, tunnelType)
 		if err != nil {
 			return nil, err
 		}
@@ -152,7 +152,7 @@ func GenerateStremThruLink(r *http.Request, ctx *context.RequestContext, link st
 type proxyLink struct {
 	Value   string
 	Headers map[string]string
-	NoTun   bool
+	TunT    config.TunnelType
 }
 
 var proxyLinkTokenCache = func() cache.Cache[proxyLink] {
@@ -171,10 +171,10 @@ func getUserSecretFromJWT(t *jwt.Token) (string, []byte, error) {
 	return password, []byte(password), nil
 }
 
-func UnwrapProxyLinkToken(encodedToken string) (string, map[string]string, bool, error) {
+func UnwrapProxyLinkToken(encodedToken string) (link string, headers map[string]string, tunnelType config.TunnelType, err error) {
 	proxyLink := &proxyLink{}
 	if found := proxyLinkTokenCache.Get(encodedToken, proxyLink); found {
-		return proxyLink.Value, proxyLink.Headers, proxyLink.NoTun, nil
+		return proxyLink.Value, proxyLink.Headers, proxyLink.TunT, nil
 	}
 
 	claims := &core.JWTClaims[proxyLinkTokenData]{}
@@ -184,19 +184,19 @@ func UnwrapProxyLinkToken(encodedToken string) (string, map[string]string, bool,
 	}, encodedToken, claims)
 
 	if err != nil {
-		return "", nil, false, err
+		return "", nil, "", err
 	}
 
 	secret, _, err := getUserSecretFromJWT(token)
 	if err != nil {
-		return "", nil, false, err
+		return "", nil, "", err
 	}
 
-	proxyLink.NoTun = !claims.Data.SkipTunnel
+	proxyLink.TunT = claims.Data.TunnelType
 
 	linkBlob, err := core.Decrypt(secret, claims.Data.EncLink)
 	if err != nil {
-		return "", nil, false, err
+		return "", nil, "", err
 	}
 
 	link, headersBlob, hasHeaders := strings.Cut(linkBlob, "\n")
@@ -214,5 +214,5 @@ func UnwrapProxyLinkToken(encodedToken string) (string, map[string]string, bool,
 
 	proxyLinkTokenCache.Add(encodedToken, *proxyLink)
 
-	return proxyLink.Value, proxyLink.Headers, proxyLink.NoTun, nil
+	return proxyLink.Value, proxyLink.Headers, proxyLink.TunT, nil
 }

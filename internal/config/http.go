@@ -10,6 +10,14 @@ import (
 	"time"
 )
 
+type TunnelType string
+
+const (
+	TUNNEL_TYPE_NONE   TunnelType = ""
+	TUNNEL_TYPE_AUTO   TunnelType = "a"
+	TUNNEL_TYPE_FORCED TunnelType = "f"
+)
+
 type TunnelMap map[string]url.URL
 
 func (tm TunnelMap) getProxy(hostname string) *url.URL {
@@ -21,7 +29,7 @@ func (tm TunnelMap) getProxy(hostname string) *url.URL {
 
 // If tunnel is configured for `hostname` use that.
 // Otherwise fallback to environment proxy, i.e. `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`
-func (tm TunnelMap) hostnameProxy(r *http.Request) (*url.URL, error) {
+func (tm TunnelMap) autoProxy(r *http.Request) (*url.URL, error) {
 	proxy := tm.getProxy(r.URL.Hostname())
 	if proxy == nil {
 		return http.ProxyFromEnvironment(r)
@@ -32,7 +40,7 @@ func (tm TunnelMap) hostnameProxy(r *http.Request) (*url.URL, error) {
 	return proxy, nil
 }
 
-// Ignores NO_PROXY
+// Use the default tunnel, ignore `NO_PROXY`
 func (tm TunnelMap) forcedProxy(r *http.Request) (*url.URL, error) {
 	if proxy := tm.getProxy("*"); proxy != nil && proxy.Host != "" {
 		return proxy, nil
@@ -40,16 +48,16 @@ func (tm TunnelMap) forcedProxy(r *http.Request) (*url.URL, error) {
 	return nil, nil
 }
 
-func (tm TunnelMap) GetProxy(proxyType string) func(req *http.Request) (*url.URL, error) {
-	switch proxyType {
-	case "hostname":
-		return tm.hostnameProxy
-	case "forced":
+func (tm TunnelMap) GetProxy(tunnelType TunnelType) func(req *http.Request) (*url.URL, error) {
+	switch tunnelType {
+	case TUNNEL_TYPE_AUTO:
+		return tm.autoProxy
+	case TUNNEL_TYPE_FORCED:
 		return tm.forcedProxy
-	case "none":
+	case TUNNEL_TYPE_NONE:
 		return nil
 	default:
-		panic("invalid proxy type")
+		panic("invalid tunnel type")
 	}
 }
 
@@ -119,10 +127,10 @@ var Tunnel = func() TunnelMap {
 	return tunnelMap
 }()
 
-// has hostname proxy
+// has auto proxy
 var DefaultHTTPTransport = func() *http.Transport {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.Proxy = Tunnel.GetProxy("hostname")
+	transport.Proxy = Tunnel.GetProxy(TUNNEL_TYPE_AUTO)
 	transport.DisableKeepAlives = true
 	return transport
 }()
@@ -135,9 +143,9 @@ var DefaultHTTPClient = func() *http.Client {
 	}
 }()
 
-func GetHTTPClient(proxyType string) *http.Client {
+func GetHTTPClient(tunnelType TunnelType) *http.Client {
 	transport := DefaultHTTPTransport.Clone()
-	transport.Proxy = Tunnel.GetProxy(proxyType)
+	transport.Proxy = Tunnel.GetProxy(tunnelType)
 	return &http.Client{
 		Transport: transport,
 		Timeout:   90 * time.Second,
@@ -169,7 +177,7 @@ type IPResolver struct {
 
 func (ipr *IPResolver) GetMachineIP() string {
 	if ipr.machineIP == "" {
-		client := GetHTTPClient("none")
+		client := GetHTTPClient(TUNNEL_TYPE_NONE)
 		ip, err := getIp(client)
 		if err != nil {
 			log.Panicf("Failed to detect Machine IP: %v\n", err)
@@ -180,7 +188,7 @@ func (ipr *IPResolver) GetMachineIP() string {
 }
 
 func (ipr *IPResolver) GetTunnelIP() (string, error) {
-	client := GetHTTPClient("forced")
+	client := GetHTTPClient(TUNNEL_TYPE_FORCED)
 	ip, err := getIp(client)
 	if err != nil {
 		return "", err

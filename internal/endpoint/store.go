@@ -324,7 +324,7 @@ func handleStoreLinkAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	link, headers, useTunnel, err := shared.UnwrapProxyLinkToken(encodedToken)
+	link, headers, tunnelType, err := shared.UnwrapProxyLinkToken(encodedToken)
 	if err != nil {
 		SendError(w, err)
 		return
@@ -336,7 +336,7 @@ func handleStoreLinkAccess(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	shared.ProxyResponse(w, r, link, useTunnel)
+	shared.ProxyResponse(w, r, link, tunnelType)
 }
 
 func handleStatic(w http.ResponseWriter, r *http.Request) {
