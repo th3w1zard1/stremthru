@@ -128,6 +128,7 @@ func adjustClientIPHeader(params request.Ctx, clientIp string, r *http.Request) 
 		if r != nil {
 			r.Header.Del("X-Client-Ip")
 			r.Header.Del("X-Forwarded-For")
+			r.Header.Del("X-Real-IP")
 		}
 		return
 	}
@@ -136,8 +137,15 @@ func adjustClientIPHeader(params request.Ctx, clientIp string, r *http.Request) 
 		params.Headers = &http.Header{}
 	}
 
-	params.Headers.Set("X-Client-Ip", clientIp)
-	params.Headers.Set("X-Forwarded-For", clientIp)
+	if clientIp == "" {
+		params.Headers.Del("X-Client-Ip")
+		params.Headers.Del("X-Forwarded-For")
+		params.Headers.Del("X-Real-IP")
+	} else {
+		params.Headers.Set("X-Client-Ip", clientIp)
+		params.Headers.Set("X-Forwarded-For", clientIp)
+		params.Headers.Set("X-Real-IP", clientIp)
+	}
 }
 
 type GetManifestParams struct {
