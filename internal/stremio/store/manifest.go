@@ -9,10 +9,21 @@ import (
 	"github.com/MunifTanjim/stremthru/stremio"
 )
 
-const CATALOG_ID = "st:store"
-const ID_PREFIX = CATALOG_ID + ":"
-const STORE_ACTION_ID = ID_PREFIX + "action"
-const STORE_ACTION_ID_PREFIX = STORE_ACTION_ID + ":"
+func getCatalogId(storeCode string) string {
+	return "st:store:" + storeCode
+}
+
+func getIdPrefix(storeCode string) string {
+	return getCatalogId(storeCode) + ":"
+}
+
+func getStoreActionId(storeCode string) string {
+	return getIdPrefix(storeCode) + "action"
+}
+
+func getStoreActionIdPrefix(storeCode string) string {
+	return getStoreActionId(storeCode) + ":"
+}
 
 const ContentTypeOther = "other"
 
@@ -24,17 +35,30 @@ const (
 func getManifest(ud *UserData) *stremio.Manifest {
 	name := "Store"
 	description := "StremThru Store Catalog and Search"
+	storeName := ""
+	storeCode := ""
 	switch ud.StoreName {
 	case "":
+		storeName = "StremThru"
+		storeCode = "st"
 	case "stremthru":
+		storeName = "StremThru"
+		storeCode = "st"
 	default:
-		name = name + " | " + strings.ToUpper(string(store.StoreName(ud.StoreName).Code()))
-		description = description + " - " + ud.StoreName
+		storeName = string(store.StoreName(ud.StoreName))
+		storeCode = string(store.StoreName(ud.StoreName).Code())
 	}
+
+	name = name + " | " + strings.ToUpper(storeCode)
+	description = description + " - " + storeName
+
+	id := "dev.muniftanjim.stremthru.store." + storeCode
+
+	idPrefix := getIdPrefix(storeCode)
 
 	contactEmail, _ := core.Base64Decode("Z2l0aHViQG11bmlmdGFuamltLmRldg==")
 	manifest := &stremio.Manifest{
-		ID:          "dev.muniftanjim.stremthru.store",
+		ID:          id,
 		Name:        name,
 		Description: description,
 		Version:     config.Version,
@@ -42,18 +66,18 @@ func getManifest(ud *UserData) *stremio.Manifest {
 			{
 				Name:       stremio.ResourceNameMeta,
 				Types:      []stremio.ContentType{ContentTypeOther},
-				IDPrefixes: []string{ID_PREFIX},
+				IDPrefixes: []string{idPrefix},
 			},
 			{
 				Name:       stremio.ResourceNameStream,
 				Types:      []stremio.ContentType{ContentTypeOther},
-				IDPrefixes: []string{ID_PREFIX},
+				IDPrefixes: []string{idPrefix},
 			},
 		},
 		Types: []stremio.ContentType{},
 		Catalogs: []stremio.Catalog{
 			{
-				Id:   CATALOG_ID,
+				Id:   getCatalogId(storeCode),
 				Name: "Store",
 				Type: ContentTypeOther,
 				Extra: []stremio.CatalogExtra{

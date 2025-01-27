@@ -25,6 +25,21 @@ type UserData struct {
 	StoreName  string `json:"store_name"`
 	StoreToken string `json:"store_token"`
 	encoded    string `json:"-"`
+	storeCode  string `json:"-"`
+}
+
+func (ud *UserData) getStoreCode() string {
+	if ud.storeCode == "" {
+		switch ud.StoreName {
+		case "":
+			ud.storeCode = "st"
+		case "stremthru":
+			ud.storeCode = "st"
+		default:
+			ud.storeCode = string(store.StoreName(ud.StoreName).Code())
+		}
+	}
+	return ud.storeCode
 }
 
 func (ud UserData) HasRequiredValues() bool {
@@ -324,9 +339,9 @@ func getCatalogCacheKey(ctx *context.RequestContext) string {
 	return string(ctx.Store.GetName().Code()) + ":" + ctx.StoreAuthToken
 }
 
-func getStoreActionMetaPreview() stremio.MetaPreview {
+func getStoreActionMetaPreview(storeCode string) stremio.MetaPreview {
 	meta := stremio.MetaPreview{
-		Id:   STORE_ACTION_ID,
+		Id:   getStoreActionId(storeCode),
 		Type: ContentTypeOther,
 		Name: "StremThru Store Actions",
 	}
@@ -344,14 +359,14 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if catalogId := getId(r); catalogId != CATALOG_ID {
-		shared.ErrorBadRequest(r, "unsupported catalog id: "+catalogId).Send(w)
-		return
-	}
-
 	ud, err := getUserData(r)
 	if err != nil {
 		SendError(w, err)
+		return
+	}
+
+	if catalogId := getId(r); catalogId != getCatalogId(ud.getStoreCode()) {
+		shared.ErrorBadRequest(r, "unsupported catalog id: "+catalogId).Send(w)
 		return
 	}
 
@@ -371,7 +386,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if extra.Genre == CatalogGenreStremThru {
-		res.Metas = append(res.Metas, getStoreActionMetaPreview())
+		res.Metas = append(res.Metas, getStoreActionMetaPreview(ud.getStoreCode()))
 		SendResponse(w, 200, res)
 		return
 	}
@@ -380,6 +395,8 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 
 	cacheKey := getCatalogCacheKey(ctx)
 	if !catalogCache.Get(cacheKey, &items) {
+		idPrefix := getIdPrefix(ud.getStoreCode())
+
 		limit := 500
 		offset := 0
 		hasMore := true
@@ -397,7 +414,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 			for _, item := range res.Items {
 				if item.Status == store.MagnetStatusDownloaded {
 					items = append(items, stremio.MetaPreview{
-						Id:          ID_PREFIX + item.Id,
+						Id:          idPrefix + item.Id,
 						Type:        ContentTypeOther,
 						Name:        item.Name,
 						Description: item.Hash,
@@ -431,22 +448,22 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	SendResponse(w, 200, res)
 }
 
-func getStoreActionMeta(r *http.Request, encodedUserData string) stremio.Meta {
+func getStoreActionMeta(r *http.Request, storeCode string, encodedUserData string) stremio.Meta {
 	released := time.Now().UTC()
 	meta := stremio.Meta{
-		Id:          STORE_ACTION_ID,
+		Id:          getStoreActionId(storeCode),
 		Type:        ContentTypeOther,
 		Name:        "StremThru Store Actions",
 		Description: "Actions for StremThru Store",
 		Released:    released,
 		Videos: []stremio.MetaVideo{
 			{
-				Id:       STORE_ACTION_ID_PREFIX + "clear_cache",
+				Id:       getStoreActionIdPrefix(storeCode) + "clear_cache",
 				Title:    "Clear Cache",
 				Released: released,
 				Streams: []stremio.Stream{
 					{
-						URL:         ExtractRequestBaseURL(r).JoinPath("/stremio/store/" + encodedUserData + "/_/action/" + STORE_ACTION_ID_PREFIX + "clear_cache").String(),
+						URL:         ExtractRequestBaseURL(r).JoinPath("/stremio/store/" + encodedUserData + "/_/action/" + getStoreActionIdPrefix(storeCode) + "clear_cache").String(),
 						Name:        "Clear Cache",
 						Description: "Clear Cached Data for StremThru Store",
 					},
@@ -468,15 +485,17 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := getId(r)
-	if !strings.HasPrefix(id, ID_PREFIX) {
-		shared.ErrorBadRequest(r, "unsupported id: "+id).Send(w)
-		return
-	}
-
 	ud, err := getUserData(r)
 	if err != nil {
 		SendError(w, err)
+		return
+	}
+
+	idPrefix := getIdPrefix(ud.getStoreCode())
+
+	id := getId(r)
+	if !strings.HasPrefix(id, idPrefix) {
+		shared.ErrorBadRequest(r, "unsupported id: "+id).Send(w)
 		return
 	}
 
@@ -489,7 +508,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if id == STORE_ACTION_ID {
+	if id == getStoreActionId(ud.getStoreCode()) {
 		eud, err := ud.GetEncoded()
 		if err != nil {
 			SendError(w, err)
@@ -497,7 +516,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		}
 
 		res := stremio.MetaHandlerResponse{
-			Meta: getStoreActionMeta(r, eud),
+			Meta: getStoreActionMeta(r, ud.getStoreCode(), eud),
 		}
 
 		SendResponse(w, 200, res)
@@ -505,7 +524,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := &store.GetMagnetParams{
-		Id: strings.TrimPrefix(id, ID_PREFIX),
+		Id: strings.TrimPrefix(id, idPrefix),
 	}
 	params.APIKey = ctx.StoreAuthToken
 	magnet, err := ctx.Store.GetMagnet(params)
@@ -549,15 +568,17 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	videoIdWithIdx := getId(r)
-	if !strings.HasPrefix(videoIdWithIdx, ID_PREFIX) {
-		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithIdx).Send(w)
-		return
-	}
-
 	ud, err := getUserData(r)
 	if err != nil {
 		SendError(w, err)
+		return
+	}
+
+	idPrefix := getIdPrefix(ud.getStoreCode())
+
+	videoIdWithIdx := getId(r)
+	if !strings.HasPrefix(videoIdWithIdx, idPrefix) {
+		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithIdx).Send(w)
 		return
 	}
 
@@ -574,7 +595,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		Streams: []stremio.Stream{},
 	}
 
-	videoId := strings.TrimPrefix(videoIdWithIdx, ID_PREFIX)
+	videoId := strings.TrimPrefix(videoIdWithIdx, idPrefix)
 	videoId, fileIdxStr, _ := strings.Cut(videoId, ":")
 	if fileIdxStr == "" {
 		fileIdxStr = "0"
@@ -621,15 +642,17 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actionId := r.PathValue("actionId")
-	if !strings.HasPrefix(actionId, STORE_ACTION_ID_PREFIX) {
-		shared.ErrorBadRequest(r, "unsupported id: "+actionId).Send(w)
-	}
-
 	ud, err := getUserData(r)
 	if err != nil {
 		SendError(w, err)
 		return
+	}
+
+	storeActionIdPrefix := getStoreActionIdPrefix(ud.getStoreCode())
+
+	actionId := r.PathValue("actionId")
+	if !strings.HasPrefix(actionId, storeActionIdPrefix) {
+		shared.ErrorBadRequest(r, "unsupported id: "+actionId).Send(w)
 	}
 
 	ctx, err := ud.GetRequestContext(r)
@@ -641,7 +664,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch strings.TrimPrefix(actionId, STORE_ACTION_ID_PREFIX) {
+	switch strings.TrimPrefix(actionId, storeActionIdPrefix) {
 	case "clear_cache":
 		cacheKey := getCatalogCacheKey(ctx)
 		catalogCache.Remove(cacheKey)
@@ -656,15 +679,17 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	videoIdWithIdx := r.PathValue("videoId")
-	if !strings.HasPrefix(videoIdWithIdx, ID_PREFIX) {
-		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithIdx).Send(w)
-		return
-	}
-
 	ud, err := getUserData(r)
 	if err != nil {
 		SendError(w, err)
+		return
+	}
+
+	idPrefix := getIdPrefix(ud.getStoreCode())
+
+	videoIdWithIdx := r.PathValue("videoId")
+	if !strings.HasPrefix(videoIdWithIdx, idPrefix) {
+		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithIdx).Send(w)
 		return
 	}
 
@@ -677,7 +702,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	videoId := strings.TrimPrefix(videoIdWithIdx, ID_PREFIX)
+	videoId := strings.TrimPrefix(videoIdWithIdx, idPrefix)
 	videoId, fileIdxStr, _ := strings.Cut(videoId, ":")
 	if fileIdxStr == "" {
 		fileIdxStr = "0"
