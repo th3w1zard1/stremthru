@@ -545,7 +545,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, f := range magnet.Files {
-		videoId := id + ":" + strconv.Itoa(f.Idx)
+		videoId := id + ":" + url.PathEscape(f.Link)
 		res.Meta.Videos = append(res.Meta.Videos, stremio.MetaVideo{
 			Id:        videoId,
 			Title:     f.Name,
@@ -576,9 +576,9 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 
 	idPrefix := getIdPrefix(ud.getStoreCode())
 
-	videoIdWithIdx := getId(r)
-	if !strings.HasPrefix(videoIdWithIdx, idPrefix) {
-		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithIdx).Send(w)
+	videoIdWithLink := getId(r)
+	if !strings.HasPrefix(videoIdWithLink, idPrefix) {
+		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithLink).Send(w)
 		return
 	}
 
@@ -595,16 +595,8 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		Streams: []stremio.Stream{},
 	}
 
-	videoId := strings.TrimPrefix(videoIdWithIdx, idPrefix)
-	videoId, fileIdxStr, _ := strings.Cut(videoId, ":")
-	if fileIdxStr == "" {
-		fileIdxStr = "0"
-	}
-	fileIdx, err := strconv.Atoi(fileIdxStr)
-	if err != nil {
-		SendError(w, err)
-		return
-	}
+	videoId := strings.TrimPrefix(videoIdWithLink, idPrefix)
+	videoId, link, _ := strings.Cut(videoId, ":")
 
 	params := &store.GetMagnetParams{
 		Id: videoId,
@@ -622,11 +614,11 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := ExtractRequestBaseURL(r)
+	baseUrl := ExtractRequestBaseURL(r)
 	for _, f := range magnet.Files {
-		if f.Idx == fileIdx {
+		if f.Link == link {
 			res.Streams = append(res.Streams, stremio.Stream{
-				URL:         url.JoinPath("/stremio/store/" + eud + "/_/strem/" + videoIdWithIdx).String(),
+				URL:         baseUrl.JoinPath("/stremio/store/" + eud + "/_/strem/" + idPrefix + videoId + ":" + url.PathEscape(link)).String(),
 				Name:        magnet.Name,
 				Description: f.Name,
 			})
@@ -687,9 +679,9 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 
 	idPrefix := getIdPrefix(ud.getStoreCode())
 
-	videoIdWithIdx := r.PathValue("videoId")
-	if !strings.HasPrefix(videoIdWithIdx, idPrefix) {
-		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithIdx).Send(w)
+	videoIdWithLink := r.PathValue("videoId")
+	if !strings.HasPrefix(videoIdWithLink, idPrefix) {
+		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithLink).Send(w)
 		return
 	}
 
@@ -702,39 +694,13 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	videoId := strings.TrimPrefix(videoIdWithIdx, idPrefix)
-	videoId, fileIdxStr, _ := strings.Cut(videoId, ":")
-	if fileIdxStr == "" {
-		fileIdxStr = "0"
-	}
-	fileIdx, err := strconv.Atoi(fileIdxStr)
-	if err != nil {
-		core.LogError("[stremio/store] failed to parse file index", err)
-		store_video.Redirect("500", w, r)
-		return
-	}
+	videoId := strings.TrimPrefix(videoIdWithLink, idPrefix)
+	videoId, link, _ := strings.Cut(videoId, ":")
 
-	params := &store.GetMagnetParams{
-		Id: videoId,
-	}
-	params.APIKey = ctx.StoreAuthToken
-	magnet, err := ctx.Store.GetMagnet(params)
-	if err != nil {
-		core.LogError("[stremio/store] failed to get magnet", err)
-		store_video.Redirect("500", w, r)
-		return
-	}
-
-	url := ""
-	for _, f := range magnet.Files {
-		if f.Idx == fileIdx {
-			url = f.Link
-			break
-		}
-	}
+	url := link
 
 	if url == "" {
-		log.Println("[stremio/store] no matching file found for (" + videoIdWithIdx + ")")
+		log.Println("[stremio/store] no matching file found for (" + videoIdWithLink + ")")
 		store_video.Redirect("no_matching_file", w, r)
 		return
 	}
