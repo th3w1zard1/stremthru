@@ -596,7 +596,13 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	videoId := strings.TrimPrefix(videoIdWithLink, idPrefix)
-	videoId, link, _ := strings.Cut(videoId, ":")
+	videoId, escapedLink, _ := strings.Cut(videoId, ":")
+	link, err := url.PathUnescape(escapedLink)
+	if err != nil {
+		core.LogError("[stremio/store] failed to parse link", err)
+		SendError(w, err)
+		return
+	}
 
 	params := &store.GetMagnetParams{
 		Id: videoId,
@@ -617,8 +623,9 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	baseUrl := ExtractRequestBaseURL(r)
 	for _, f := range magnet.Files {
 		if f.Link == link {
+			streamId := idPrefix + videoId + ":" + link
 			res.Streams = append(res.Streams, stremio.Stream{
-				URL:         baseUrl.JoinPath("/stremio/store/" + eud + "/_/strem/" + idPrefix + videoId + ":" + url.PathEscape(link)).String(),
+				URL:         baseUrl.JoinPath("/stremio/store/" + eud + "/_/strem/" + url.PathEscape(streamId)).String(),
 				Name:        magnet.Name,
 				Description: f.Name,
 			})
