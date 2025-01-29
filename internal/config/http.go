@@ -127,6 +127,96 @@ var Tunnel = func() TunnelMap {
 	return tunnelMap
 }()
 
+type StoreTunnelConfig struct {
+	api    bool
+	stream bool
+}
+
+type StoreTunnelConfigMap map[string]StoreTunnelConfig
+
+func (stc StoreTunnelConfigMap) isEnabledForAPI(name string) bool {
+	if c, ok := stc[name]; ok {
+		return c.api
+	}
+	if name != "*" {
+		return stc.isEnabledForAPI("*")
+	}
+	return true
+}
+
+func (stc StoreTunnelConfigMap) GetTypeForAPI(name string) TunnelType {
+	enabled := stc.isEnabledForAPI(name)
+	if enabled {
+		return TUNNEL_TYPE_FORCED
+	}
+	return TUNNEL_TYPE_NONE
+}
+
+func (stc StoreTunnelConfigMap) isEnabledForStream(name string) bool {
+	if c, ok := stc[name]; ok {
+		return c.stream
+	}
+	if name != "*" {
+		return stc.isEnabledForStream("*")
+	}
+	return true
+}
+
+func (stc StoreTunnelConfigMap) GetTypeForStream(name string) TunnelType {
+	enabled := stc.isEnabledForStream(name)
+	if enabled {
+		return TUNNEL_TYPE_FORCED
+	}
+	return TUNNEL_TYPE_NONE
+}
+
+var StoreTunnel = func() StoreTunnelConfigMap {
+	storeTunnelList := strings.FieldsFunc(getEnv("STREMTHRU_STORE_TUNNEL", "*:true"), func(c rune) bool {
+		return c == ','
+	})
+
+	contentHostnameByStore := map[string]string{
+		"alldebrid":  "debrid.it",
+		"debridlink": "debrid.link",
+		"premiumize": "energycdn.com",
+		"realdebrid": "download.real-debrid.com",
+		"torbox":     "tb-cdn.st",
+	}
+
+	storeTunnelMap := make(StoreTunnelConfigMap)
+	for _, storeTunnel := range storeTunnelList {
+		if store, tunnel, ok := strings.Cut(storeTunnel, ":"); ok {
+			storeTunnelMap[store] = StoreTunnelConfig{
+				api:    tunnel == "true" || tunnel == "api",
+				stream: tunnel == "true",
+			}
+
+			switch store {
+			case "*":
+				for _, hostname := range contentHostnameByStore {
+					if _, exists := Tunnel[hostname]; !exists {
+						if tunnel == "true" {
+							Tunnel[hostname] = *Tunnel.getProxy("*")
+						} else {
+							Tunnel[hostname] = url.URL{}
+						}
+					}
+				}
+			default:
+				if hostname, ok := contentHostnameByStore[store]; ok {
+					if tunnel == "true" {
+						Tunnel[hostname] = *Tunnel.getProxy("*")
+					} else {
+						Tunnel[hostname] = url.URL{}
+					}
+				}
+			}
+		}
+	}
+
+	return storeTunnelMap
+}()
+
 // has auto proxy
 var DefaultHTTPTransport = func() *http.Transport {
 	transport := http.DefaultTransport.(*http.Transport).Clone()

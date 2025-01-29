@@ -112,49 +112,6 @@ func (scp StoreContentProxyMap) IsEnabled(name string) bool {
 	return scp[name]
 }
 
-type StoreTunnelConfig struct {
-	api    bool
-	stream bool
-}
-
-type StoreTunnelConfigMap map[string]StoreTunnelConfig
-
-func (stc StoreTunnelConfigMap) isEnabledForAPI(name string) bool {
-	if c, ok := stc[name]; ok {
-		return c.api
-	}
-	if name != "*" {
-		return stc.isEnabledForAPI("*")
-	}
-	return true
-}
-
-func (stc StoreTunnelConfigMap) GetTypeForAPI(name string) TunnelType {
-	enabled := stc.isEnabledForAPI(name)
-	if enabled {
-		return TUNNEL_TYPE_FORCED
-	}
-	return TUNNEL_TYPE_NONE
-}
-
-func (stc StoreTunnelConfigMap) isEnabledForStream(name string) bool {
-	if c, ok := stc[name]; ok {
-		return c.stream
-	}
-	if name != "*" {
-		return stc.isEnabledForStream("*")
-	}
-	return true
-}
-
-func (stc StoreTunnelConfigMap) GetTypeForStream(name string) TunnelType {
-	enabled := stc.isEnabledForStream(name)
-	if enabled {
-		return TUNNEL_TYPE_FORCED
-	}
-	return TUNNEL_TYPE_NONE
-}
-
 type Config struct {
 	Port               string
 	StoreAuthToken     StoreAuthTokenMap
@@ -237,20 +194,6 @@ var config = func() Config {
 		}
 	}
 
-	storeTunnelList := strings.FieldsFunc(getEnv("STREMTHRU_STORE_TUNNEL", "*:true"), func(c rune) bool {
-		return c == ','
-	})
-
-	storeTunnelMap := make(StoreTunnelConfigMap)
-	for _, storeTunnel := range storeTunnelList {
-		if store, tunnel, ok := strings.Cut(storeTunnel, ":"); ok {
-			storeTunnelMap[store] = StoreTunnelConfig{
-				api:    tunnel == "true" || tunnel == "api",
-				stream: tunnel == "true",
-			}
-		}
-	}
-
 	return Config{
 		Port:               getEnv("STREMTHRU_PORT", "8080"),
 		ProxyAuthPassword:  proxyAuthPasswordMap,
@@ -268,7 +211,6 @@ var config = func() Config {
 		LandingPage:        getEnv("STREMTHRU_LANDING_PAGE", "{}"),
 		ServerStartTime:    time.Now(),
 		StoreContentProxy:  storeContentProxyMap,
-		StoreTunnel:        storeTunnelMap,
 		IP:                 &IPResolver{},
 	}
 }()
@@ -289,7 +231,6 @@ var Version = config.Version
 var LandingPage = config.LandingPage
 var ServerStartTime = config.ServerStartTime
 var StoreContentProxy = config.StoreContentProxy
-var StoreTunnel = config.StoreTunnel
 var IP = config.IP
 
 func getRedactedURI(uri string) (string, error) {

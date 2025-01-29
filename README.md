@@ -121,7 +121,8 @@ If `username` is `*`, it is used as fallback for users without explicit store cr
 #### `STREMTHRU_STORE_TUNNEL`
 
 > [!WARNING]
-> Only used using StremThru to interact with the Store. Not affected by `STREMTHRU_TUNNEL`.
+> Only used when using StremThru to interact with the Store. Not affected by `STREMTHRU_TUNNEL`.
+> StremThru will _**try**_ to automatically adjust `STREMTHRU_TUNNEL` to reflect `STREMTHRU_STORE_TUNNEL`.
 
 Comma separated list of tunnel config for stores, in `store_name:tunnel_config` format.
 
