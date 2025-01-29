@@ -187,10 +187,10 @@
   </header>
 
   <form hx-post="addons/restore" hx-target="#addons_section">
-    <input type="file" accept=".json,application/json" onchange="onBackupRestoreFileSelect(event)">
-    <textarea name="blob" required {{if ne .BackupRestore.Error.RestoreBlob ""}}aria-invalid="true"{{end}}>{{.BackupRestore.RestoreBlob}}</textarea>
+    <input type="file" accept=".json,application/json" onchange="onAddonBackupRestoreFileSelect(event)">
+    <textarea name="blob" required {{if ne .BackupRestore.Error.AddonsRestoreBlob ""}}aria-invalid="true"{{end}}>{{.BackupRestore.AddonsRestoreBlob}}</textarea>
     <small>
-      {{if ne .BackupRestore.Error.RestoreBlob ""}}<span class="error">{{.BackupRestore.Error.RestoreBlob}}</span> | {{end}}
+      {{if ne .BackupRestore.Error.AddonsRestoreBlob ""}}<span class="error">{{.BackupRestore.Error.AddonsRestoreBlob}}</span> | {{end}}
       Backup Content
     </small>
 
@@ -279,7 +279,7 @@ setTimeout(() => {
 </script>
 
 <script>
-function onBackupRestoreFileSelect(e) {
+function onAddonBackupRestoreFileSelect(e) {
   const file = e.target.files[0];
   if (!file) {
     return;

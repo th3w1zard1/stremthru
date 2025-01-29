@@ -159,7 +159,7 @@ func (c Client) Login(params *LoginParams) (request.APIResponse[LoginData], erro
 
 type requestPayload struct {
 	AuthKey string `json:"authKey"`
-	Type    string `json:"type"`
+	Type    string `json:"type,omitempty"`
 }
 
 type getUserPayload struct {
@@ -227,5 +227,54 @@ func (c Client) SetAddons(params *SetAddonsParams) (request.APIResponse[SetAddon
 
 	response := &Response[SetAddonsData]{}
 	res, err := c.Request("POST", "/api/addonCollectionSet", params, response)
+	return request.NewAPIResponse(res, response.Result), err
+}
+
+type getLibraryItemsPayload struct {
+	requestPayload
+	Collection string `json:"collection"`
+	All        bool   `json:"all"`
+}
+
+type GetAllLibraryItemsParams struct {
+	Ctx
+}
+
+func (c Client) GetAllLibraryItems(params *GetAllLibraryItemsParams) (request.APIResponse[GetAllLibraryItemsData], error) {
+	params.JSON = getLibraryItemsPayload{
+		requestPayload: requestPayload{
+			AuthKey: params.APIKey,
+		},
+		Collection: "libraryItem",
+		All:        true,
+	}
+
+	response := &Response[GetAllLibraryItemsData]{}
+	res, err := c.Request("POST", "/api/datastoreGet", params, response)
+	return request.NewAPIResponse(res, response.Result), err
+}
+
+type updateLibraryItemsPayload struct {
+	requestPayload
+	Collection string        `json:"collection"`
+	Changes    []LibraryItem `json:"changes"`
+}
+
+type UpdateLibraryItemsParams struct {
+	Ctx
+	Changes []LibraryItem
+}
+
+func (c Client) UpdateLibraryItems(params *UpdateLibraryItemsParams) (request.APIResponse[UpdateLibraryItemsData], error) {
+	params.JSON = updateLibraryItemsPayload{
+		requestPayload: requestPayload{
+			AuthKey: params.APIKey,
+		},
+		Collection: "libraryItem",
+		Changes:    params.Changes,
+	}
+
+	response := &Response[UpdateLibraryItemsData]{}
+	res, err := c.Request("POST", "/api/datastorePut", params, response)
 	return request.NewAPIResponse(res, response.Result), err
 }

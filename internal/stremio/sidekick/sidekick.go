@@ -277,15 +277,15 @@ func handleAddonsRestore(w http.ResponseWriter, r *http.Request) {
 
 	td := getTemplateData(cookie, r)
 
-	td.BackupRestore.RestoreBlob = r.FormValue("blob")
+	td.BackupRestore.AddonsRestoreBlob = r.FormValue("blob")
 
 	backup := &stremio_api.GetAddonsData{}
-	err = json.Unmarshal([]byte(td.BackupRestore.RestoreBlob), backup)
+	err = json.Unmarshal([]byte(td.BackupRestore.AddonsRestoreBlob), backup)
 	if err != nil {
-		td.BackupRestore.Error.RestoreBlob = "failed to parse: " + err.Error()
+		td.BackupRestore.Error.AddonsRestoreBlob = "failed to parse: " + err.Error()
 	}
 
-	if td.BackupRestore.Error.RestoreBlob == "" {
+	if td.BackupRestore.Error.AddonsRestoreBlob == "" {
 		params := &stremio_api.SetAddonsParams{Addons: backup.Addons}
 		params.APIKey = cookie.AuthKey()
 		_, err := client.SetAddons(params)
@@ -295,7 +295,7 @@ func handleAddonsRestore(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		td.BackupRestore.Error.RestoreBlob = "failed to restore: " + err.Error()
+		td.BackupRestore.Error.AddonsRestoreBlob = "failed to restore: " + err.Error()
 	}
 
 	buf, err := executeTemplate(td, "sidekick_addons_section.html")
@@ -611,6 +611,88 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 	SendHTML(w, 200, buf)
 }
 
+func handleLibraryBackup(w http.ResponseWriter, r *http.Request) {
+	if !IsMethod(r, http.MethodGet) {
+		shared.ErrorMethodNotAllowed(r).Send(w)
+		return
+	}
+
+	cookie, err := getCookieValue(w, r)
+	if err != nil {
+		SendError(w, err)
+		return
+	}
+
+	params := &stremio_api.GetAllLibraryItemsParams{}
+	params.APIKey = cookie.AuthKey()
+	res, err := client.GetAllLibraryItems(params)
+	if err != nil {
+		SendError(w, err)
+		return
+	}
+
+	lastModified := time.Unix(0, 0)
+	for i := range res.Data {
+		item := res.Data[i]
+		if item.MTime.After(lastModified) {
+			lastModified = item.MTime
+		}
+	}
+
+	filename := "Stremio-Library-" + cookie.Email() + "-" + strconv.FormatInt(lastModified.UnixMilli(), 10) + ".json"
+	w.Header().Add("Content-Disposition", `attachment; filename="`+filename+`"`)
+
+	SendResponse(w, 200, res.Data)
+}
+
+func handleLibraryRestore(w http.ResponseWriter, r *http.Request) {
+	if !IsMethod(r, http.MethodPost) {
+		shared.ErrorMethodNotAllowed(r).Send(w)
+		return
+	}
+
+	cookie, err := getCookieValue(w, r)
+	if err != nil {
+		SendError(w, err)
+		return
+	}
+
+	td := getTemplateData(cookie, r)
+
+	td.BackupRestore.LibraryRestoreBlob = r.FormValue("blob")
+
+	backup := &stremio_api.GetAllLibraryItemsData{}
+	err = json.Unmarshal([]byte(td.BackupRestore.LibraryRestoreBlob), backup)
+	if err != nil {
+		td.BackupRestore.HasError.LibraryRestoreBlob = true
+		td.BackupRestore.Message.LibraryRestoreBlob = "Failed to parse: " + err.Error()
+	}
+
+	if !td.BackupRestore.HasError.LibraryRestoreBlob {
+		params := &stremio_api.UpdateLibraryItemsParams{Changes: *backup}
+		params.APIKey = cookie.AuthKey()
+		result, err := client.UpdateLibraryItems(params)
+		if err != nil {
+			td.BackupRestore.HasError.LibraryRestoreBlob = true
+			td.BackupRestore.Message.LibraryRestoreBlob = "Failed to restore: " + err.Error()
+		} else if !result.Data.Success {
+			td.BackupRestore.HasError.LibraryRestoreBlob = true
+			td.BackupRestore.Message.LibraryRestoreBlob = "Failed to restore!"
+		} else {
+			td.BackupRestore.HasError.LibraryRestoreBlob = false
+			td.BackupRestore.Message.LibraryRestoreBlob = "Successfully Restored"
+			td.BackupRestore.LibraryRestoreBlob = ""
+		}
+	}
+
+	buf, err := executeTemplate(td, "sidekick_library_section.html")
+	if err != nil {
+		SendError(w, err)
+		return
+	}
+	SendHTML(w, 200, buf)
+}
+
 func AddStremioSidekickEndpoints(mux *http.ServeMux) {
 	mux.HandleFunc("/stremio/sidekick", handleRoot)
 	mux.HandleFunc("/stremio/sidekick/{$}", handleRoot)
@@ -624,4 +706,7 @@ func AddStremioSidekickEndpoints(mux *http.ServeMux) {
 	mux.HandleFunc("/stremio/sidekick/addons/{transportUrl}/move/{direction}", handleAddonMove)
 	mux.HandleFunc("/stremio/sidekick/addons/{transportUrl}/reload", handleAddonReload)
 	mux.HandleFunc("/stremio/sidekick/addons/{transportUrl}/toggle", handleAddonToggle)
+
+	mux.HandleFunc("/stremio/sidekick/library/backup", handleLibraryBackup)
+	mux.HandleFunc("/stremio/sidekick/library/restore", handleLibraryRestore)
 }

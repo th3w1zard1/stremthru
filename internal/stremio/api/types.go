@@ -55,3 +55,48 @@ type GetAddonsData struct {
 type SetAddonsData struct {
 	Success bool `json:"success"`
 }
+
+type LibraryItemBehaviorHints struct {
+	DefaultVideoId     string `json:"defaultVideoId"`
+	FeaturedVideoId    string `json:"featuredVideoId,omitempty"`
+	HasScheduledVideos bool   `json:"hasScheduledVideos"`
+}
+
+type LibraryItemState struct {
+	LastWatched        time.Time `json:"lastWatched"`
+	TimeWatched        int       `json:"timeWatched"`
+	TimeOffset         int       `json:"timeOffset"`
+	OverallTimeWatched int       `json:"overallTimeWatched"`
+	TimesWatched       int       `json:"timesWatched"`
+	FlaggedWatched     int       `json:"flaggedWatched"`
+	Duration           int       `json:"duration"`
+	VideoId            string    `json:"video_id"`
+	Watched            string    `json:"watched"`
+	NoNotif            bool      `json:"noNotif"`
+	Season             int       `json:"season,omitempty"`
+	Episode            int       `json:"episode,omitempty"`
+}
+
+type LibraryItem struct {
+	Id          string                  `json:"_id"`
+	Removed     bool                    `json:"removed"`
+	Temp        bool                    `json:"temp"`
+	CTime       time.Time               `json:"_ctime"`
+	MTime       time.Time               `json:"_mtime"`
+	State       LibraryItemState        `json:"state"`
+	Name        string                  `json:"name"`
+	Type        string                  `json:"type"`
+	Poster      string                  `json:"poster"`
+	PosterShape stremio.MetaPosterShape `json:"posterShape,omitempty"`
+	Background  string                  `json:"background,omitempty"`
+	Logo        string                  `json:"logo,omitempty"`
+	Year        string                  `json:"year,omitempty"`
+
+	BehaviorHints *LibraryItemBehaviorHints `json:"behaviorHints,omitempty"`
+}
+
+type GetAllLibraryItemsData []LibraryItem
+
+type UpdateLibraryItemsData struct {
+	Success bool `json:"success"`
+}

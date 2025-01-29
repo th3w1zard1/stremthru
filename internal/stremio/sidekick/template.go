@@ -34,9 +34,16 @@ type TemplateData struct {
 		}
 	}
 	BackupRestore struct {
-		RestoreBlob string
-		Error       struct {
-			RestoreBlob string
+		AddonsRestoreBlob  string
+		LibraryRestoreBlob string
+		HasError           struct {
+			LibraryRestoreBlob bool
+		}
+		Message struct {
+			LibraryRestoreBlob string
+		}
+		Error struct {
+			AddonsRestoreBlob string
 		}
 	}
 }

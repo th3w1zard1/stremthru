@@ -1,0 +1,62 @@
+<section id="library_section" hx-swap="outerHTML">
+
+<div id="library_backup_restore">
+
+<article id="library_backup_restore_backup">
+  <header><h3>Backup Library</h3></header>
+
+  <form hx-ext="htmx-download" hx-target="find textarea" hx-swap="innerHTML" hx-get="library/backup">
+    <textarea readonly></textarea>
+    <button type="submit" class="grow">Backup</button>
+  </form>
+</article>
+
+<article id="library_backup_restore_restore">
+  <header>
+    <h3>Restore Library</h3>
+    <small>
+      ⚠️ This is overwrite existing library items on your Stremio account! 
+    </small>
+  </header>
+
+  <form hx-post="library/restore" hx-target="#library_section">
+    <input type="file" accept=".json,application/json" onchange="onLibraryBackupRestoreFileSelect(event)">
+    <textarea name="blob" required {{if ne .BackupRestore.Message.LibraryRestoreBlob ""}}aria-invalid="{{if .BackupRestore.HasError.LibraryRestoreBlob}}true{{else}}false{{end}}" onchange="onLibraryBackupRestoreBlobChange(event)"{{end}}>{{.BackupRestore.LibraryRestoreBlob}}</textarea>
+    <small>
+      {{if ne .BackupRestore.Message.LibraryRestoreBlob ""}}<span><span class="message">{{.BackupRestore.Message.LibraryRestoreBlob}}</span> | </span>{{end}}
+      Backup Content
+    </small>
+
+    <button type="submit" class="grow">Restore</button>
+  </form>
+</article>
+
+</div>
+
+<script>
+function libraryBackupRestoreCleanupFormFieldMessage(field) {
+  field.removeAttribute("aria-invalid");
+  field.parentElement.querySelector(`[name="${field.name}"] + small span`).innerHTML = "";
+}
+function onLibraryBackupRestoreBlobChange(e) {
+  console.log('changed', e.target.value)
+  libraryBackupRestoreCleanupFormFieldMessage(e.target);
+  e.target.onchange = undefined;
+}
+function onLibraryBackupRestoreFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const field = document.querySelector(`#library_backup_restore_restore form textarea`);
+    field.value = e.target.result;
+    libraryBackupRestoreCleanupFormFieldMessage(field);
+  }
+  reader.readAsText(file);
+}
+</script>
+
+</section>
