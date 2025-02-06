@@ -413,10 +413,8 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				if id != "" {
 					if err := extractorStore.Get(id, &value); err != nil {
 						core.LogError("[stremio/wrap] failed to fetch extractor", err)
-						SendError(w, err)
-						return
-					}
-					if _, err := value.Parse(); err != nil {
+						up.ExtractorError = "Failed to fetch extractor"
+					} else if _, err := value.Parse(); err != nil {
 						core.LogError("[stremio/wrap] failed to parse extractor", err)
 						up.ExtractorError = err.Error()
 					}
@@ -444,6 +442,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 					if value == "" {
 						if err := extractorStore.Del(id); err != nil {
 							core.LogError("[stremio/wrap] failed to delete extractor", err)
+							up.ExtractorError = "Failed to delete extractor"
 						}
 						extractorIds := []string{}
 						for _, extractorId := range td.ExtractorIds {
@@ -462,6 +461,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 					} else {
 						if err := extractorStore.Set(id, value); err != nil {
 							core.LogError("[stremio/wrap] failed to save extractor", err)
+							up.ExtractorError = "Failed to save extractor"
 						} else {
 							extractorIds := []string{}
 							for _, extractorId := range td.ExtractorIds {
@@ -482,10 +482,9 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				if id != "" {
 					if err := templateStore.Get(id, &value); err != nil {
 						core.LogError("[stremio/wrap] failed to fetch template", err)
-						SendError(w, err)
-						return
-					}
-					if t, err := value.Parse(); err != nil {
+						td.TemplateError.Name = "Failed to fetch template"
+						td.TemplateError.Description = "Failed to fetch template"
+					} else if t, err := value.Parse(); err != nil {
 						core.LogError("[stremio/wrap] failed to parse template", err)
 						if t.Name == nil {
 							td.TemplateError.Name = err.Error()
@@ -514,6 +513,8 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 					if value.Name == "" && value.Description == "" {
 						if err := templateStore.Del(id); err != nil {
 							core.LogError("[stremio/wrap] failed to delete template", err)
+							td.TemplateError.Name = "Failed to delete template"
+							td.TemplateError.Description = "Failed to delete template"
 						}
 						templateIds := []string{}
 						for _, templateId := range td.TemplateIds {
@@ -527,6 +528,8 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 					} else {
 						if err := templateStore.Set(id, value); err != nil {
 							core.LogError("[stremio/wrap] failed to save template", err)
+							td.TemplateError.Name = "Failed to save template"
+							td.TemplateError.Description = "Failed to save template"
 						} else {
 							templateIds := []string{}
 							for _, templateId := range td.TemplateIds {
