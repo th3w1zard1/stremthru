@@ -129,7 +129,7 @@ type Torrent struct {
 	DownloadFinished bool                 `json:"download_finished"`
 	Files            []TorrentFile        `json:"files"`
 	InactiveCheck    int                  `json:"inactive_check"`
-	Availability     int                  `json:"availability"`
+	Availability     float32              `json:"availability"`
 }
 
 func (t Torrent) GetAddedAt() time.Time {
