@@ -128,22 +128,31 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 			streams := res.Data.Streams
 			wstreams := make([]WrappedStream, len(streams))
 			errs[i] = err
-			if err == nil && template != nil && up.extractor != "" {
-				e, err := up.extractor.Parse()
-				if err != nil {
-					errs[i] = err
-				} else {
-					transformer := StreamTransformer{
-						Extractor: e,
-						Template:  *template,
+			if err == nil {
+				if up.extractor != "" {
+					e, err := up.extractor.Parse()
+					if err != nil {
+						errs[i] = err
+					} else {
+						transformer := StreamTransformer{
+							Extractor: e,
+							Template:  template,
+						}
+						for i := range streams {
+							stream := &streams[i]
+							wstream, err := transformer.Do(stream)
+							if err != nil {
+								core.LogError("[stremio/wrap] failed to transform stream", err)
+							}
+							wstreams[i] = *wstream
+						}
 					}
+				} else {
 					for i := range streams {
 						stream := &streams[i]
-						wstream, err := transformer.Do(stream)
-						if err != nil {
-							core.LogError("[stremio/wrap] failed to transform stream", err)
+						wstreams[i] = WrappedStream{
+							Stream: stream,
 						}
-						wstreams[i] = *wstream
 					}
 				}
 			}
@@ -161,14 +170,16 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 		allWrappedStreams = append(allWrappedStreams, chunks[i]...)
 	}
 
-	SortWrappedStreams(allWrappedStreams, ud.Sort)
+	if template != nil {
+		SortWrappedStreams(allWrappedStreams, ud.Sort)
+	}
 
 	hashSeen := map[string]struct{}{}
 
 	allStreams := []stremio.Stream{}
 	for i := range allWrappedStreams {
 		s := &allWrappedStreams[i]
-		if s.r.Hash != "" {
+		if s.r != nil && s.r.Hash != "" {
 			if _, ok := hashSeen[s.r.Hash]; ok {
 				continue
 			}

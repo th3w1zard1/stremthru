@@ -129,7 +129,7 @@ func (sttb StreamTransformerTemplateBlob) Parse() (*StreamTransformerTemplate, e
 
 type StreamTransformer struct {
 	Extractor StreamTransformerExtractor
-	Template  StreamTransformerTemplate
+	Template  *StreamTransformerTemplate
 }
 
 type StreamTransformerResult struct {
@@ -230,8 +230,8 @@ func (str StreamTransformerResult) GetSizeRank() int64 {
 	return shared.ToBytes(str.Size)
 }
 
-func (st StreamTransformer) parse(stream *stremio.Stream) StreamTransformerResult {
-	result := StreamTransformerResult{}
+func (st StreamTransformer) parse(stream *stremio.Stream) *StreamTransformerResult {
+	result := &StreamTransformerResult{}
 	lastField := ""
 	for _, pattern := range st.Extractor {
 		field := pattern.Field
@@ -311,10 +311,16 @@ func (st StreamTransformer) parse(stream *stremio.Stream) StreamTransformerResul
 
 type WrappedStream struct {
 	*stremio.Stream
-	r StreamTransformerResult
+	r *StreamTransformerResult
 }
 
 func (st StreamTransformer) Do(stream *stremio.Stream) (*WrappedStream, error) {
+	s := &WrappedStream{Stream: stream}
+
+	if st.Template == nil {
+		return s, nil
+	}
+
 	data := st.parse(stream)
 	if stream.InfoHash != "" {
 		data.Hash = stream.InfoHash
@@ -326,7 +332,7 @@ func (st StreamTransformer) Do(stream *stremio.Stream) (*WrappedStream, error) {
 		}
 	}
 
-	s := &WrappedStream{r: data, Stream: stream}
+	s.r = data
 
 	var name bytes.Buffer
 	err := st.Template.Name.Execute(&name, data)
