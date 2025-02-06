@@ -408,9 +408,6 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 						if err := transformer.Do(stream); err != nil {
 							core.LogError("[stremio/wrap] failed to transform stream", err)
 						}
-						if stream.BehaviorHints != nil {
-							stream.BehaviorHints.NotWebReady = false
-						}
 					}
 				}
 			}
