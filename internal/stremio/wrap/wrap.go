@@ -105,7 +105,7 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 		return nil, err
 	}
 
-	chunks := make([][]stremio.Stream, len(upstreams))
+	chunks := make([][]WrappedStream, len(upstreams))
 	errs := make([]error, len(upstreams))
 
 	template, err := ud.template.Parse()
@@ -126,7 +126,7 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 				ClientIP: ctx.ClientIP,
 			})
 			streams := res.Data.Streams
-			chunks[i] = streams
+			wstreams := make([]WrappedStream, len(streams))
 			errs[i] = err
 			if err == nil && template != nil && up.extractor != "" {
 				e, err := up.extractor.Parse()
@@ -139,23 +139,42 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 					}
 					for i := range streams {
 						stream := &streams[i]
-						if err := transformer.Do(stream); err != nil {
+						if wstream, err := transformer.Do(stream); err != nil {
 							core.LogError("[stremio/wrap] failed to transform stream", err)
+						} else {
+							wstreams[i] = *wstream
 						}
 					}
 				}
 			}
+			chunks[i] = wstreams
 		}()
 	}
 	wg.Wait()
 
-	allStreams := []stremio.Stream{}
+	allWrappedStreams := []WrappedStream{}
 	for i := range chunks {
 		if errs[i] != nil {
 			log.Println("[stremio/wrap] failed to fetch streams", errs[i])
 			continue
 		}
-		allStreams = append(allStreams, chunks[i]...)
+		allWrappedStreams = append(allWrappedStreams, chunks[i]...)
+	}
+
+	SortWrappedStreams(allWrappedStreams, ud.Sort)
+
+	hashSeen := map[string]struct{}{}
+
+	allStreams := []stremio.Stream{}
+	for i := range allWrappedStreams {
+		s := &allWrappedStreams[i]
+		if s.r.Hash != "" {
+			if _, ok := hashSeen[s.r.Hash]; ok {
+				continue
+			}
+			hashSeen[s.r.Hash] = struct{}{}
+		}
+		allStreams = append(allStreams, *s.Stream)
 	}
 
 	hashes := []string{}

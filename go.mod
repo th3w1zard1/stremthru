@@ -34,6 +34,7 @@ require (
 )
 
 require (
+	github.com/dustin/go-humanize v1.0.1
 	github.com/go-redis/cache/v9 v9.0.0
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect

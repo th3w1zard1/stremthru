@@ -66,6 +66,8 @@ type UserData struct {
 	TemplateId string                        `json:"template,omitempty"`
 	template   StreamTransformerTemplateBlob `json:"-"`
 
+	Sort string `json:"sort,omitempty"`
+
 	encoded   string             `json:"-"`
 	manifests []stremio.Manifest `json:"-"`
 	resolver  upstreamsResolver  `json:"-"`
@@ -346,6 +348,8 @@ func getUserData(r *http.Request) (*UserData, error) {
 				return nil, err
 			}
 		}
+
+		data.Sort = r.Form.Get("sort")
 
 		data.TemplateId = r.Form.Get("transformer.template_id")
 		data.template = StreamTransformerTemplateBlob{

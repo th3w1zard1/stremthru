@@ -65,6 +65,14 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 		},
 		Script: configure.GetScriptStoreTokenDescription("store", "token"),
 
+		SortConfig: configure.Config{
+			Key:         "sort",
+			Type:        "text",
+			Default:     ud.Sort,
+			Title:       "Stream Sort",
+			Description: "Comma separated fields: <code>resolution</code>, <code>quality</code>, <code>size</code>. Prefix with <code>-</code> for reverse sort.",
+		},
+
 		ExtractorIds: []string{},
 		TemplateIds:  []string{},
 	}
@@ -215,6 +223,7 @@ type TemplateData struct {
 	TemplateId      string
 	Template        StreamTransformerTemplateBlob
 	TemplateError   StreamTransformerTemplateBlob
+	SortConfig      configure.Config
 }
 
 func (td *TemplateData) HasUpstreamError() bool {
