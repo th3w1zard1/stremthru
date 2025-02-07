@@ -59,12 +59,12 @@
             <input type="button" value="Configure" onclick="onUpstreamManifestConfigure({{$idx}})" />
           </fieldset>
           {{end}}
-          <small class="mb-0">{{if ne $up.Error ""}}<span class="error">{{$up.Error}}</span>{{end}}</small>
+          <small>{{if ne $up.Error ""}}<span class="error">{{$up.Error}}</span>{{end}}</small>
 
           {{if $.IsAuthed}}
           <fieldset>
             <label class="flex flex-row justify-between align-center" for="upstreams[{{$idx}}].transformer.extractor">
-              <h4>
+              <h4 class="mb-0">
                 Extractor
               </h4>
               <div class="flex flex-row">
@@ -149,7 +149,7 @@
       {{if .IsAuthed}}
       <div class="relative border border-dashed rounded-sm my-4 p-4" style="border-color: gray">
         <div class="flex flex-row justify-between align-center">
-          <h4>
+          <h4 class="mb-0">
             Template
           </h4>
           <div class="flex flex-row">
@@ -191,7 +191,9 @@
           name="transformer.template.name"
           {{if ne .TemplateError.Name ""}}aria-invalid="true"{{end}}
         >{{.Template.Name}}</textarea>
+        {{if ne .TemplateError.Name ""}}
         <small>{{.TemplateError.Name}}</small>
+        {{end}}
 
         <label for="transformer.template.description">Description Template</label>
         <textarea
@@ -199,19 +201,14 @@
           name="transformer.template.description"
           {{if ne .TemplateError.Description ""}}aria-invalid="true"{{end}}
         >{{.Template.Description}}</textarea>
+        {{if ne .TemplateError.Name ""}}
         <small>{{.TemplateError.Description}}</small>
+        {{end}}
       </div>
 
       {{template "configure_config.html" .SortConfig}}
       {{end}}
     </div>
-
-    <footer id="upstream-configure-actions" class="w-full absolute px-4 flex flex-row justify-between" style="bottom: -0.75rem; left: 0;">
-      <small>
-      </small>
-      <small>
-      </small>
-    </footer>
   </div>
 
   {{range .Configs}}
