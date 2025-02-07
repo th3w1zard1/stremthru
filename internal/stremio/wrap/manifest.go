@@ -37,7 +37,7 @@ func getManifest(upstreamManifests []stremio.Manifest, ud *UserData) *stremio.Ma
 	for i := range upstreamManifests {
 		if i > 0 {
 			id += "::"
-			description += "\n\n"
+			description += "  \n\n"
 		}
 		m := upstreamManifests[i]
 		id += m.ID
@@ -60,6 +60,14 @@ func getManifest(upstreamManifests []stremio.Manifest, ud *UserData) *stremio.Ma
 	manifest.BehaviorHints = &stremio.BehaviorHints{
 		Configurable:          true,
 		ConfigurationRequired: !ud.HasRequiredValues(),
+	}
+
+	if len(upstreamManifests) == 1 {
+		manifest.Background = upstreamManifests[0].Background
+		manifest.ContactEmail = upstreamManifests[0].ContactEmail
+		manifest.Description = upstreamManifests[0].Description
+		manifest.Logo = upstreamManifests[0].Logo
+		manifest.Version = upstreamManifests[0].Version
 	}
 
 	resourceByName := map[stremio.ResourceName]stremio.Resource{}
