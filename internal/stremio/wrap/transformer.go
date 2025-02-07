@@ -54,6 +54,10 @@ type StreamTransformerExtractor []StreamTransformerPattern
 
 func (steb StreamTransformerExtractorBlob) Parse() (StreamTransformerExtractor, error) {
 	ste := StreamTransformerExtractor{}
+	if steb == "" {
+		return ste, nil
+	}
+
 	parts := strings.Split(string(steb), "\n")
 
 	field := ""
@@ -109,7 +113,7 @@ func (sttb StreamTransformerTemplateBlob) IsEmpty() bool {
 }
 
 func (sttb StreamTransformerTemplateBlob) Parse() (*StreamTransformerTemplate, error) {
-	if sttb.Name == "" && sttb.Description == "" {
+	if sttb.IsEmpty() {
 		return nil, nil
 	}
 	stt := &StreamTransformerTemplate{}
