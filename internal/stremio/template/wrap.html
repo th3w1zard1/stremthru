@@ -45,73 +45,106 @@
     </header>
 
     <div>
-      <input type="hidden" name="upstreams_length" value="{{ .Upstreams | len }}" />
+      <div class="relative mb-8">
+        <input type="hidden" name="upstreams_length" value="{{ .Upstreams | len }}" />
 
-      {{range $idx, $up := .Upstreams}}
-      <div class="relative border border-dashed rounded-sm my-4 p-4" style="border-color: gray">
-        <label for="upstreams[{{$idx}}].url">Manifest URL *</label>
-        {{if $up.IsConfigurable}}
-        <fieldset role="group" {{if ne $up.Error ""}}aria-invalid="true"{{end}}>
-          {{end}}
-          <input name="upstreams[{{$idx}}].url" type="url" required aria-invalid="{{if ne $up.Error ""}}true{{end}}" value="{{$up.URL}}">
+        {{range $idx, $up := .Upstreams}}
+        <div class="relative border border-dashed rounded-sm my-4 p-4" style="border-color: gray">
+          <label for="upstreams[{{$idx}}].url">Manifest URL *</label>
           {{if $up.IsConfigurable}}
-          <input type="button" value="Configure" onclick="onUpstreamManifestConfigure({{$idx}})" />
-        </fieldset>
-        {{end}}
-        <small class="mb-0">{{if ne $up.Error ""}}<span class="error">{{$up.Error}}</span>{{end}}</small>
+          <fieldset role="group" {{if ne $up.Error ""}}aria-invalid="true"{{end}}>
+            {{end}}
+            <input name="upstreams[{{$idx}}].url" type="url" required aria-invalid="{{if ne $up.Error ""}}true{{end}}" value="{{$up.URL}}">
+            {{if $up.IsConfigurable}}
+            <input type="button" value="Configure" onclick="onUpstreamManifestConfigure({{$idx}})" />
+          </fieldset>
+          {{end}}
+          <small class="mb-0">{{if ne $up.Error ""}}<span class="error">{{$up.Error}}</span>{{end}}</small>
 
-        {{if $.IsAuthed}}
-        <fieldset>
-          <label class="flex flex-row justify-between align-center" for="upstreams[{{$idx}}].transformer.extractor">
-            <h4>
-              Extractor
-            </h4>
-            <div class="flex flex-row">
-              <button
-                type="button"
-                data-upstream-index="{{$idx}}"
-                hx-target="body"
-                hx-post="configure"
-                hx-include="#configuration"
-                hx-headers='{"x-addon-configure-action":"save-extractor"}'
-                hx-trigger="confirmed"
-                onclick="onExtractorSave(this)"
-                class="outline secondary mb-0 mr-2"
-                style="font-size: 0.75rem; padding: 0.25em 0.75em;"
-              >
-                💾
-              </button>
-              <select
-                data-upstream-index="{{$idx}}"
-                hx-vals='{"upstream_index": {{$idx}}}'
-                hx-target="body"
-                hx-post="configure"
-                hx-include="#configuration"
-                hx-headers='{"x-addon-configure-action":"set-extractor"}'
-                name="upstreams[{{$idx}}].transformer.extractor_id"
-                aria-label="Select Extractor"
-                class="mb-0 p-1"
-              >
-                <option {{if eq $up.ExtractorId ""}}selected{{end}} value="">
-                  Extractor
-                </option>
-                {{range $.ExtractorIds}}
-                  <option {{if eq $up.ExtractorId .}}selected{{end}} value={{.}}>{{.}}</option>
-                {{end}}
-              </select>
-            </div>
-          </label>
-          <textarea
-            id="upstreams[{{$idx}}].transformer.extractor"
-            name="upstreams[{{$idx}}].transformer.extractor"
-            {{if ne .ExtractorError ""}}aria-invalid="true"{{end}}
-          >{{$up.Extractor}}</textarea>
-          <small>{{.ExtractorError}}</small>
+          {{if $.IsAuthed}}
+          <fieldset>
+            <label class="flex flex-row justify-between align-center" for="upstreams[{{$idx}}].transformer.extractor">
+              <h4>
+                Extractor
+              </h4>
+              <div class="flex flex-row">
+                <button
+                  type="button"
+                  data-upstream-index="{{$idx}}"
+                  hx-target="body"
+                  hx-post="configure"
+                  hx-include="#configuration"
+                  hx-headers='{"x-addon-configure-action":"save-extractor"}'
+                  hx-trigger="confirmed"
+                  onclick="onExtractorSave(this)"
+                  class="outline secondary mb-0 mr-2"
+                  style="font-size: 0.75rem; padding: 0.25em 0.75em;"
+                >
+                  💾
+                </button>
+                <select
+                  data-upstream-index="{{$idx}}"
+                  hx-vals='{"upstream_index": {{$idx}}}'
+                  hx-target="body"
+                  hx-post="configure"
+                  hx-include="#configuration"
+                  hx-headers='{"x-addon-configure-action":"set-extractor"}'
+                  name="upstreams[{{$idx}}].transformer.extractor_id"
+                  aria-label="Select Extractor"
+                  class="mb-0 p-1"
+                >
+                  <option {{if eq $up.ExtractorId ""}}selected{{end}} value="">
+                    Extractor
+                  </option>
+                  {{range $.ExtractorIds}}
+                    <option {{if eq $up.ExtractorId .}}selected{{end}} value={{.}}>{{.}}</option>
+                  {{end}}
+                </select>
+              </div>
+            </label>
+            <textarea
+              id="upstreams[{{$idx}}].transformer.extractor"
+              name="upstreams[{{$idx}}].transformer.extractor"
+              {{if ne .ExtractorError ""}}aria-invalid="true"{{end}}
+            >{{$up.Extractor}}</textarea>
+            <small>{{.ExtractorError}}</small>
 
-        </fieldset>
+          </fieldset>
+          {{end}}
+        </div>
         {{end}}
+
+        <div class="absolute" style="bottom: -0.75rem; right: 1rem;">
+          {{if .SupportAdvanced}}
+          <small {{if not .IsAuthed}}data-tooltip="Needs Authorization"{{end}} style="border: 0;">
+            <button
+              {{if not .IsAuthed}}disabled{{end}}
+              type="button"
+              hx-target="body"
+              hx-post="configure"
+              hx-include="#configuration"
+              hx-headers='{"x-addon-configure-action":"remove-upstream"}'
+              class="secondary mb-0"
+              style="font-size: 0.75rem; padding: 0.25em;"
+            >
+              - Remove
+            </button>
+            <button
+              {{if not .IsAuthed}}disabled{{end}}
+              type="button"
+              hx-target="body"
+              hx-post="configure"
+              hx-include="#configuration"
+              hx-headers='{"x-addon-configure-action":"add-upstream"}'
+              class="secondary mb-0"
+              style="font-size: 0.75rem; padding: 0.25em;"
+            >
+              + Add
+            </button>
+          </small>
+          {{end}}
+        </div>
       </div>
-      {{end}}
 
       {{if .IsAuthed}}
       <div class="relative border border-dashed rounded-sm my-4 p-4" style="border-color: gray">
@@ -177,32 +210,6 @@
       <small>
       </small>
       <small>
-        {{if .SupportAdvanced}}
-        <button
-          {{if not .IsAuthed}}disabled{{end}}
-          type="button"
-          hx-target="body"
-          hx-post="configure"
-          hx-include="#configuration"
-          hx-headers='{"x-addon-configure-action":"remove-upstream"}'
-          class="secondary mb-0"
-          style="font-size: 0.75rem; padding: 0.25em;"
-        >
-          - Remove
-        </button>
-        <button
-          {{if not .IsAuthed}}disabled{{end}}
-          type="button"
-          hx-target="body"
-          hx-post="configure"
-          hx-include="#configuration"
-          hx-headers='{"x-addon-configure-action":"add-upstream"}'
-          class="secondary mb-0"
-          style="font-size: 0.75rem; padding: 0.25em;"
-        >
-          + Add
-        </button>
-        {{end}}
       </small>
     </footer>
   </div>
