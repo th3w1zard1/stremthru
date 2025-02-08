@@ -143,6 +143,9 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 						if err != nil {
 							core.LogError("[stremio/wrap] failed to transform stream", err)
 						}
+						if up.NoContentProxy {
+							wstream.noContentProxy = true
+						}
 						wstreams[i] = *wstream
 					}
 				}
@@ -152,33 +155,20 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 	}
 	wg.Wait()
 
-	allWrappedStreams := []WrappedStream{}
+	allStreams := []WrappedStream{}
 	for i := range chunks {
 		if errs[i] != nil {
 			log.Println("[stremio/wrap] failed to fetch streams", errs[i])
 			continue
 		}
-		allWrappedStreams = append(allWrappedStreams, chunks[i]...)
+		allStreams = append(allStreams, chunks[i]...)
 	}
 
 	if template != nil {
-		SortWrappedStreams(allWrappedStreams, ud.Sort)
+		SortWrappedStreams(allStreams, ud.Sort)
 	}
 
-	hashSeen := map[string]struct{}{}
-
-	allStreams := []stremio.Stream{}
-	for i := range allWrappedStreams {
-		s := &allWrappedStreams[i]
-		if s.r != nil && s.r.Hash != "" {
-			if _, seen := hashSeen[s.r.Hash]; seen {
-				continue
-			} else {
-				hashSeen[s.r.Hash] = struct{}{}
-			}
-		}
-		allStreams = append(allStreams, *s.Stream)
-	}
+	allStreams = dedupeStreams(allStreams)
 
 	hashes := []string{}
 	magnetByHash := map[string]core.MagnetLink{}
@@ -235,21 +225,23 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 
 			if isCached, ok := isCachedByHash[magnet.Hash]; ok && isCached {
 				stream.Name = "⚡ " + stream.Name
-				cachedStreams = append(cachedStreams, *stream)
+				cachedStreams = append(cachedStreams, *stream.Stream)
 			} else if !ud.CachedOnly {
-				uncachedStreams = append(uncachedStreams, *stream)
+				uncachedStreams = append(uncachedStreams, *stream.Stream)
 			}
 		} else if stream.URL != "" {
-			var headers map[string]string
-			if stream.BehaviorHints != nil && stream.BehaviorHints.ProxyHeaders != nil && stream.BehaviorHints.ProxyHeaders.Request != nil {
-				headers = stream.BehaviorHints.ProxyHeaders.Request
-			}
+			if !stream.noContentProxy {
+				var headers map[string]string
+				if stream.BehaviorHints != nil && stream.BehaviorHints.ProxyHeaders != nil && stream.BehaviorHints.ProxyHeaders.Request != nil {
+					headers = stream.BehaviorHints.ProxyHeaders.Request
+				}
 
-			if url, err := shared.CreateProxyLink(r, ctx, stream.URL, headers, config.TUNNEL_TYPE_AUTO); err == nil && url != stream.URL {
-				stream.URL = url
-				stream.Name = "✨ " + stream.Name
+				if url, err := shared.CreateProxyLink(r, ctx, stream.URL, headers, config.TUNNEL_TYPE_AUTO); err == nil && url != stream.URL {
+					stream.URL = url
+					stream.Name = "✨ " + stream.Name
+				}
 			}
-			cachedStreams = append(cachedStreams, *stream)
+			cachedStreams = append(cachedStreams, *stream.Stream)
 		}
 	}
 

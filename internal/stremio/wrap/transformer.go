@@ -231,7 +231,8 @@ func (st StreamTransformer) parse(stream *stremio.Stream) *StreamTransformerResu
 
 type WrappedStream struct {
 	*stremio.Stream
-	r *StreamTransformerResult
+	r              *StreamTransformerResult
+	noContentProxy bool
 }
 
 func (st StreamTransformer) Do(stream *stremio.Stream) (*WrappedStream, error) {

@@ -151,6 +151,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 			ExtractorId:    up.ExtractorId,
 			Extractor:      up.extractor,
 			ExtractorError: extractorError,
+			NoContentProxy: up.NoContentProxy,
 		})
 	}
 
@@ -206,6 +207,7 @@ type UpstreamAddon struct {
 	ExtractorId    string
 	Extractor      StreamTransformerExtractorBlob
 	ExtractorError string
+	NoContentProxy bool
 }
 
 type TemplateData struct {

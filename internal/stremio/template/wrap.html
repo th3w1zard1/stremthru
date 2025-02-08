@@ -63,6 +63,13 @@
 
           {{if $.IsAuthed}}
           <fieldset>
+            <label>
+              <input type="checkbox" name="upstreams[{{$idx}}].no_content_proxy" {{if $up.NoContentProxy}}checked{{end}}>
+              <span data-tooltip="Only affects direct links" style="border: 0;">Skip Content Proxy for Direct Links</span>
+            </label>
+          </fieldset>
+
+          <fieldset>
             <label class="flex flex-row justify-between align-center" for="upstreams[{{$idx}}].transformer.extractor">
               <h4 class="mb-0">
                 Extractor

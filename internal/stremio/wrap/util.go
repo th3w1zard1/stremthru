@@ -24,3 +24,21 @@ func SendResponse(w http.ResponseWriter, statusCode int, data any) {
 func SendHTML(w http.ResponseWriter, statusCode int, data bytes.Buffer) {
 	shared.SendHTML(w, statusCode, data)
 }
+
+func dedupeStreams(allStreams []WrappedStream) []WrappedStream {
+	hashSeen := map[string]struct{}{}
+
+	streams := []WrappedStream{}
+	for i := range allStreams {
+		s := allStreams[i]
+		if s.r != nil && s.r.Hash != "" {
+			if _, seen := hashSeen[s.r.Hash]; seen {
+				continue
+			} else {
+				hashSeen[s.r.Hash] = struct{}{}
+			}
+		}
+		streams = append(streams, s)
+	}
+	return streams
+}
