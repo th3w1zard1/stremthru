@@ -29,6 +29,9 @@ const (
 	StreamTransformerFieldSite       StreamTransformerField = "site"
 	StreamTransformerFieldSize       StreamTransformerField = "size"
 	StreamTransformerFieldTitle      StreamTransformerField = "title"
+
+	StreamTransformerFieldSeason  StreamTransformerField = "season"
+	StreamTransformerFieldEpisode StreamTransformerField = "episode"
 )
 
 var extractorStore = func() kv.KVStore[StreamTransformerExtractorBlob] {
@@ -148,10 +151,13 @@ type StreamTransformerResult struct {
 	Site       string
 	Size       string
 	Title      string
+
+	Season  string
+	Episode string
 }
 
 func (st StreamTransformer) parse(stream *stremio.Stream) *StreamTransformerResult {
-	result := &StreamTransformerResult{}
+	result := &StreamTransformerResult{FileIdx: -1}
 	lastField := ""
 	for _, pattern := range st.Extractor {
 		field := pattern.Field
@@ -198,12 +204,14 @@ func (st StreamTransformer) parse(stream *stremio.Stream) *StreamTransformerResu
 						result.Codec = match[i]
 					case "debrid":
 						result.Debrid = match[i]
+					case "episode":
+						result.Episode = match[i]
 					case "fileidx":
 						if fileIdx, err := strconv.Atoi(match[i]); err == nil {
 							result.FileIdx = fileIdx
 						}
 					case "filename":
-						result.Filename = match[i]
+						result.Filename = strings.TrimSpace(match[i])
 					case "hash":
 						result.Hash = match[i]
 					case "hdr":
@@ -212,6 +220,8 @@ func (st StreamTransformer) parse(stream *stremio.Stream) *StreamTransformerResu
 						result.Quality = match[i]
 					case "resolution":
 						result.Resolution = match[i]
+					case "season":
+						result.Season = match[i]
 					case "site":
 						result.Site = match[i]
 					case "size":
@@ -235,7 +245,7 @@ type WrappedStream struct {
 	noContentProxy bool
 }
 
-func (st StreamTransformer) Do(stream *stremio.Stream) (*WrappedStream, error) {
+func (st StreamTransformer) Do(stream *stremio.Stream, tryReconfigure bool) (*WrappedStream, error) {
 	s := &WrappedStream{Stream: stream}
 
 	if st.Template == nil {
@@ -250,6 +260,24 @@ func (st StreamTransformer) Do(stream *stremio.Stream) (*WrappedStream, error) {
 	if stream.BehaviorHints != nil {
 		if stream.BehaviorHints.Filename != "" {
 			data.Filename = stream.BehaviorHints.Filename
+		}
+	}
+
+	if tryReconfigure {
+		if s.URL != "" && data != nil && data.Hash != "" {
+			s.InfoHash = data.Hash
+			s.FileIndex = data.FileIdx
+			s.URL = ""
+			data.Debrid = ""
+			data.IsCached = false
+			if data.Filename != "" {
+				if s.BehaviorHints == nil {
+					s.BehaviorHints = &stremio.StreamBehaviorHints{}
+				}
+				if s.BehaviorHints.Filename == "" {
+					s.BehaviorHints.Filename = data.Filename
+				}
+			}
 		}
 	}
 

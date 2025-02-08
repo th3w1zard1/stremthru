@@ -147,11 +147,12 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 			}
 		}
 		td.Upstreams = append(td.Upstreams, UpstreamAddon{
-			URL:            up.URL,
-			ExtractorId:    up.ExtractorId,
-			Extractor:      up.extractor,
-			ExtractorError: extractorError,
-			NoContentProxy: up.NoContentProxy,
+			URL:              up.URL,
+			ExtractorId:      up.ExtractorId,
+			Extractor:        up.extractor,
+			ExtractorError:   extractorError,
+			NoContentProxy:   up.NoContentProxy,
+			ReconfigureStore: up.ReconfigureStore,
 		})
 	}
 
@@ -201,13 +202,14 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 type Base = stremio_template.BaseData
 
 type UpstreamAddon struct {
-	URL            string
-	IsConfigurable bool
-	Error          string
-	ExtractorId    string
-	Extractor      StreamTransformerExtractorBlob
-	ExtractorError string
-	NoContentProxy bool
+	URL              string
+	IsConfigurable   bool
+	Error            string
+	ExtractorId      string
+	Extractor        StreamTransformerExtractorBlob
+	ExtractorError   string
+	NoContentProxy   bool
+	ReconfigureStore bool
 }
 
 type TemplateData struct {

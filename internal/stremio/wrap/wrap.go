@@ -4,6 +4,8 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -139,7 +141,7 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 					}
 					for i := range streams {
 						stream := &streams[i]
-						wstream, err := transformer.Do(stream)
+						wstream, err := transformer.Do(stream, up.ReconfigureStore)
 						if err != nil {
 							core.LogError("[stremio/wrap] failed to transform stream", err)
 						}
@@ -214,12 +216,15 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 				continue
 			}
 			stream.Name = storeNamePrefix + stream.Name
-			url := shared.ExtractRequestBaseURL(r).JoinPath("/stremio/wrap/" + eud + "/_/strem/" + magnet.Hash + "/" + strconv.Itoa(stream.FileIndex) + "/")
+			surl := shared.ExtractRequestBaseURL(r).JoinPath("/stremio/wrap/" + eud + "/_/strem/" + magnet.Hash + "/" + strconv.Itoa(stream.FileIndex) + "/")
 			if stream.BehaviorHints != nil && stream.BehaviorHints.Filename != "" {
-				url = url.JoinPath(stream.BehaviorHints.Filename)
+				surl = surl.JoinPath(stream.BehaviorHints.Filename)
 			}
-			url.RawQuery = "sid=" + stremId
-			stream.URL = url.String()
+			surl.RawQuery = "sid=" + stremId
+			if stream.r != nil && stream.r.Season != "" && stream.r.Episode != "" {
+				surl.RawQuery += "&re=" + url.QueryEscape(stream.r.Season+".{1,3}"+stream.r.Episode)
+			}
+			stream.URL = surl.String()
 			stream.InfoHash = ""
 			stream.FileIndex = 0
 
@@ -813,6 +818,11 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		if sid == "" {
 			sid = "*"
 		}
+		re := query.Get("re")
+		var pattern *regexp.Regexp
+		if pat, err := regexp.Compile(re); err == nil {
+			pattern = pat
+		}
 
 		go buddy.TrackMagnet(ctx.Store, magnet.Hash, magnet.Files, sid, magnet.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
 
@@ -834,6 +844,15 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 			for i := range magnet.Files {
 				f := &magnet.Files[i]
 				if f.Name == fileName {
+					file = f
+					break
+				}
+			}
+		}
+		if pattern != nil {
+			for i := range magnet.Files {
+				f := &magnet.Files[i]
+				if pattern.MatchString(f.Name) {
 					file = f
 					break
 				}

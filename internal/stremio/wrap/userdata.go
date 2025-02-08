@@ -50,11 +50,12 @@ func (usr upstreamsResolver) resolve(ud UserData, rName stremio.ResourceName, rT
 }
 
 type UserDataUpstream struct {
-	URL            string                         `json:"u"`
-	baseUrl        *url.URL                       `json:"-"`
-	ExtractorId    string                         `json:"e,omitempty"`
-	extractor      StreamTransformerExtractorBlob `json:"-"`
-	NoContentProxy bool                           `json:"ncp,omitempty"`
+	URL              string                         `json:"u"`
+	baseUrl          *url.URL                       `json:"-"`
+	ExtractorId      string                         `json:"e,omitempty"`
+	extractor        StreamTransformerExtractorBlob `json:"-"`
+	NoContentProxy   bool                           `json:"ncp,omitempty"`
+	ReconfigureStore bool                           `json:"rs,omitempty"`
 }
 
 type UserData struct {
@@ -374,6 +375,7 @@ func getUserData(r *http.Request) (*UserData, error) {
 			}
 			if upURL != "" || extractorId != "" || extractor != "" {
 				up.NoContentProxy = r.Form.Get("upstreams["+strconv.Itoa(idx)+"].no_content_proxy") == "on"
+				up.ReconfigureStore = r.Form.Get("upstreams["+strconv.Itoa(idx)+"].reconfigure_store") == "on"
 				data.Upstreams = append(data.Upstreams, up)
 			}
 		}

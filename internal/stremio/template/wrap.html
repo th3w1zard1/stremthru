@@ -63,9 +63,14 @@
 
           {{if $.IsAuthed}}
           <fieldset>
-            <label>
-              <input type="checkbox" name="upstreams[{{$idx}}].no_content_proxy" {{if $up.NoContentProxy}}checked{{end}}>
-              <span data-tooltip="Only affects direct links" style="border: 0;">Skip Content Proxy for Direct Links</span>
+            <legend>Modifiers:</legend>
+            <input type="checkbox" id="upstreams[{{$idx}}].no_content_proxy" name="upstreams[{{$idx}}].no_content_proxy" {{if $up.NoContentProxy}}checked{{end}}>
+            <label for="upstreams[{{$idx}}].no_content_proxy" data-tooltip="Only affects direct links" style="border: 0;">
+              Skip Content Proxy for Direct Links
+            </label>
+            <input type="checkbox" id="upstreams[{{$idx}}].reconfigure_store" name="upstreams[{{$idx}}].reconfigure_store" {{if $up.ReconfigureStore}}checked{{end}}>
+            <label for="upstreams[{{$idx}}].reconfigure_store" data-tooltip="⚠️ Experimental. Needs supported Extractor." style="border: 0;">
+              Try to Reconfigure Store
             </label>
           </fieldset>
 
