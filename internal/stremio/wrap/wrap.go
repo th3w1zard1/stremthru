@@ -250,7 +250,11 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 					stream.Name = "✨ " + stream.Name
 				}
 			}
-			cachedStreams = append(cachedStreams, *stream.Stream)
+			if stream.r == nil || stream.r.IsCached {
+				cachedStreams = append(cachedStreams, *stream.Stream)
+			} else {
+				uncachedStreams = append(uncachedStreams, *stream.Stream)
+			}
 		}
 	}
 
