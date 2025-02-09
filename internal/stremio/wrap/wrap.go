@@ -25,7 +25,8 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-var SupportAdvanced = !config.IsPublicInstance
+var IsPublicInstance = config.IsPublicInstance
+var MaxPublicInstanceUpstreamCount = 3
 
 var addon = func() *stremio_addon.Client {
 	return stremio_addon.NewClient(&stremio_addon.ClientConfig{})
@@ -81,6 +82,11 @@ func (ud UserData) fetchMeta(ctx *context.StoreContext, w http.ResponseWriter, r
 	upstreams, err := ud.getUpstreams(ctx, stremio.ResourceNameMeta, rType, id)
 	if err != nil {
 		return err
+	}
+
+	if len(upstreams) == 0 {
+		shared.ErrorNotFound(r).Send(w, r)
+		return nil
 	}
 
 	upstream := upstreams[0]
@@ -279,9 +285,11 @@ func (ud UserData) fetchSubtitles(ctx *context.StoreContext, rType, id, extra st
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("found addons for subtitles", "count", len(upstreams))
 
-	chunks := make([][]stremio.Subtitle, len(upstreams))
+	upstreamsCount := len(upstreams)
+	log.Debug("found addons for subtitles", "count", upstreamsCount)
+
+	chunks := make([][]stremio.Subtitle, upstreamsCount)
 	errs := make([]error, len(upstreams))
 
 	var wg sync.WaitGroup
@@ -381,7 +389,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 	if action := r.Header.Get("x-addon-configure-action"); action != "" {
 		switch action {
 		case "authorize":
-			if SupportAdvanced {
+			if !IsPublicInstance {
 				user := r.Form.Get("user")
 				pass := r.Form.Get("pass")
 				if config.ProxyAuthPassword.GetPassword(user) == pass {
@@ -396,7 +404,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			unsetCookie(w)
 			td.IsAuthed = false
 		case "add-upstream":
-			if SupportAdvanced && td.IsAuthed {
+			if td.IsAuthed || len(td.Upstreams) < MaxPublicInstanceUpstreamCount {
 				td.Upstreams = append(td.Upstreams, UpstreamAddon{
 					URL: "",
 				})
@@ -406,32 +414,28 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			if end == 0 {
 				end = 1
 			}
-			if SupportAdvanced && td.IsAuthed {
-				td.Upstreams = append([]UpstreamAddon{}, td.Upstreams[0:end]...)
-			}
+			td.Upstreams = append([]UpstreamAddon{}, td.Upstreams[0:end]...)
 		case "set-extractor":
-			if SupportAdvanced && td.IsAuthed {
-				idx, err := strconv.Atoi(r.Form.Get("upstream_index"))
-				if err != nil {
-					SendError(w, r, err)
-					return
-				}
-				up := &td.Upstreams[idx]
-				id := up.ExtractorId
-				var value StreamTransformerExtractorBlob
-				if id != "" {
-					if err := extractorStore.Get(id, &value); err != nil {
-						LogError(r, "failed to fetch extractor", err)
-						up.ExtractorError = "Failed to fetch extractor"
-					} else if _, err := value.Parse(); err != nil {
-						LogError(r, "failed to parse extractor", err)
-						up.ExtractorError = err.Error()
-					}
-				}
-				up.Extractor = value
+			idx, err := strconv.Atoi(r.Form.Get("upstream_index"))
+			if err != nil {
+				SendError(w, r, err)
+				return
 			}
+			up := &td.Upstreams[idx]
+			id := up.ExtractorId
+			var value StreamTransformerExtractorBlob
+			if id != "" {
+				if err := extractorStore.Get(id, &value); err != nil {
+					LogError(r, "failed to fetch extractor", err)
+					up.ExtractorError = "Failed to fetch extractor"
+				} else if _, err := value.Parse(); err != nil {
+					LogError(r, "failed to parse extractor", err)
+					up.ExtractorError = err.Error()
+				}
+			}
+			up.Extractor = value
 		case "save-extractor":
-			if SupportAdvanced && td.IsAuthed {
+			if td.IsAuthed {
 				id := r.Form.Get("extractor_id")
 				idx, err := strconv.Atoi(r.Form.Get("extractor_upstream_index"))
 				if err != nil {
@@ -485,27 +489,25 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		case "set-template":
-			if SupportAdvanced && td.IsAuthed {
-				id := ud.TemplateId
-				value := StreamTransformerTemplateBlob{}
-				if id != "" {
-					if err := templateStore.Get(id, &value); err != nil {
-						LogError(r, "failed to fetch template", err)
-						td.TemplateError.Name = "Failed to fetch template"
-						td.TemplateError.Description = "Failed to fetch template"
-					} else if t, err := value.Parse(); err != nil {
-						LogError(r, "failed to parse template", err)
-						if t.Name == nil {
-							td.TemplateError.Name = err.Error()
-						} else {
-							td.TemplateError.Description = err.Error()
-						}
+			id := ud.TemplateId
+			value := StreamTransformerTemplateBlob{}
+			if id != "" {
+				if err := templateStore.Get(id, &value); err != nil {
+					LogError(r, "failed to fetch template", err)
+					td.TemplateError.Name = "Failed to fetch template"
+					td.TemplateError.Description = "Failed to fetch template"
+				} else if t, err := value.Parse(); err != nil {
+					LogError(r, "failed to parse template", err)
+					if t.Name == nil {
+						td.TemplateError.Name = err.Error()
+					} else {
+						td.TemplateError.Description = err.Error()
 					}
 				}
-				td.Template = value
 			}
+			td.Template = value
 		case "save-template":
-			if SupportAdvanced && td.IsAuthed {
+			if td.IsAuthed {
 				id := r.Form.Get("template_id")
 				value := td.Template
 				if t, err := value.Parse(); err != nil {
@@ -943,6 +945,8 @@ func commonMiddleware(next http.Handler) http.Handler {
 }
 
 func AddStremioWrapEndpoints(mux *http.ServeMux) {
+	seedDefaultTransformerEntities()
+
 	withCors := shared.Middleware(shared.EnableCORS)
 
 	router := http.NewServeMux()

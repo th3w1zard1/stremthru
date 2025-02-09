@@ -282,7 +282,17 @@ func (ud UserData) getUpstreams(ctx *context.StoreContext, rName stremio.Resourc
 	case stremio.ResourceNameCatalog:
 		return []UserDataUpstream{}, nil
 	default:
-		if len(ud.Upstreams) == 1 {
+		upstreamsCount := len(ud.Upstreams)
+		if upstreamsCount == 1 {
+			return ud.Upstreams, nil
+		}
+
+		if IsPublicInstance {
+			if rName == stremio.ResourceNameMeta || rName == stremio.ResourceNameSubtitles {
+				if upstreamsCount > 1 {
+					return []UserDataUpstream{}, nil
+				}
+			}
 			return ud.Upstreams, nil
 		}
 
@@ -397,8 +407,8 @@ func getUserData(r *http.Request) (*UserData, error) {
 		}
 	}
 
-	if !SupportAdvanced && len(data.Upstreams) > 1 {
-		data.Upstreams = data.Upstreams[0:1]
+	if IsPublicInstance && len(data.Upstreams) > MaxPublicInstanceUpstreamCount {
+		data.Upstreams = data.Upstreams[0:MaxPublicInstanceUpstreamCount]
 	}
 
 	for i := range data.Upstreams {

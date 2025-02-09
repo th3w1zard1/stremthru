@@ -301,3 +301,75 @@ func (st StreamTransformer) Do(stream *stremio.Stream, tryReconfigure bool) (*Wr
 
 	return s, nil
 }
+
+func seedDefaultTransformerEntities() {
+	extractors := map[string]StreamTransformerExtractorBlob{}
+	extractors["Debridio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+name
+(?i)^(?:\[(?<debrid>\w+?)(?<cached>\+?)\] \n)?(?<addon>\w+) (?:Other|(?<resolution>\d[^kp]*[kp]))
+
+description
+^(?<title>.+?) ?\n(?:(?<filename>.+?) ?\n)?⚡? 📺 (?<resolution>[^ ]+) 💾 (?<size>[\d.]+ [^ ]+) (?:👤 \d+)? ⚙️ (?<site>[^ ]+)
+
+url
+\/(?<hash>[a-f0-9]{40})(?:\/(?<season>\d+)\/(?<episode>\d+))?
+`))
+	extractors["Mediafusion"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+name
+(?i)^(?<addon>\w+(?: \| [^ ]+)?) (?:P2P|(?<debrid>[A-Z]{2})) (?:N\/A|(?<resolution>[^kp]+[kp])) (?<cached>⚡️)?
+
+description
+(?i)(?:📂 (?<title>.+)\n)?💾 (?<size>.+?)(?: 👤 \d+)?\n.+\n🔗 (?<site>.+?)(?: 🧑‍💻 |$)
+
+bingeGroup
+(?i)-(?:🎨 (?<hdr>[^ ]+))? ?📺 (?<quality>cam|scr|dvd|vhs|r5|(?:\w+(?:rip|ray|mux|tv))|(?:(?:tele|web)[\w-]*?))(?: ?🎞️ (?<codec>[^- ]+))?(?: ?🎵 .+)?-(?:N\/A|(?:\d+[kp]))
+
+url
+\/stream\/(?<hash>[a-f0-9]{40})\/
+`))
+	extractors["Torrentio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+name
+(?i)^(?:\[(?<debrid>\w+?)(?<cached>\+?)\] )?(?<addon>\w+)\n(?<resolution>[^kp]+[kp])?(?: 3D(?: SBS))?(?: (?<hdr>.+))?
+
+description
+^(?<title>.+)\n(?:(?<filename>[^👤].+)\n)?👤.+ 💾 (?<size>.+) ⚙️ (?<site>\w+)(?:\n(?<lang>.+))?$
+
+bingeGroup
+(?i)(?<codec>hevc|avc|mpeg|xvid|av1|x264|x265|h264|h265)
+(?i)(?<bitdepth>\d+bit)
+(?i)(?<quality>cam|scr|dvd|vhs|r5|(?:\w+(?:rip|ray|mux|tv))|(?:(?:tele|web)[\w-]+))
+
+url
+(?i)\/(?<hash>[a-f0-9]{40})\/[^/]+\/(?<fileidx>\d+)\/
+`))
+
+	for key, value := range extractors {
+		var existingValue StreamTransformerExtractorBlob
+		if err := extractorStore.Get(key, &existingValue); err == nil && existingValue == "" {
+			extractorStore.Set(key, value)
+		}
+	}
+
+	templates := map[string]StreamTransformerTemplateBlob{}
+	templates["Default"] = StreamTransformerTemplateBlob{
+		Name: strings.TrimSpace(`
+{{if ne .Debrid ""}}[{{if .IsCached}}⚡️{{end}}{{.Debrid}}]
+{{end}}{{.Addon}}
+{{.Resolution}}
+`),
+		Description: strings.TrimSpace(`
+{{if ne .Quality ""}}🎥 {{.Quality}} {{end}}{{if ne .Codec ""}}🎞️ {{.Codec}}{{end}}
+{{if ne .Size ""}}📦 {{.Size}} {{end}}{{if ne .HDR ""}}📺 {{.HDR}}{{end}}{{if ne .Filename ""}}
+📄 {{.Filename}}{{else if ne .Title ""}}
+📁 {{.Title}}
+{{end}}
+`),
+	}
+
+	for key, value := range templates {
+		var existingValue StreamTransformerTemplateBlob
+		if err := templateStore.Get(key, &existingValue); err == nil && existingValue.IsEmpty() {
+			templateStore.Set(key, value)
+		}
+	}
+}

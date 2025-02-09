@@ -23,10 +23,10 @@
   <div id="upstream_addons" class="relative border border-dashed rounded-sm mb-4 p-4" style="border-color: gray">
     <header class="w-full flex flex-row justify-between absolute px-4" style="top: -0.75rem; left: 0;">
       <span class="px-2" style="background-color: var(--pico-background-color);">
-        Upstream Addon{{if .SupportAdvanced}}s{{end}}
+        Upstream Addons
       </span>
       <small>
-        {{if .SupportAdvanced}}
+        {{if .CanAuthorize}}
         <button
           type="button"
           hx-target="body"
@@ -61,13 +61,14 @@
           {{end}}
           <small>{{if ne $up.Error ""}}<span class="error">{{$up.Error}}</span>{{end}}</small>
 
-          {{if $.IsAuthed}}
           <fieldset>
             <legend>Modifiers:</legend>
+            {{if $.IsAuthed}}
             <input type="checkbox" id="upstreams[{{$idx}}].no_content_proxy" name="upstreams[{{$idx}}].no_content_proxy" {{if $up.NoContentProxy}}checked{{end}}>
             <label for="upstreams[{{$idx}}].no_content_proxy" data-tooltip="Only affects direct links" style="border: 0;">
               Skip Content Proxy for Direct Links
             </label>
+            {{end}}
             <input type="checkbox" id="upstreams[{{$idx}}].reconfigure_store" name="upstreams[{{$idx}}].reconfigure_store" {{if $up.ReconfigureStore}}checked{{end}}>
             <label for="upstreams[{{$idx}}].reconfigure_store" data-tooltip="⚠️ Experimental. Needs supported Extractor." style="border: 0;">
               Try to Reconfigure Store
@@ -80,6 +81,7 @@
                 Extractor
               </h4>
               <div class="flex flex-row">
+                {{if $.IsAuthed}}
                 <button
                   type="button"
                   data-upstream-index="{{$idx}}"
@@ -94,6 +96,7 @@
                 >
                   💾
                 </button>
+                {{end}}
                 <select
                   data-upstream-index="{{$idx}}"
                   hx-vals='{"upstream_index": {{$idx}}}'
@@ -115,6 +118,7 @@
               </div>
             </label>
             <textarea
+              {{if not $.IsAuthed}}readonly{{end}}
               id="upstreams[{{$idx}}].transformer.extractor"
               name="upstreams[{{$idx}}].transformer.extractor"
               {{if ne .ExtractorError ""}}aria-invalid="true"{{end}}
@@ -122,15 +126,13 @@
             <small>{{.ExtractorError}}</small>
 
           </fieldset>
-          {{end}}
         </div>
         {{end}}
 
         <div class="absolute" style="bottom: -0.75rem; right: 1rem;">
-          {{if .SupportAdvanced}}
-          <small {{if not .IsAuthed}}data-tooltip="Needs Authorization"{{end}} style="border: 0;">
+          <small>
             <button
-              {{if not .IsAuthed}}disabled{{end}}
+              {{if not .CanRemoveUpstream}}disabled{{end}}
               type="button"
               hx-target="body"
               hx-post="configure"
@@ -142,7 +144,7 @@
               - Remove
             </button>
             <button
-              {{if not .IsAuthed}}disabled{{end}}
+              {{if not .CanAddUpstream}}disabled{{end}}
               type="button"
               hx-target="body"
               hx-post="configure"
@@ -154,17 +156,16 @@
               + Add
             </button>
           </small>
-          {{end}}
         </div>
       </div>
 
-      {{if .IsAuthed}}
       <div class="relative border border-dashed rounded-sm my-4 p-4" style="border-color: gray">
         <div class="flex flex-row justify-between align-center">
           <h4 class="mb-0">
             Template
           </h4>
           <div class="flex flex-row">
+            {{if .IsAuthed}}
             <button
               type="button"
               hx-target="body"
@@ -178,6 +179,7 @@
             >
               💾
             </button>
+            {{end}}
             <select
               hx-target="body"
               hx-post="configure"
@@ -199,6 +201,7 @@
 
         <label for="transformer.template.name">Name Template</label>
         <textarea
+          {{if not .IsAuthed}}readonly{{end}}
           id="transformer.template.name"
           name="transformer.template.name"
           {{if ne .TemplateError.Name ""}}aria-invalid="true"{{end}}
@@ -209,6 +212,7 @@
 
         <label for="transformer.template.description">Description Template</label>
         <textarea
+          {{if not .IsAuthed}}readonly{{end}}
           id="transformer.template.description"
           name="transformer.template.description"
           {{if ne .TemplateError.Description ""}}aria-invalid="true"{{end}}
@@ -219,7 +223,6 @@
       </div>
 
       {{template "configure_config.html" .SortConfig}}
-      {{end}}
     </div>
   </div>
 
@@ -240,7 +243,7 @@
   {{end}}
 </form>
 
-{{if .SupportAdvanced}}
+{{if .CanAuthorize}}
 <dialog id="auth_modal">
   <article>
     <header>

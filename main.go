@@ -25,6 +25,11 @@ func main() {
 		},
 	})
 
+	database := db.Open()
+	defer db.Close()
+	db.Ping()
+	RunSchemaMigration(database.URI)
+
 	mux := http.NewServeMux()
 
 	endpoint.AddRootEndpoint(mux)
@@ -32,11 +37,6 @@ func main() {
 	endpoint.AddProxyEndpoints(mux)
 	endpoint.AddStoreEndpoints(mux)
 	endpoint.AddStremioEndpoints(mux)
-
-	database := db.Open()
-	defer db.Close()
-	db.Ping()
-	RunSchemaMigration(database.URI)
 
 	handler := shared.RootServerContext(mux)
 

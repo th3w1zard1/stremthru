@@ -24,7 +24,7 @@ func getManifestResourceIdPrefixes(manifest *stremio.Manifest, resource stremio.
 }
 
 func getManifest(upstreamManifests []stremio.Manifest, ud *UserData) *stremio.Manifest {
-	manifest := stremio.Manifest{
+	manifest := &stremio.Manifest{
 		Version:   config.Version,
 		Resources: []stremio.Resource{},
 		Types:     []stremio.ContentType{},
@@ -68,6 +68,22 @@ func getManifest(upstreamManifests []stremio.Manifest, ud *UserData) *stremio.Ma
 		manifest.Description = upstreamManifests[0].Description
 		manifest.Logo = upstreamManifests[0].Logo
 		manifest.Version = upstreamManifests[0].Version
+
+		if len(upstreamManifests[0].AddonCatalogs) > 0 {
+			manifest.AddonCatalogs = upstreamManifests[0].AddonCatalogs
+		}
+		if len(upstreamManifests[0].Catalogs) > 0 {
+			manifest.Catalogs = upstreamManifests[0].Catalogs
+		}
+		if len(upstreamManifests[0].Types) > 0 {
+			manifest.Types = upstreamManifests[0].Types
+		}
+		if len(upstreamManifests[0].IDPrefixes) > 0 {
+			manifest.IDPrefixes = upstreamManifests[0].IDPrefixes
+		}
+		manifest.Resources = upstreamManifests[0].Resources
+
+		return manifest
 	}
 
 	resourceByName := map[stremio.ResourceName]stremio.Resource{}
@@ -77,6 +93,12 @@ func getManifest(upstreamManifests []stremio.Manifest, ud *UserData) *stremio.Ma
 	for mIdx := range upstreamManifests {
 		m := upstreamManifests[mIdx]
 		for _, r := range m.Resources {
+			if IsPublicInstance {
+				if r.Name == stremio.ResourceNameMeta || r.Name == stremio.ResourceNameSubtitles {
+					continue
+				}
+			}
+
 			if _, found := resourceByName[r.Name]; !found {
 				resourceByName[r.Name] = stremio.Resource{Name: r.Name}
 				typesMap[r.Name] = map[stremio.ContentType]bool{}
@@ -132,5 +154,5 @@ func getManifest(upstreamManifests []stremio.Manifest, ud *UserData) *stremio.Ma
 		manifest.Resources = append(manifest.Resources, r)
 	}
 
-	return &manifest
+	return manifest
 }

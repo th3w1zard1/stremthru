@@ -219,14 +219,17 @@ type TemplateData struct {
 	ManifestURL string
 	Script      template.JS
 
-	SupportAdvanced bool
-	IsAuthed        bool
-	ExtractorIds    []string
-	TemplateIds     []string
-	TemplateId      string
-	Template        StreamTransformerTemplateBlob
-	TemplateError   StreamTransformerTemplateBlob
-	SortConfig      configure.Config
+	CanAuthorize      bool
+	CanAddUpstream    bool
+	CanRemoveUpstream bool
+
+	IsAuthed      bool
+	ExtractorIds  []string
+	TemplateIds   []string
+	TemplateId    string
+	Template      StreamTransformerTemplateBlob
+	TemplateError StreamTransformerTemplateBlob
+	SortConfig    configure.Config
 }
 
 func (td *TemplateData) HasUpstreamError() bool {
@@ -256,7 +259,9 @@ func (td *TemplateData) HasFieldError() bool {
 var executeTemplate = func() stremio_template.Executor[TemplateData] {
 	return stremio_template.GetExecutor("stremio/wrap", func(td *TemplateData) *TemplateData {
 		td.Version = config.Version
-		td.SupportAdvanced = SupportAdvanced
+		td.CanAuthorize = !IsPublicInstance
+		td.CanAddUpstream = td.IsAuthed || len(td.Upstreams) < MaxPublicInstanceUpstreamCount
+		td.CanRemoveUpstream = len(td.Upstreams) > 1
 		return td
 	}, template.FuncMap{}, "configure_config.html", "wrap.html")
 }()
