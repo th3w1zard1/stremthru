@@ -1,6 +1,7 @@
 package stremio_wrap
 
 import (
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -43,7 +44,13 @@ func getManifest(upstreamManifests []stremio.Manifest, ud *UserData) *stremio.Ma
 		id += m.ID
 		name += "(" + m.Name + ")"
 
-		description += "[" + m.Name + " v" + m.Version + "]" + "(" + ud.Upstreams[i].URL + ")"
+		hostname := ""
+		if upUrl, err := url.Parse(ud.Upstreams[i].URL); err == nil {
+			hostname = upUrl.Host
+		} else {
+			hostname, _, _ = strings.Cut(strings.TrimPrefix(strings.TrimPrefix(ud.Upstreams[i].URL, "http://"), "https://"), "/")
+		}
+		description += "[" + m.Name + " v" + m.Version + "]" + "(" + hostname + ")"
 	}
 
 	manifest.ID = "st:wrap::" + id
