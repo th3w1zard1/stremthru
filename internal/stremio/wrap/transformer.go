@@ -2,7 +2,6 @@ package stremio_wrap
 
 import (
 	"bytes"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -74,7 +73,7 @@ func (steb StreamTransformerExtractorBlob) Parse() (StreamTransformerExtractor, 
 		} else {
 			re, err := regexp.Compile(part)
 			if err != nil {
-				log.Error(fmt.Sprintf("failed to compile regex( %s )", part), "error", err)
+				log.Error("failed to compile regex", "regex", part, "error", err)
 				return nil, err
 			}
 			pattern := StreamTransformerPattern{Regex: re}

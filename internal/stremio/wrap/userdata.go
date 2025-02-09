@@ -15,6 +15,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
+	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/internal/stremio/addon"
 	"github.com/MunifTanjim/stremthru/stremio"
@@ -140,7 +141,10 @@ func (uderr *userDataError) Error() string {
 }
 
 func (ud UserData) GetRequestContext(r *http.Request) (*context.StoreContext, error) {
-	ctx := &context.StoreContext{}
+	rCtx := server.GetReqCtx(r)
+	ctx := &context.StoreContext{
+		Log: rCtx.Log,
+	}
 
 	upstreamUrlErrors := []string{}
 	hasUpstreamUrlErrors := false

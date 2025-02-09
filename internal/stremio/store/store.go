@@ -82,7 +82,10 @@ func (uderr *userDataError) Error() string {
 }
 
 func (ud UserData) GetRequestContext(r *http.Request) (*context.StoreContext, error) {
-	ctx := &context.StoreContext{}
+	rCtx := server.GetReqCtx(r)
+	ctx := &context.StoreContext{
+		Log: rCtx.Log,
+	}
 
 	storeName := ud.StoreName
 	storeToken := ud.StoreToken
@@ -697,7 +700,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			LogError(r, "failed to get request context", err)
 		}
-		shared.ErrorBadRequest(r, "").Send(w, r)
+		shared.ErrorBadRequest(r, "failed to get request context").Send(w, r)
 		return
 	}
 
@@ -707,7 +710,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	url := link
 
 	if url == "" {
-		log.Warn("no matching file found for (" + videoIdWithLink + ")")
+		ctx.Log.Warn("no matching file found for (" + videoIdWithLink + ")")
 		store_video.Redirect("no_matching_file", w, r)
 		return
 	}

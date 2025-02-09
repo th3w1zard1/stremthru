@@ -103,6 +103,8 @@ func (ud UserData) fetchMeta(ctx *context.StoreContext, w http.ResponseWriter, r
 }
 
 func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType, id string) (*stremio.StreamHandlerResponse, error) {
+	log := ctx.Log
+
 	eud, err := ud.GetEncoded(false)
 	if err != nil {
 		return nil, err
@@ -281,6 +283,8 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 }
 
 func (ud UserData) fetchSubtitles(ctx *context.StoreContext, rType, id, extra string) (*stremio.SubtitlesHandlerResponse, error) {
+	log := ctx.Log
+
 	upstreams, err := ud.getUpstreams(ctx, stremio.ResourceNameSubtitles, rType, id)
 	if err != nil {
 		return nil, err
@@ -768,6 +772,8 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
+
+	log := server.GetReqCtx(r).Log
 
 	magnetHash := r.PathValue("magnetHash")
 	fileName := r.PathValue("fileName")

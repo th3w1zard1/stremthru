@@ -313,6 +313,8 @@ func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log := server.GetReqCtx(r).Log
+
 	transportUrl := r.PathValue("transportUrl")
 	direction := r.PathValue("direction")
 
@@ -410,6 +412,8 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
+
+	log := server.GetReqCtx(r).Log
 
 	cookie, err := getCookieValue(w, r)
 	if err != nil {
@@ -516,6 +520,8 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
+
+	log := server.GetReqCtx(r).Log
 
 	transportUrl := r.PathValue("transportUrl")
 
