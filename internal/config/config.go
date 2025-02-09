@@ -2,6 +2,7 @@ package config
 
 import (
 	"log"
+	"log/slog"
 	"net/url"
 	"os"
 	"strings"
@@ -113,6 +114,9 @@ func (scp StoreContentProxyMap) IsEnabled(name string) bool {
 }
 
 type Config struct {
+	LogLevel  slog.Level
+	LogFormat string
+
 	Port               string
 	StoreAuthToken     StoreAuthTokenMap
 	ProxyAuthPassword  ProxyAuthPasswordMap
@@ -194,7 +198,20 @@ var config = func() Config {
 		}
 	}
 
+	var logLevel slog.Level
+	if err := logLevel.UnmarshalText([]byte(getEnv("STREMTHRU_LOG_LEVEL", "INFO"))); err != nil {
+		log.Fatalf("Invalid log level: %v", err)
+	}
+
+	logFormat := getEnv("STREMTHRU_LOG_FORMAT", "json")
+	if logFormat != "json" && logFormat != "text" {
+		log.Fatalf("Invalid log format: %s, expected: json / text", logFormat)
+	}
+
 	return Config{
+		LogLevel:  logLevel,
+		LogFormat: logFormat,
+
 		Port:               getEnv("STREMTHRU_PORT", "8080"),
 		ProxyAuthPassword:  proxyAuthPasswordMap,
 		ProxyStreamEnabled: len(proxyAuthPasswordMap) > 0,
@@ -214,6 +231,9 @@ var config = func() Config {
 		IP:                 &IPResolver{},
 	}
 }()
+
+var LogLevel = config.LogLevel
+var LogFormat = config.LogFormat
 
 var Port = config.Port
 var ProxyAuthPassword = config.ProxyAuthPassword
@@ -268,6 +288,10 @@ func PrintConfig(state *AppState) {
 	l.Printf(" Version: %v\n", Version)
 	l.Printf(" Port: %v\n", Port)
 	l.Println("========================")
+	l.Println()
+
+	l.Printf("  Log Level: %s\n", LogLevel.String())
+	l.Printf(" Log Format: %s\n", LogFormat)
 	l.Println()
 
 	if hasTunnel {

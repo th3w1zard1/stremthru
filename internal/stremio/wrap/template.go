@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"net/http"
 
-	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
 	"github.com/MunifTanjim/stremthru/internal/stremio/template"
@@ -176,7 +175,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 
 	extractors, err := extractorStore.List()
 	if err != nil {
-		core.LogError("[stremio/wrap] failed to list extractors", err)
+		LogError(r, "failed to list extractors", err)
 	} else {
 		extractorIds := make([]string, len(extractors))
 		for i, extractor := range extractors {
@@ -187,7 +186,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 
 	templates, err := templateStore.List()
 	if err != nil {
-		core.LogError("[stremio/wrap] failed to list templates", err)
+		LogError(r, "failed to list templates", err)
 	} else {
 		templateIds := make([]string, len(templates))
 		for i, template := range templates {

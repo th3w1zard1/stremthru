@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,6 +14,7 @@ import (
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
+	"github.com/MunifTanjim/stremthru/internal/server"
 )
 
 func IsMethod(r *http.Request, method string) bool {
@@ -59,46 +60,42 @@ type response struct {
 	Error *core.Error `json:"error,omitempty"`
 }
 
-func (r response) send(w http.ResponseWriter, statusCode int) {
+func (res response) send(w http.ResponseWriter, r *http.Request, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(r); err != nil {
-		log.Printf("failed to encode json %v\n", err)
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		core.LogError(r, "failed to encode json", err)
 	}
 }
 
-func SendError(w http.ResponseWriter, err error) {
-	isUnexpected := false
-
+func SendError(w http.ResponseWriter, r *http.Request, err error) {
 	var e core.StremThruError
 	if sterr, ok := err.(core.StremThruError); ok {
 		e = sterr
 	} else {
 		e = &core.Error{Cause: err}
-		isUnexpected = true
 	}
 	e.Pack()
 
-	if isUnexpected {
-		log.Printf("unexpected error: %v\n", err)
-	}
+	ctx := server.GetReqCtx(r)
+	ctx.Error = err
 
 	res := &response{}
 	res.Error = e.GetError()
 
-	res.send(w, e.GetStatusCode())
+	res.send(w, r, e.GetStatusCode())
 }
 
-func SendResponse(w http.ResponseWriter, statusCode int, data any, err error) {
+func SendResponse(w http.ResponseWriter, r *http.Request, statusCode int, data any, err error) {
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
 	res := &response{}
 	res.Data = data
 
-	res.send(w, statusCode)
+	res.send(w, r, statusCode)
 }
 
 func SendHTML(w http.ResponseWriter, statusCode int, data bytes.Buffer) {
@@ -144,7 +141,7 @@ func ProxyResponse(w http.ResponseWriter, r *http.Request, url string, tunnelTyp
 	if err != nil {
 		e := ErrorInternalServerError(r, "failed to create request")
 		e.Cause = err
-		SendError(w, e)
+		SendError(w, r, e)
 		return
 	}
 
@@ -156,7 +153,7 @@ func ProxyResponse(w http.ResponseWriter, r *http.Request, url string, tunnelTyp
 	if err != nil {
 		e := ErrorBadGateway(r, "failed to request url")
 		e.Cause = err
-		SendError(w, e)
+		SendError(w, r, e)
 		return
 	}
 	defer response.Body.Close()
@@ -167,7 +164,7 @@ func ProxyResponse(w http.ResponseWriter, r *http.Request, url string, tunnelTyp
 
 	_, err = io.Copy(w, response.Body)
 	if err != nil {
-		log.Printf("[proxy] connection closed: %v", err)
+		slog.Info("[proxy] connection closed", "error", err)
 	}
 }
 
@@ -205,7 +202,7 @@ func ExtractRequestBaseURL(r *http.Request) *url.URL {
 	}
 }
 
-func GetClientIP(r *http.Request, ctx *context.RequestContext) string {
+func GetClientIP(r *http.Request, ctx *context.StoreContext) string {
 	if !ctx.IsProxyAuthorized {
 		return core.GetClientIP(r)
 	}

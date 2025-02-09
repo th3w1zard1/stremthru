@@ -108,39 +108,46 @@ type userDataError struct {
 func (uderr *userDataError) Error() string {
 	var str strings.Builder
 	hasSome := false
-	for _, err := range uderr.upstreamUrl {
+	for i, err := range uderr.upstreamUrl {
 		if err != "" {
-			str.WriteString("upstream_url: ")
+			if hasSome {
+				str.WriteString(", ")
+				hasSome = false
+			}
+
+			str.WriteString("upstream_url[" + strconv.Itoa(i) + "]: ")
 			str.WriteString(err)
 			hasSome = true
 		}
 	}
-	if hasSome {
-		str.WriteString(", ")
-	}
 	if uderr.store != "" {
+		if hasSome {
+			str.WriteString(", ")
+			hasSome = false
+		}
 		str.WriteString("store: ")
 		str.WriteString(uderr.store)
 	}
-	if hasSome {
-		str.WriteString(", ")
-	}
 	if uderr.token != "" {
+		if hasSome {
+			str.WriteString(", ")
+			hasSome = false
+		}
 		str.WriteString("token: ")
 		str.WriteString(uderr.token)
 	}
 	return str.String()
 }
 
-func (ud UserData) GetRequestContext(r *http.Request) (*context.RequestContext, error) {
-	ctx := &context.RequestContext{}
+func (ud UserData) GetRequestContext(r *http.Request) (*context.StoreContext, error) {
+	ctx := &context.StoreContext{}
 
 	upstreamUrlErrors := []string{}
 	hasUpstreamUrlErrors := false
 	for i := range ud.Upstreams {
 		up := &ud.Upstreams[i]
 		if up.baseUrl == nil {
-			upstreamUrlErrors = append(upstreamUrlErrors, "Invalid Manifest URL("+up.URL+")")
+			upstreamUrlErrors = append(upstreamUrlErrors, "Invalid Manifest URL")
 			hasUpstreamUrlErrors = true
 		} else {
 			upstreamUrlErrors = append(upstreamUrlErrors, "")
@@ -178,7 +185,7 @@ func (ud UserData) GetRequestContext(r *http.Request) (*context.RequestContext, 
 	return ctx, nil
 }
 
-func (ud UserData) getUpstreamManifests(ctx *context.RequestContext) ([]stremio.Manifest, []error) {
+func (ud UserData) getUpstreamManifests(ctx *context.StoreContext) ([]stremio.Manifest, []error) {
 	if ud.manifests == nil {
 		var wg sync.WaitGroup
 
@@ -211,7 +218,7 @@ func (ud UserData) getUpstreamManifests(ctx *context.RequestContext) ([]stremio.
 	return ud.manifests, nil
 }
 
-func (ud UserData) getUpstreamsResolver(ctx *context.RequestContext) (upstreamsResolver, error) {
+func (ud UserData) getUpstreamsResolver(ctx *context.StoreContext) (upstreamsResolver, error) {
 	eud, err := ud.GetEncoded(false)
 	if err != nil {
 		return nil, err
@@ -268,7 +275,7 @@ func (ud UserData) getUpstreamsResolver(ctx *context.RequestContext) (upstreamsR
 	return ud.resolver, nil
 }
 
-func (ud UserData) getUpstreams(ctx *context.RequestContext, rName stremio.ResourceName, rType, id string) ([]UserDataUpstream, error) {
+func (ud UserData) getUpstreams(ctx *context.StoreContext, rName stremio.ResourceName, rType, id string) ([]UserDataUpstream, error) {
 	switch rName {
 	case stremio.ResourceNameAddonCatalog:
 		return []UserDataUpstream{}, nil
@@ -322,7 +329,7 @@ func getUserData(r *http.Request) (*UserData, error) {
 			up := &data.Upstreams[i]
 			if up.ExtractorId != "" {
 				if err := extractorStore.Get(up.ExtractorId, &up.extractor); err != nil {
-					core.LogError(fmt.Sprintf("[stremio/wrap] failed to fetch extractor(%s)", up.ExtractorId), err)
+					LogError(r, fmt.Sprintf("failed to fetch extractor(%s)", up.ExtractorId), err)
 					hasMissingExtractor = true
 				}
 			} else {
@@ -332,7 +339,7 @@ func getUserData(r *http.Request) (*UserData, error) {
 
 		if !hasMissingExtractor && data.TemplateId != "" {
 			if err := templateStore.Get(data.TemplateId, &data.template); err != nil {
-				core.LogError(fmt.Sprintf("[stremio/wrap] failed to fetch template(%s)", data.TemplateId), err)
+				LogError(r, fmt.Sprintf("failed to fetch template(%s)", data.TemplateId), err)
 			}
 		}
 	}

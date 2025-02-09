@@ -78,7 +78,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := ExecuteTemplate(td)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 	SendHTML(w, 200, buf)

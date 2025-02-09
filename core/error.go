@@ -2,8 +2,10 @@ package core
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
+
+	"github.com/MunifTanjim/stremthru/internal/server"
 )
 
 type ErrorType string
@@ -47,10 +49,12 @@ type StremThruError interface {
 	Pack()
 	GetStatusCode() int
 	GetError() *Error
-	Send(w http.ResponseWriter)
+	Send(w http.ResponseWriter, r *http.Request)
 }
 
 type Error struct {
+	RequestId string `json:"request_id"`
+
 	Type ErrorType `json:"type"`
 
 	Code ErrorCode `json:"code,omitempty"`
@@ -70,6 +74,38 @@ type errorResponse struct {
 	Error *Error `json:"error,omitempty"`
 }
 
+func (e *Error) LogValue() slog.Value {
+	attrs := []slog.Attr{}
+	if e.Type != "" {
+		attrs = append(attrs, slog.String("type", string(e.Type)))
+	}
+	if e.Code != "" {
+		attrs = append(attrs, slog.String("code", string(e.Code)))
+	}
+	if e.Msg != "" {
+		attrs = append(attrs, slog.String("message", e.Msg))
+	}
+	if e.Method != "" {
+		attrs = append(attrs, slog.String("method", e.Method))
+	}
+	if e.Path != "" {
+		attrs = append(attrs, slog.String("path", e.Path))
+	}
+	if e.StatusCode != 0 {
+		attrs = append(attrs, slog.Int("status_code", e.StatusCode))
+	}
+	if e.StoreName != "" {
+		attrs = append(attrs, slog.String("store_name", e.StoreName))
+	}
+	if e.UpstreamCause != nil {
+		attrs = append(attrs, slog.Any("upstream_cause", e.UpstreamCause))
+	}
+	if e.Cause != nil {
+		attrs = append(attrs, slog.Any("cause", e.Cause))
+	}
+	return slog.GroupValue(attrs...)
+}
+
 func (e *Error) Error() string {
 	ret, _ := json.Marshal(e)
 	return string(ret)
@@ -87,17 +123,25 @@ func (e *Error) GetError() *Error {
 	return e
 }
 
-func (e *Error) Send(w http.ResponseWriter) {
+func (e *Error) Send(w http.ResponseWriter, r *http.Request) {
 	e.Pack()
+	if e.RequestId == "" {
+		e.RequestId = w.Header().Get("Request-ID")
+	}
+
+	ctx := server.GetReqCtx(r)
+	ctx.Error = e
+
 	res := &errorResponse{Error: e}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(e.GetStatusCode())
 	if err := json.NewEncoder(w).Encode(res); err != nil {
-		log.Printf("failed to encode json %v\n", err)
+		LogError(r, "failed to encode json", err)
 	}
 }
 
 func (e *Error) InjectReq(r *http.Request) {
+	e.RequestId = r.Header.Get("Request-ID")
 	e.Method = r.Method
 	e.Path = r.URL.Path
 	if storeName := r.Header.Get("X-StremThru-Store-Name"); storeName != "" {
@@ -198,6 +242,7 @@ func PackError(err error) error {
 	return e.GetError()
 }
 
-func LogError(msg string, err error) {
-	log.Printf("%s: %v\n", msg, PackError(err))
+func LogError(r *http.Request, msg string, err error) {
+	ctx := server.GetReqCtx(r)
+	ctx.Log.Error(msg, "error", PackError(err))
 }

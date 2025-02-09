@@ -77,7 +77,7 @@ type proxyLinkTokenData struct {
 	TunnelType config.TunnelType `json:"tunt,omitempty"`
 }
 
-func CreateProxyLink(r *http.Request, ctx *context.RequestContext, link string, headers map[string]string, tunnelType config.TunnelType) (string, error) {
+func CreateProxyLink(r *http.Request, ctx *context.StoreContext, link string, headers map[string]string, tunnelType config.TunnelType) (string, error) {
 	if !ctx.IsProxyAuthorized {
 		return link, nil
 	}
@@ -122,7 +122,7 @@ func CreateProxyLink(r *http.Request, ctx *context.RequestContext, link string, 
 	return proxyLink.String(), nil
 }
 
-func GenerateStremThruLink(r *http.Request, ctx *context.RequestContext, link string) (*store.GenerateLinkData, error) {
+func GenerateStremThruLink(r *http.Request, ctx *context.StoreContext, link string) (*store.GenerateLinkData, error) {
 	params := &store.GenerateLinkParams{}
 	params.APIKey = ctx.StoreAuthToken
 	params.Link = link

@@ -15,7 +15,7 @@ type HealthData struct {
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	health := &HealthData{}
 	health.Status = "ok"
-	SendResponse(w, 200, health, nil)
+	SendResponse(w, r, 200, health, nil)
 }
 
 type HealthDebugDataIP struct {
@@ -41,7 +41,7 @@ type HealthDebugData struct {
 }
 
 func handleHealthDebug(w http.ResponseWriter, r *http.Request) {
-	ctx := context.GetRequestContext(r)
+	ctx := context.GetStoreContext(r)
 
 	data := &HealthDebugData{
 		Time:    time.Now().Format(time.RFC3339),
@@ -64,7 +64,7 @@ func handleHealthDebug(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	SendResponse(w, 200, data, nil)
+	SendResponse(w, r, 200, data, nil)
 }
 
 func AddHealthEndpoints(mux *http.ServeMux) {

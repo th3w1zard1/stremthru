@@ -6,16 +6,18 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-	"log"
 	"strings"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/db"
+	"github.com/MunifTanjim/stremthru/internal/logger"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
 const TableName = "magnet_cache"
+
+var mcLog = logger.Scoped(TableName)
 
 type File struct {
 	Idx  int    `json:"i"`
@@ -159,7 +161,7 @@ func Touch(store store.StoreCode, hash string, files Files, sid string) {
 		_, err = result.RowsAffected()
 	}
 	if err != nil {
-		log.Printf("[magnet_cache] failed to touch: %v\n", err)
+		mcLog.Error("failed to touch", "error", err)
 		return
 	}
 	TrackFiles(hash, files, sid)
@@ -201,7 +203,7 @@ func BulkTouch(store store.StoreCode, filesByHash map[string]Files, sid string) 
 		hit_query.WriteString(" ON CONFLICT (store, hash) DO UPDATE SET is_cached = excluded.is_cached, files = excluded.files, modified_at = " + db.CurrentTimestamp)
 		_, err := db.Exec(hit_query.String(), hit_args...)
 		if err != nil {
-			log.Printf("[magnet_cache] failed to touch hits: %v\n", err)
+			mcLog.Error("failed to touch hits", "error", err)
 		}
 		BulkTrackFiles(filesByHash, sid)
 	}
@@ -210,7 +212,7 @@ func BulkTouch(store store.StoreCode, filesByHash map[string]Files, sid string) 
 		miss_query.WriteString(" ON CONFLICT (store, hash) DO UPDATE SET is_cached = excluded.is_cached, modified_at = " + db.CurrentTimestamp)
 		_, err := db.Exec(miss_query.String(), miss_args...)
 		if err != nil {
-			log.Printf("[magnet_cache] failed to touch misses: %v\n", err)
+			mcLog.Error("failed to touch misses", "error", err)
 		}
 	}
 }

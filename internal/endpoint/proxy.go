@@ -10,13 +10,13 @@ import (
 
 func handleProxy(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	targetUrl := r.URL.Query().Get("url")
 	if targetUrl == "" {
-		shared.ErrorBadRequest(r, "missing url").Send(w)
+		shared.ErrorBadRequest(r, "missing url").Send(w, r)
 		return
 	}
 
@@ -24,14 +24,14 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		e := shared.ErrorBadRequest(r, "invalid url")
 		e.Cause = err
-		e.Send(w)
+		e.Send(w, r)
 		return
 	}
 
 	if u, err := url.ParseRequestURI(targetUrl); err != nil || u.Scheme == "" || u.Host == "" {
 		e := shared.ErrorBadRequest(r, "invalid url")
 		e.Cause = err
-		e.Send(w)
+		e.Send(w, r)
 		return
 	}
 

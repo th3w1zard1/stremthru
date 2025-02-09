@@ -2,7 +2,6 @@ package stremio_wrap
 
 import (
 	"errors"
-	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -16,6 +15,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
+	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/internal/store/video"
 	"github.com/MunifTanjim/stremthru/internal/stremio/addon"
@@ -46,10 +46,10 @@ func parseCatalogId(id string, ud *UserData) (idx int, catalogId string, err err
 	return idx, catalogId, nil
 }
 
-func (ud UserData) fetchAddonCatalog(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, rType, id string) {
+func (ud UserData) fetchAddonCatalog(ctx *context.StoreContext, w http.ResponseWriter, r *http.Request, rType, id string) {
 	idx, catalogId, err := parseCatalogId(id, &ud)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 	addon.ProxyResource(w, r, &stremio_addon.ProxyResourceParams{
@@ -61,10 +61,10 @@ func (ud UserData) fetchAddonCatalog(ctx *context.RequestContext, w http.Respons
 	})
 }
 
-func (ud UserData) fetchCatalog(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, rType, id, extra string) {
+func (ud UserData) fetchCatalog(ctx *context.StoreContext, w http.ResponseWriter, r *http.Request, rType, id, extra string) {
 	idx, catalogId, err := parseCatalogId(id, &ud)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 	addon.ProxyResource(w, r, &stremio_addon.ProxyResourceParams{
@@ -77,7 +77,7 @@ func (ud UserData) fetchCatalog(ctx *context.RequestContext, w http.ResponseWrit
 	})
 }
 
-func (ud UserData) fetchMeta(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, rType, id, extra string) error {
+func (ud UserData) fetchMeta(ctx *context.StoreContext, w http.ResponseWriter, r *http.Request, rType, id, extra string) error {
 	upstreams, err := ud.getUpstreams(ctx, stremio.ResourceNameMeta, rType, id)
 	if err != nil {
 		return err
@@ -96,7 +96,7 @@ func (ud UserData) fetchMeta(ctx *context.RequestContext, w http.ResponseWriter,
 	return nil
 }
 
-func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rType, id string) (*stremio.StreamHandlerResponse, error) {
+func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType, id string) (*stremio.StreamHandlerResponse, error) {
 	eud, err := ud.GetEncoded(false)
 	if err != nil {
 		return nil, err
@@ -106,9 +106,11 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 	if err != nil {
 		return nil, err
 	}
+	upstreamsCount := len(upstreams)
+	log.Debug("found addons for stream", "count", upstreamsCount)
 
-	chunks := make([][]WrappedStream, len(upstreams))
-	errs := make([]error, len(upstreams))
+	chunks := make([][]WrappedStream, upstreamsCount)
+	errs := make([]error, upstreamsCount)
 
 	template, err := ud.template.Parse()
 	if err != nil {
@@ -143,7 +145,7 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 						stream := &streams[i]
 						wstream, err := transformer.Do(stream, up.ReconfigureStore)
 						if err != nil {
-							core.LogError("[stremio/wrap] failed to transform stream", err)
+							LogError(r, "failed to transform stream", err)
 						}
 						if up.NoContentProxy {
 							wstream.noContentProxy = true
@@ -160,7 +162,7 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 	allStreams := []WrappedStream{}
 	for i := range chunks {
 		if errs[i] != nil {
-			log.Println("[stremio/wrap] failed to fetch streams", errs[i])
+			log.Error("failed to fetch streams", "error", errs[i])
 			continue
 		}
 		allStreams = append(allStreams, chunks[i]...)
@@ -170,7 +172,9 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 		SortWrappedStreams(allStreams, ud.Sort)
 	}
 
+	totalStreams := len(allStreams)
 	allStreams = dedupeStreams(allStreams)
+	log.Debug("found streams", "total_count", totalStreams, "deduped_count", len(allStreams))
 
 	hashes := []string{}
 	magnetByHash := map[string]core.MagnetLink{}
@@ -266,11 +270,12 @@ func (ud UserData) fetchStream(ctx *context.RequestContext, r *http.Request, rTy
 	}, nil
 }
 
-func (ud UserData) fetchSubtitles(ctx *context.RequestContext, rType, id, extra string) (*stremio.SubtitlesHandlerResponse, error) {
+func (ud UserData) fetchSubtitles(ctx *context.StoreContext, rType, id, extra string) (*stremio.SubtitlesHandlerResponse, error) {
 	upstreams, err := ud.getUpstreams(ctx, stremio.ResourceNameSubtitles, rType, id)
 	if err != nil {
 		return nil, err
 	}
+	log.Debug("found addons for subtitles", "count", len(upstreams))
 
 	chunks := make([][]stremio.Subtitle, len(upstreams))
 	errs := make([]error, len(upstreams))
@@ -296,7 +301,7 @@ func (ud UserData) fetchSubtitles(ctx *context.RequestContext, rType, id, extra 
 	subtitles := []stremio.Subtitle{}
 	for i := range chunks {
 		if errs[i] != nil {
-			log.Println("[stremio/wrap] failed to fetch subtitles", errs[i])
+			log.Error("failed to fetch subtitles", "error", errs[i])
 			continue
 		}
 		subtitles = append(subtitles, chunks[i]...)
@@ -313,19 +318,19 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 
 func handleManifest(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	ud, err := getUserData(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -333,24 +338,24 @@ func handleManifest(w http.ResponseWriter, r *http.Request) {
 	if errs != nil {
 		serr := shared.ErrorInternalServerError(r, "failed to fetch upstream manifests")
 		serr.Cause = errors.Join(errs...)
-		serr.Send(w)
+		serr.Send(w, r)
 		return
 	}
 
 	manifest := getManifest(manifests, ud)
 
-	SendResponse(w, 200, manifest)
+	SendResponse(w, r, 200, manifest)
 }
 
 func handleConfigure(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) && !IsMethod(r, http.MethodPost) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	ud, err := getUserData(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -404,7 +409,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			if SupportAdvanced && td.IsAuthed {
 				idx, err := strconv.Atoi(r.Form.Get("upstream_index"))
 				if err != nil {
-					SendError(w, err)
+					SendError(w, r, err)
 					return
 				}
 				up := &td.Upstreams[idx]
@@ -412,10 +417,10 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				var value StreamTransformerExtractorBlob
 				if id != "" {
 					if err := extractorStore.Get(id, &value); err != nil {
-						core.LogError("[stremio/wrap] failed to fetch extractor", err)
+						LogError(r, "failed to fetch extractor", err)
 						up.ExtractorError = "Failed to fetch extractor"
 					} else if _, err := value.Parse(); err != nil {
-						core.LogError("[stremio/wrap] failed to parse extractor", err)
+						LogError(r, "failed to parse extractor", err)
 						up.ExtractorError = err.Error()
 					}
 				}
@@ -426,13 +431,13 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				id := r.Form.Get("extractor_id")
 				idx, err := strconv.Atoi(r.Form.Get("extractor_upstream_index"))
 				if err != nil {
-					SendError(w, err)
+					SendError(w, r, err)
 					return
 				}
 				up := &td.Upstreams[idx]
 				value := up.Extractor
 				if _, err := value.Parse(); err != nil {
-					core.LogError("[stremio/wrap] failed to parse extractor", err)
+					LogError(r, "failed to parse extractor", err)
 					up.ExtractorError = err.Error()
 				} else {
 					up.ExtractorId = id
@@ -441,7 +446,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				if up.ExtractorError == "" {
 					if value == "" {
 						if err := extractorStore.Del(id); err != nil {
-							core.LogError("[stremio/wrap] failed to delete extractor", err)
+							LogError(r, "failed to delete extractor", err)
 							up.ExtractorError = "Failed to delete extractor"
 						}
 						extractorIds := []string{}
@@ -460,7 +465,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 						}
 					} else {
 						if err := extractorStore.Set(id, value); err != nil {
-							core.LogError("[stremio/wrap] failed to save extractor", err)
+							LogError(r, "failed to save extractor", err)
 							up.ExtractorError = "Failed to save extractor"
 						} else {
 							extractorIds := []string{}
@@ -481,11 +486,11 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				value := StreamTransformerTemplateBlob{}
 				if id != "" {
 					if err := templateStore.Get(id, &value); err != nil {
-						core.LogError("[stremio/wrap] failed to fetch template", err)
+						LogError(r, "failed to fetch template", err)
 						td.TemplateError.Name = "Failed to fetch template"
 						td.TemplateError.Description = "Failed to fetch template"
 					} else if t, err := value.Parse(); err != nil {
-						core.LogError("[stremio/wrap] failed to parse template", err)
+						LogError(r, "failed to parse template", err)
 						if t.Name == nil {
 							td.TemplateError.Name = err.Error()
 						} else {
@@ -500,7 +505,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				id := r.Form.Get("template_id")
 				value := td.Template
 				if t, err := value.Parse(); err != nil {
-					core.LogError("[stremio/wrap] failed to parse template", err)
+					LogError(r, "failed to parse template", err)
 					if t.Name == nil {
 						td.TemplateError.Name = err.Error()
 					} else {
@@ -512,7 +517,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				if td.TemplateError.Name == "" && td.TemplateError.Description == "" {
 					if value.Name == "" && value.Description == "" {
 						if err := templateStore.Del(id); err != nil {
-							core.LogError("[stremio/wrap] failed to delete template", err)
+							LogError(r, "failed to delete template", err)
 							td.TemplateError.Name = "Failed to delete template"
 							td.TemplateError.Description = "Failed to delete template"
 						}
@@ -527,7 +532,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 						td.Template = StreamTransformerTemplateBlob{}
 					} else {
 						if err := templateStore.Set(id, value); err != nil {
-							core.LogError("[stremio/wrap] failed to save template", err)
+							LogError(r, "failed to save template", err)
 							td.TemplateError.Name = "Failed to save template"
 							td.TemplateError.Description = "Failed to save template"
 						} else {
@@ -547,7 +552,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 
 		page, err := getPage(td)
 		if err != nil {
-			SendError(w, err)
+			SendError(w, r, err)
 			return
 		}
 		SendHTML(w, 200, page)
@@ -576,7 +581,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				store_config.Error = uderr.store
 				token_config.Error = uderr.token
 			} else {
-				SendError(w, err)
+				SendError(w, r, err)
 				return
 			}
 		}
@@ -589,7 +594,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 
 				if tup.Error == "" {
 					if errs != nil && errs[i] != nil {
-						core.LogError("[stremio/wrap] failed to fetch manifest", errs[i])
+						LogError(r, "failed to fetch manifest", errs[i])
 						tup.Error = "Failed to fetch Manifest"
 						continue
 					}
@@ -611,7 +616,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				params.APIKey = ctx.StoreAuthToken
 				_, err := ctx.Store.GetUser(params)
 				if err != nil {
-					core.LogError("[stremio/wrap] failed to access store", err)
+					LogError(r, "failed to access store", err)
 					token_config.Error = "Failed to access store"
 				}
 			}
@@ -629,7 +634,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 
 		page, err := getPage(td)
 		if err != nil {
-			SendError(w, err)
+			SendError(w, r, err)
 			return
 		}
 		SendHTML(w, 200, page)
@@ -638,7 +643,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 
 	eud, err := ud.GetEncoded(true)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -652,13 +657,13 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 
 func handleResource(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) && !IsMethod(r, http.MethodHead) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	ud, err := getUserData(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -669,7 +674,7 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -681,25 +686,25 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 	case stremio.ResourceNameMeta:
 		err = ud.fetchMeta(ctx, w, r, contentType, id, extra)
 		if err != nil {
-			SendError(w, err)
+			SendError(w, r, err)
 		}
 		return
 	case stremio.ResourceNameStream:
 		res, err := ud.fetchStream(ctx, r, contentType, id)
 		if err != nil {
-			SendError(w, err)
+			SendError(w, r, err)
 			return
 		}
-		SendResponse(w, 200, res)
+		SendResponse(w, r, 200, res)
 		return
 
 	case stremio.ResourceNameSubtitles:
 		res, err := ud.fetchSubtitles(ctx, contentType, id, extra)
 		if err != nil {
-			SendError(w, err)
+			SendError(w, r, err)
 			return
 		}
-		SendResponse(w, 200, res)
+		SendResponse(w, r, 200, res)
 		return
 	default:
 		addon.ProxyResource(w, r, &stremio_addon.ProxyResourceParams{
@@ -713,7 +718,7 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func waitForMagnetStatus(ctx *context.RequestContext, m *store.GetMagnetData, status store.MagnetStatus, maxRetry int, retryInterval time.Duration) (*store.GetMagnetData, error) {
+func waitForMagnetStatus(ctx *context.StoreContext, m *store.GetMagnetData, status store.MagnetStatus, maxRetry int, retryInterval time.Duration) (*store.GetMagnetData, error) {
 	retry := 0
 	for m.Status != status && retry < maxRetry {
 		gmParams := &store.GetMagnetParams{Id: m.Id}
@@ -754,7 +759,7 @@ type stremResult struct {
 
 func handleStrem(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) && !IsMethod(r, http.MethodHead) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
@@ -767,16 +772,16 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 
 	ud, err := getUserData(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
-			core.LogError("[stremio/wrap] failed to get request context", err)
+			LogError(r, "failed to get request context", err)
 		}
-		shared.ErrorBadRequest(r, "").Send(w)
+		shared.ErrorBadRequest(r, "failed to get request context").Send(w, r)
 		return
 	}
 
@@ -784,11 +789,13 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 
 	stremLink := ""
 	if stremLinkCache.Get(cacheKey, &stremLink) {
+		log.Debug("redirecting to cached stream link")
 		http.Redirect(w, r, stremLink, http.StatusFound)
 		return
 	}
 
 	result, err, _ := stremGroup.Do(cacheKey, func() (interface{}, error) {
+		log.Debug("creating stream link")
 		amParams := &store.AddMagnetParams{
 			Magnet:   magnetHash,
 			ClientIP: ctx.ClientIP,
@@ -845,6 +852,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 				f := &magnet.Files[i]
 				if f.Name == fileName {
 					file = f
+					log.Debug("matched file using filename", "filename", f.Name)
 					break
 				}
 			}
@@ -854,6 +862,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 				f := &magnet.Files[i]
 				if pattern.MatchString(f.Name) {
 					file = f
+					log.Debug("matched file using pattern", "pattern", pattern.String(), "filename", f.Name)
 					break
 				}
 			}
@@ -862,6 +871,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 			for i := range magnet.Files {
 				f := &magnet.Files[i]
 				if f.Idx == fileIdx {
+					log.Debug("matched file using fileidx", "fileidx", f.Idx, "filename", f.Name)
 					file = f
 					break
 				}
@@ -871,6 +881,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 			for i := range magnet.Files {
 				f := &magnet.Files[i]
 				if file == nil || file.Size < f.Size {
+					log.Debug("matched file using largest size", "filename", f.Name)
 					file = f
 				}
 			}
@@ -906,32 +917,45 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 
 	if strem.error_log != "" {
 		if err != nil {
-			core.LogError("[stremio/wrap] "+strem.error_log, err)
+			LogError(r, strem.error_log, err)
 		} else {
-			log.Println("[stremio/wrap] " + strem.error_log)
+			log.Error(strem.error_log)
 		}
 		redirectToStaticVideo(w, r, cacheKey, strem.error_video)
 		return
 	}
 
+	log.Debug("redirecting to stream link")
 	http.Redirect(w, r, strem.link, http.StatusFound)
+}
+
+func commonMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := server.GetReqCtx(r)
+		ctx.Log = log.With("request_id", ctx.RequestId)
+		next.ServeHTTP(w, r)
+		ctx.RedactURLPathValues(r, "userData")
+	})
 }
 
 func AddStremioWrapEndpoints(mux *http.ServeMux) {
 	withCors := shared.Middleware(shared.EnableCORS)
 
-	mux.HandleFunc("/stremio/wrap", handleRoot)
-	mux.HandleFunc("/stremio/wrap/{$}", handleRoot)
+	router := http.NewServeMux()
 
-	mux.HandleFunc("/stremio/wrap/manifest.json", withCors(handleManifest))
-	mux.HandleFunc("/stremio/wrap/{userData}/manifest.json", withCors(handleManifest))
+	router.HandleFunc("/{$}", handleRoot)
 
-	mux.HandleFunc("/stremio/wrap/configure", handleConfigure)
-	mux.HandleFunc("/stremio/wrap/{userData}/configure", handleConfigure)
+	router.HandleFunc("/manifest.json", withCors(handleManifest))
+	router.HandleFunc("/{userData}/manifest.json", withCors(handleManifest))
 
-	mux.HandleFunc("/stremio/wrap/{userData}/{resource}/{contentType}/{id}", withCors(handleResource))
-	mux.HandleFunc("/stremio/wrap/{userData}/{resource}/{contentType}/{id}/{extra}", withCors(handleResource))
+	router.HandleFunc("/configure", handleConfigure)
+	router.HandleFunc("/{userData}/configure", handleConfigure)
 
-	mux.HandleFunc("/stremio/wrap/{userData}/_/strem/{magnetHash}/{fileIdx}/{$}", withCors(handleStrem))
-	mux.HandleFunc("/stremio/wrap/{userData}/_/strem/{magnetHash}/{fileIdx}/{fileName}", withCors(handleStrem))
+	router.HandleFunc("/{userData}/{resource}/{contentType}/{id}", withCors(handleResource))
+	router.HandleFunc("/{userData}/{resource}/{contentType}/{id}/{extra}", withCors(handleResource))
+
+	router.HandleFunc("/{userData}/_/strem/{magnetHash}/{fileIdx}/{$}", withCors(handleStrem))
+	router.HandleFunc("/{userData}/_/strem/{magnetHash}/{fileIdx}/{fileName}", withCors(handleStrem))
+
+	mux.Handle("/stremio/wrap/", http.StripPrefix("/stremio/wrap", commonMiddleware(router)))
 }

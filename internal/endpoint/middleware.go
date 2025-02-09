@@ -13,7 +13,7 @@ import (
 
 func withRequestContext(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, context.SetRequestContext(r))
+		next.ServeHTTP(w, context.SetStoreContext(r))
 	})
 }
 
@@ -30,7 +30,7 @@ func extractProxyAuthToken(r *http.Request) (token string, hasToken bool) {
 
 func ProxyAuthContext(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.GetRequestContext(r)
+		ctx := context.GetStoreContext(r)
 
 		token, hasToken := extractProxyAuthToken(r)
 		auth, err := core.ParseBasicAuth(token)
@@ -45,11 +45,11 @@ func ProxyAuthContext(next http.HandlerFunc) http.HandlerFunc {
 
 func ProxyAuthRequired(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.GetRequestContext(r)
+		ctx := context.GetStoreContext(r)
 
 		if !ctx.IsProxyAuthorized {
 			w.Header().Add("Proxy-Authenticate", "Basic")
-			shared.ErrorProxyAuthRequired(r).Send(w)
+			shared.ErrorProxyAuthRequired(r).Send(w, r)
 			return
 		}
 
@@ -60,7 +60,7 @@ func ProxyAuthRequired(next http.HandlerFunc) http.HandlerFunc {
 func getStoreName(r *http.Request) (store.StoreName, *core.StoreError) {
 	name := r.Header.Get("X-StremThru-Store-Name")
 	if name == "" {
-		ctx := context.GetRequestContext(r)
+		ctx := context.GetStoreContext(r)
 		if ctx.IsProxyAuthorized {
 			name = config.StoreAuthToken.GetPreferredStore(ctx.ProxyAuthUser)
 			r.Header.Set("X-StremThru-Store-Name", name)
@@ -78,7 +78,7 @@ func getStoreAuthToken(r *http.Request) string {
 		authHeader = r.Header.Get("Authorization")
 	}
 	if authHeader == "" {
-		ctx := context.GetRequestContext(r)
+		ctx := context.GetStoreContext(r)
 		if ctx.IsProxyAuthorized && ctx.Store != nil {
 			if token := config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, string(ctx.Store.GetName())); token != "" {
 				return token
@@ -103,10 +103,10 @@ func StoreContext(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		store, err := getStore(r)
 		if err != nil {
-			SendError(w, err)
+			SendError(w, r, err)
 			return
 		}
-		ctx := context.GetRequestContext(r)
+		ctx := context.GetStoreContext(r)
 		ctx.Store = store
 		ctx.StoreAuthToken = getStoreAuthToken(r)
 		ctx.PeerToken = r.Header.Get("X-StremThru-Peer-Token")
@@ -120,16 +120,16 @@ func StoreContext(next http.HandlerFunc) http.HandlerFunc {
 
 func StoreRequired(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.GetRequestContext(r)
+		ctx := context.GetStoreContext(r)
 
 		if ctx.Store == nil {
-			shared.ErrorBadRequest(r, "missing store").Send(w)
+			shared.ErrorBadRequest(r, "missing store").Send(w, r)
 			return
 		}
 
 		if ctx.StoreAuthToken == "" {
 			w.Header().Add("WWW-Authenticate", "Bearer realm=\"store:"+string(ctx.Store.GetName())+"\"")
-			shared.ErrorUnauthorized(r).Send(w)
+			shared.ErrorUnauthorized(r).Send(w, r)
 			return
 		}
 

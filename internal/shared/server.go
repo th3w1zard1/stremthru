@@ -1,6 +1,15 @@
 package shared
 
-import "net/http"
+import (
+	"log/slog"
+	"net/http"
+	"runtime"
+	"time"
+
+	"github.com/MunifTanjim/stremthru/internal/logger"
+	"github.com/MunifTanjim/stremthru/internal/server"
+	"github.com/google/uuid"
+)
 
 type MiddlewareFunc func(http.HandlerFunc) http.HandlerFunc
 
@@ -18,4 +27,72 @@ func EnableCORS(next http.HandlerFunc) http.HandlerFunc {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		next.ServeHTTP(w, r)
 	})
+}
+
+var reqLog = logger.Scoped("http")
+
+func RootServerContext(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rw := &responseWriter{ResponseWriter: w}
+		ctx := &server.ReqCtx{StartTime: time.Now(), URL: r.URL.String()}
+		r = server.SetReqCtx(r, ctx)
+
+		defer func() {
+			if err := recover(); err != nil {
+				buf := make([]byte, 2048)
+				n := runtime.Stack(buf, false)
+				buf = buf[:n]
+
+				reqLog.Error("panic recovered", "error", err, "stack", string(buf), "request_id", ctx.RequestId)
+				ErrorInternalServerError(r, "").Send(rw, r)
+				logRequest(rw, r)
+			}
+		}()
+
+		ctx.RequestId = r.Header.Get("Request-ID")
+		if ctx.RequestId == "" {
+			ctx.RequestId = uuid.New().String()
+			r.Header.Set("Request-ID", ctx.RequestId)
+		}
+		w.Header().Set("Request-ID", ctx.RequestId)
+
+		ctx.Log = slog.With("request_id", ctx.RequestId)
+
+		next.ServeHTTP(rw, r)
+		logRequest(rw, r)
+	})
+}
+
+type ResponseWriter interface {
+	http.ResponseWriter
+
+	getStatusCode() int
+}
+
+type responseWriter struct {
+	http.ResponseWriter
+
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(statusCode int) {
+	rw.statusCode = statusCode
+	rw.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (rw *responseWriter) getStatusCode() int {
+	return rw.statusCode
+}
+
+func logRequest(w *responseWriter, r *http.Request) {
+	ctx := server.GetReqCtx(r)
+
+	status := w.getStatusCode()
+	if status < 400 {
+		reqLog.Debug("HTTP Request", "request_id", ctx.RequestId, "method", r.Method, "url", ctx.URL, "status", w.getStatusCode(), "latency", time.Since(ctx.StartTime))
+	} else if status < 500 {
+		reqLog.Warn("HTTP Request", "request_id", ctx.RequestId, "method", r.Method, "url", ctx.URL, "status", w.getStatusCode(), "latency", time.Since(ctx.StartTime), "error", ctx.Error)
+	} else {
+		reqLog.Error("HTTP Request", "request_id", ctx.RequestId, "method", r.Method, "url", ctx.URL, "status", w.getStatusCode(), "latency", time.Since(ctx.StartTime), "error", ctx.Error)
+	}
 }

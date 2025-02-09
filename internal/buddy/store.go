@@ -1,13 +1,12 @@
 package buddy
 
 import (
-	"fmt"
-	"log"
 	"regexp"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
+	"github.com/MunifTanjim/stremthru/internal/logger"
 	"github.com/MunifTanjim/stremthru/internal/magnet_cache"
 	"github.com/MunifTanjim/stremthru/internal/peer"
 	"github.com/MunifTanjim/stremthru/store"
@@ -17,10 +16,14 @@ var Buddy = NewAPIClient(&APIClientConfig{
 	BaseURL: config.BuddyURL,
 })
 
+var buddyLog = logger.Scoped("buddy")
+
 var Peer = peer.NewAPIClient(&peer.APIClientConfig{
 	BaseURL: config.PeerURL,
 	APIKey:  config.PeerAuthToken,
 })
+
+var peerLog = logger.Scoped("buddy:upstream")
 
 func TrackMagnet(s store.Store, hash string, files []store.MagnetFile, sid string, cacheMiss bool, storeToken string) {
 	mcFiles := magnet_cache.Files{}
@@ -41,9 +44,9 @@ func TrackMagnet(s store.Store, hash string, files []store.MagnetFile, sid strin
 		}
 		start := time.Now()
 		if _, err := Buddy.TrackMagnetCache(params); err != nil {
-			core.LogError(fmt.Sprintf("[buddy] failed to track magnet cache for %s:%s, took %v", s.GetName(), hash, time.Since(start)), err)
+			buddyLog.Error("failed to track magnet cache", "store", s.GetName(), "hash", hash, "error", core.PackError(err), "duration", time.Since(start))
 		} else {
-			log.Printf("[buddy] track magnet cache for %s:%s, took %v", s.GetName(), hash, time.Since(start))
+			buddyLog.Info("track magnet cache", "store", s.GetName(), "hash", hash, "duration", time.Since(start))
 		}
 	}
 
@@ -59,9 +62,9 @@ func TrackMagnet(s store.Store, hash string, files []store.MagnetFile, sid strin
 		go func() {
 			start := time.Now()
 			if _, err := Peer.TrackMagnet(params); err != nil {
-				core.LogError(fmt.Sprintf("[buddy:upstream] failed to track magnet cache for %s:%s, took %v", s.GetName(), hash, time.Since(start)), err)
+				peerLog.Error("failed to track magnet cache", "store", s.GetName(), "hash", hash, "error", core.PackError(err), "duration", time.Since(start))
 			} else {
-				log.Printf("[buddy:upstream] track magnet cache for %s:%s, took %v", s.GetName(), hash, time.Since(start))
+				peerLog.Info("track magnet cache", "store", s.GetName(), "hash", hash, "duration", time.Since(start))
 			}
 		}()
 	}
@@ -126,10 +129,10 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 		res, err := Buddy.CheckMagnetCache(params)
 		duration := time.Since(start)
 		if err != nil {
-			core.LogError(fmt.Sprintf("[buddy] failed to check magnet, took %v", duration), err)
+			buddyLog.Error("failed to check magnet", "error", core.PackError(err), "duration", duration)
 			return data, nil
 		} else {
-			log.Printf("[buddy] check magnet, took %v\n", duration)
+			buddyLog.Info("check magnet", "duration", duration)
 			filesByHash := map[string]magnet_cache.Files{}
 			for _, item := range res.Data.Items {
 				res_item := store.CheckMagnetDataItem{
@@ -143,7 +146,7 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 					seenByName := map[string]bool{}
 					for _, f := range item.Files {
 						if _, seen := seenByName[f.Name]; seen {
-							log.Printf("[buddy] found duplicate file hash(%s) name(%s)", item.Hash, f.Name)
+							buddyLog.Info("found duplicate file", "hash", item.Hash, "filename", f.Name)
 							continue
 						}
 						seenByName[f.Name] = true
@@ -178,10 +181,10 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 			Peer.HaltCheckMagnet()
 		}
 		if err != nil {
-			core.LogError(fmt.Sprintf("[buddy:upstream] failed to check magnet, took %v", duration), err)
+			peerLog.Error("failed to check magnet", "error", core.PackError(err), "duration", duration)
 			return data, nil
 		} else {
-			log.Printf("[buddy:upstream] check magnet, took %v\n", duration)
+			peerLog.Info("check magnet", "duration", duration)
 			filesByHash := map[string]magnet_cache.Files{}
 			for _, item := range res.Data.Items {
 				files := magnet_cache.Files{}
@@ -189,7 +192,7 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 					seenByName := map[string]bool{}
 					for _, f := range item.Files {
 						if _, seen := seenByName[f.Name]; seen {
-							log.Printf("[buddy:upstream] found duplicate file hash(%s) name(%s)", item.Hash, f.Name)
+							peerLog.Info("found duplicate file", "hash", item.Hash, "filename", f.Name)
 							continue
 						}
 						seenByName[f.Name] = true

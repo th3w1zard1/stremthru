@@ -2,7 +2,7 @@ package stremio_wrap
 
 import (
 	"bytes"
-	"log"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -74,7 +74,7 @@ func (steb StreamTransformerExtractorBlob) Parse() (StreamTransformerExtractor, 
 		} else {
 			re, err := regexp.Compile(part)
 			if err != nil {
-				log.Printf("[stremio/wrap] failed to compile regex %s: %v", part, err)
+				log.Error(fmt.Sprintf("failed to compile regex( %s )", part), "error", err)
 				return nil, err
 			}
 			pattern := StreamTransformerPattern{Regex: re}
@@ -120,12 +120,12 @@ func (sttb StreamTransformerTemplateBlob) Parse() (*StreamTransformerTemplate, e
 	var err error
 	stt.Name, err = template.New("name").Parse(sttb.Name)
 	if err != nil {
-		log.Printf("[stremio/wrap] failed to parse name template: %v", err)
+		log.Error("failed to parse name template", "error", err)
 		return stt, err
 	}
 	stt.Description, err = template.New("description").Parse(sttb.Description)
 	if err != nil {
-		log.Printf("[stremio/wrap] failed to parse description template: %v", err)
+		log.Error("failed to parse description template", "error", err)
 		return stt, err
 	}
 	return stt, nil

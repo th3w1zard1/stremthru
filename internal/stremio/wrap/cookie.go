@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"net/url"
 	"time"
-
-	"github.com/MunifTanjim/stremthru/core"
 )
 
 type CookieValue struct {
@@ -61,7 +59,7 @@ func getCookieValue(w http.ResponseWriter, r *http.Request) (*CookieValue, error
 
 	v, err := url.ParseQuery(cookie.Value)
 	if err != nil {
-		core.LogError("[stremio/wrap] failed to parse cookie value", err)
+		LogError(r, "failed to parse cookie value", err)
 		unsetCookie(w)
 		value.IsExpired = true
 		return value, nil

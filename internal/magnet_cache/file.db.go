@@ -1,13 +1,15 @@
 package magnet_cache
 
 import (
-	"log"
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/internal/db"
+	"github.com/MunifTanjim/stremthru/internal/logger"
 )
 
 const FileTableName = "magnet_cache_file"
+
+var mcfLog = logger.Scoped(FileTableName)
 
 type MagnetCacheFile struct {
 	Hash string `json:"-"`
@@ -80,7 +82,7 @@ func TrackFiles(hash string, files Files, sid string) {
 	query.WriteString(" ON CONFLICT (h, n) DO UPDATE SET i = CASE WHEN " + FileTableName + ".i = -1 THEN excluded.i ELSE " + FileTableName + ".i END, s = CASE WHEN " + FileTableName + ".s = -1 THEN excluded.s ELSE " + FileTableName + ".s END, sid = CASE WHEN " + FileTableName + ".sid IN ('', '*') THEN excluded.sid ELSE " + FileTableName + ".sid END")
 	_, err := db.Exec(query.String(), args...)
 	if err != nil {
-		log.Printf("[magnet_cache_file] failed to track: %v\n", err)
+		mcfLog.Error("failed to track", "error", err)
 	}
 }
 
@@ -111,7 +113,7 @@ func BulkTrackFiles(filesByHash map[string]Files, sid string) {
 		query.WriteString(" ON CONFLICT (h, n) DO UPDATE SET i = CASE WHEN " + FileTableName + ".i = -1 THEN excluded.i ELSE " + FileTableName + ".i END, s = CASE WHEN " + FileTableName + ".s = -1 THEN excluded.s ELSE " + FileTableName + ".s END, sid = CASE WHEN " + FileTableName + ".sid IN ('', '*') THEN excluded.sid ELSE " + FileTableName + ".sid END")
 		_, err := db.Exec(query.String(), args...)
 		if err != nil {
-			log.Printf("[magnet_cache_file] failed to bulk track: %v\n", err)
+			mcfLog.Error("failed to bulk track", "error", err)
 		}
 	}
 }

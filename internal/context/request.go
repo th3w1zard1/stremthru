@@ -7,9 +7,9 @@ import (
 	"github.com/MunifTanjim/stremthru/store"
 )
 
-type requestContextKey struct{}
+type storeContextKey struct{}
 
-type RequestContext struct {
+type StoreContext struct {
 	Store             store.Store
 	StoreAuthToken    string
 	PeerToken         string
@@ -19,11 +19,11 @@ type RequestContext struct {
 	ClientIP          string // optional
 }
 
-func SetRequestContext(r *http.Request) *http.Request {
-	ctx := context.WithValue(r.Context(), requestContextKey{}, &RequestContext{})
+func SetStoreContext(r *http.Request) *http.Request {
+	ctx := context.WithValue(r.Context(), storeContextKey{}, &StoreContext{})
 	return r.WithContext(ctx)
 }
 
-func GetRequestContext(r *http.Request) *RequestContext {
-	return r.Context().Value(requestContextKey{}).(*RequestContext)
+func GetStoreContext(r *http.Request) *StoreContext {
+	return r.Context().Value(storeContextKey{}).(*StoreContext)
 }

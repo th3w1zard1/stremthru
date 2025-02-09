@@ -1,7 +1,6 @@
 package pikpak
 
 import (
-	"log"
 	"net/http"
 	"path"
 	"strconv"
@@ -186,7 +185,7 @@ func (s *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	data.Id = res.Data.Task.FileId
 	if task, err := s.waitForTaskComplete(ctx, res.Data.Task.Id, 3, 5*time.Second); task != nil {
 		if err != nil {
-			log.Printf("[pikpak] error waiting for task complete %v\n", err)
+			log.Error("error waiting for task complete", "error", err)
 		}
 		if task != nil {
 			if task.Phase == FilePhaseComplete {

@@ -71,6 +71,30 @@ sequenceDiagram
 
 Configuration is done using environment variables.
 
+#### `STREMTHRU_PORT`
+
+Port to listen on, default `8080`.
+
+#### `STREMTHRU_LOG_LEVEL`
+
+Log level.
+
+| Log Level          |
+| ------------------ |
+| `DEBUG`            |
+| `INFO` _(default)_ |
+| `WARNING`          |
+| `ERROR`            |
+
+#### `STREMTHRU_LOG_FORMAT`
+
+Log format.
+
+| Log Level          |
+| ------------------ |
+| `json` _(default)_ |
+| `text`             |
+
 #### `STREMTHRU_HTTP_PROXY`
 
 HTTP Proxy URL.

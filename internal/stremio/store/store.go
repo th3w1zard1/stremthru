@@ -2,7 +2,6 @@ package stremio_store
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
+	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/internal/store/video"
 	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
@@ -81,8 +81,8 @@ func (uderr *userDataError) Error() string {
 	return str.String()
 }
 
-func (ud UserData) GetRequestContext(r *http.Request) (*context.RequestContext, error) {
-	ctx := &context.RequestContext{}
+func (ud UserData) GetRequestContext(r *http.Request) (*context.StoreContext, error) {
+	ctx := &context.StoreContext{}
 
 	storeName := ud.StoreName
 	storeToken := ud.StoreToken
@@ -147,30 +147,30 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 
 func handleManifest(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	ud, err := getUserData(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
 	manifest := getManifest(ud)
 
-	SendResponse(w, 200, manifest)
+	SendResponse(w, r, 200, manifest)
 }
 
 func handleConfigure(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) && !IsMethod(r, http.MethodPost) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	ud, err := getUserData(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -194,7 +194,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 
 		page, err := configure.GetPage(td)
 		if err != nil {
-			SendError(w, err)
+			SendError(w, r, err)
 			return
 		}
 		SendHTML(w, 200, page)
@@ -223,7 +223,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				token_config.Error = uderr.storeToken
 			}
 		} else {
-			SendError(w, err)
+			SendError(w, r, err)
 			return
 		}
 	}
@@ -239,7 +239,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		params.APIKey = ctx.StoreAuthToken
 		user, err := ctx.Store.GetUser(params)
 		if err != nil {
-			core.LogError("[stremio/store] failed to get user", err)
+			LogError(r, "failed to get user", err)
 			token_config.Error = "Invalid Token"
 		} else if user.SubscriptionStatus == store.UserSubscriptionStatusExpired {
 			token_config.Error = "Subscription Expired"
@@ -249,7 +249,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 	if td.HasError() {
 		page, err := configure.GetPage(td)
 		if err != nil {
-			SendError(w, err)
+			SendError(w, r, err)
 			return
 		}
 		SendHTML(w, 200, page)
@@ -258,7 +258,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 
 	eud, err := ud.GetEncoded()
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -335,7 +335,7 @@ var catalogCache = func() cache.Cache[[]stremio.MetaPreview] {
 	return c
 }()
 
-func getCatalogCacheKey(ctx *context.RequestContext) string {
+func getCatalogCacheKey(ctx *context.StoreContext) string {
 	return string(ctx.Store.GetName().Code()) + ":" + ctx.StoreAuthToken
 }
 
@@ -350,32 +350,32 @@ func getStoreActionMetaPreview(storeCode string) stremio.MetaPreview {
 
 func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	if _, err := getContentType(r); err != nil {
-		err.Send(w)
+		err.Send(w, r)
 		return
 	}
 
 	ud, err := getUserData(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
 	if catalogId := getId(r); catalogId != getCatalogId(ud.getStoreCode()) {
-		shared.ErrorBadRequest(r, "unsupported catalog id: "+catalogId).Send(w)
+		shared.ErrorBadRequest(r, "unsupported catalog id: "+catalogId).Send(w, r)
 		return
 	}
 
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
-			core.LogError("[stremio/store] failed to get request context", err)
+			LogError(r, "failed to get request context", err)
 		}
-		shared.ErrorBadRequest(r, "").Send(w)
+		shared.ErrorBadRequest(r, "").Send(w, r)
 		return
 	}
 
@@ -387,7 +387,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 
 	if extra.Genre == CatalogGenreStremThru {
 		res.Metas = append(res.Metas, getStoreActionMetaPreview(ud.getStoreCode()))
-		SendResponse(w, 200, res)
+		SendResponse(w, r, 200, res)
 		return
 	}
 
@@ -445,7 +445,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		res.Metas = items
 	}
 
-	SendResponse(w, 200, res)
+	SendResponse(w, r, 200, res)
 }
 
 func getStoreActionMeta(r *http.Request, storeCode string, encodedUserData string) stremio.Meta {
@@ -476,18 +476,18 @@ func getStoreActionMeta(r *http.Request, storeCode string, encodedUserData strin
 
 func handleMeta(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	if _, err := getContentType(r); err != nil {
-		err.Send(w)
+		err.Send(w, r)
 		return
 	}
 
 	ud, err := getUserData(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -495,23 +495,23 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 
 	id := getId(r)
 	if !strings.HasPrefix(id, idPrefix) {
-		shared.ErrorBadRequest(r, "unsupported id: "+id).Send(w)
+		shared.ErrorBadRequest(r, "unsupported id: "+id).Send(w, r)
 		return
 	}
 
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
-			core.LogError("[stremio/store] failed to get request context", err)
+			LogError(r, "failed to get request context", err)
 		}
-		shared.ErrorBadRequest(r, "").Send(w)
+		shared.ErrorBadRequest(r, "").Send(w, r)
 		return
 	}
 
 	if id == getStoreActionId(ud.getStoreCode()) {
 		eud, err := ud.GetEncoded()
 		if err != nil {
-			SendError(w, err)
+			SendError(w, r, err)
 			return
 		}
 
@@ -519,7 +519,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 			Meta: getStoreActionMeta(r, ud.getStoreCode(), eud),
 		}
 
-		SendResponse(w, 200, res)
+		SendResponse(w, r, 200, res)
 		return
 	}
 
@@ -529,7 +529,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 	params.APIKey = ctx.StoreAuthToken
 	magnet, err := ctx.Store.GetMagnet(params)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -554,23 +554,23 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	SendResponse(w, 200, res)
+	SendResponse(w, r, 200, res)
 }
 
 func handleStream(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	if _, err := getContentType(r); err != nil {
-		err.Send(w)
+		err.Send(w, r)
 		return
 	}
 
 	ud, err := getUserData(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -578,16 +578,16 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 
 	videoIdWithLink := getId(r)
 	if !strings.HasPrefix(videoIdWithLink, idPrefix) {
-		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithLink).Send(w)
+		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithLink).Send(w, r)
 		return
 	}
 
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
-			core.LogError("[stremio/store] failed to get request context", err)
+			LogError(r, "failed to get request context", err)
 		}
-		shared.ErrorBadRequest(r, "").Send(w)
+		shared.ErrorBadRequest(r, "").Send(w, r)
 		return
 	}
 
@@ -599,8 +599,8 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	videoId, escapedLink, _ := strings.Cut(videoId, ":")
 	link, err := url.PathUnescape(escapedLink)
 	if err != nil {
-		core.LogError("[stremio/store] failed to parse link", err)
-		SendError(w, err)
+		LogError(r, "failed to parse link", err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -610,13 +610,13 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	params.APIKey = ctx.StoreAuthToken
 	magnet, err := ctx.Store.GetMagnet(params)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
 	eud, err := ud.GetEncoded()
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -632,18 +632,18 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	SendResponse(w, 200, res)
+	SendResponse(w, r, 200, res)
 }
 
 func handleAction(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	ud, err := getUserData(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -651,13 +651,13 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 
 	actionId := r.PathValue("actionId")
 	if !strings.HasPrefix(actionId, storeActionIdPrefix) {
-		shared.ErrorBadRequest(r, "unsupported id: "+actionId).Send(w)
+		shared.ErrorBadRequest(r, "unsupported id: "+actionId).Send(w, r)
 	}
 
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
-			core.LogError("[stremio/store] failed to get request context", err)
+			LogError(r, "failed to get request context", err)
 		}
 		store_video.Redirect("500", w, r)
 		return
@@ -674,13 +674,13 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 
 func handleStrem(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) && !IsMethod(r, http.MethodHead) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	ud, err := getUserData(r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -688,16 +688,16 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 
 	videoIdWithLink := r.PathValue("videoId")
 	if !strings.HasPrefix(videoIdWithLink, idPrefix) {
-		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithLink).Send(w)
+		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithLink).Send(w, r)
 		return
 	}
 
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
-			core.LogError("[stremio/store] failed to get request context", err)
+			LogError(r, "failed to get request context", err)
 		}
-		shared.ErrorBadRequest(r, "").Send(w)
+		shared.ErrorBadRequest(r, "").Send(w, r)
 		return
 	}
 
@@ -707,14 +707,14 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	url := link
 
 	if url == "" {
-		log.Println("[stremio/store] no matching file found for (" + videoIdWithLink + ")")
+		log.Warn("no matching file found for (" + videoIdWithLink + ")")
 		store_video.Redirect("no_matching_file", w, r)
 		return
 	}
 
 	stLink, err := shared.GenerateStremThruLink(r, ctx, url)
 	if err != nil {
-		core.LogError("[stremio/store] failed to generate stremthru link", err)
+		LogError(r, "failed to generate stremthru link", err)
 		store_video.Redirect("500", w, r)
 		return
 	}
@@ -722,25 +722,37 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, stLink.Link, http.StatusFound)
 }
 
+func commonMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := server.GetReqCtx(r)
+		ctx.Log = log.With("request_id", ctx.RequestId)
+		next.ServeHTTP(w, r)
+		ctx.RedactURLPathValues(r, "userData")
+	})
+}
+
 func AddStremioStoreEndpoints(mux *http.ServeMux) {
 	withCors := shared.Middleware(shared.EnableCORS)
 
-	mux.HandleFunc("/stremio/store", handleRoot)
-	mux.HandleFunc("/stremio/store/{$}", handleRoot)
+	router := http.NewServeMux()
 
-	mux.HandleFunc("/stremio/store/manifest.json", withCors(handleManifest))
-	mux.HandleFunc("/stremio/store/{userData}/manifest.json", withCors(handleManifest))
+	router.HandleFunc("/{$}", handleRoot)
 
-	mux.HandleFunc("/stremio/store/configure", handleConfigure)
-	mux.HandleFunc("/stremio/store/{userData}/configure", handleConfigure)
+	router.HandleFunc("/manifest.json", withCors(handleManifest))
+	router.HandleFunc("/{userData}/manifest.json", withCors(handleManifest))
 
-	mux.HandleFunc("/stremio/store/{userData}/catalog/{contentType}/{idJson}", withCors(handleCatalog))
-	mux.HandleFunc("/stremio/store/{userData}/catalog/{contentType}/{id}/{extraJson}", withCors(handleCatalog))
+	router.HandleFunc("/configure", handleConfigure)
+	router.HandleFunc("/{userData}/configure", handleConfigure)
 
-	mux.HandleFunc("/stremio/store/{userData}/meta/{contentType}/{idJson}", withCors(handleMeta))
+	router.HandleFunc("/{userData}/catalog/{contentType}/{idJson}", withCors(handleCatalog))
+	router.HandleFunc("/{userData}/catalog/{contentType}/{id}/{extraJson}", withCors(handleCatalog))
 
-	mux.HandleFunc("/stremio/store/{userData}/stream/{contentType}/{idJson}", withCors(handleStream))
+	router.HandleFunc("/{userData}/meta/{contentType}/{idJson}", withCors(handleMeta))
 
-	mux.HandleFunc("/stremio/store/{userData}/_/action/{actionId}", withCors(handleAction))
-	mux.HandleFunc("/stremio/store/{userData}/_/strem/{videoId}", withCors(handleStrem))
+	router.HandleFunc("/{userData}/stream/{contentType}/{idJson}", withCors(handleStream))
+
+	router.HandleFunc("/{userData}/_/action/{actionId}", withCors(handleAction))
+	router.HandleFunc("/{userData}/_/strem/{videoId}", withCors(handleStrem))
+
+	mux.Handle("/stremio/store/", http.StripPrefix("/stremio/store", commonMiddleware(router)))
 }

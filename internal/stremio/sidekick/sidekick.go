@@ -3,7 +3,6 @@ package stremio_sidekick
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/internal/stremio/addon"
 	"github.com/MunifTanjim/stremthru/internal/stremio/api"
@@ -79,7 +79,7 @@ func getCookieValue(w http.ResponseWriter, r *http.Request) (*CookieValue, error
 
 	v, err := url.ParseQuery(cookie.Value)
 	if err != nil {
-		core.LogError("[stremio/sidekick] failed to parse cookie value", err)
+		LogError(r, "failed to parse cookie value", err)
 		unsetCookie(w)
 		value.IsExpired = true
 		return value, nil
@@ -96,7 +96,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 
 	cookie, err := getCookieValue(w, r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -104,7 +104,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := getPage(td)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 	SendHTML(w, 200, buf)
@@ -112,7 +112,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodPost) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
@@ -150,12 +150,12 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 			}
 			buf, err := executeTemplate(td, "sidekick_account_section.html")
 			if err != nil {
-				SendError(w, err)
+				SendError(w, r, err)
 				return
 			}
 			SendHTML(w, 200, buf)
 		} else {
-			SendError(w, err)
+			SendError(w, r, err)
 		}
 	} else if method == "token" {
 		token := r.FormValue("token")
@@ -184,21 +184,21 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 			}
 			buf, err := executeTemplate(td, "sidekick_account_section.html")
 			if err != nil {
-				SendError(w, err)
+				SendError(w, r, err)
 				return
 			}
 			SendHTML(w, 200, buf)
 		} else {
-			SendError(w, err)
+			SendError(w, r, err)
 		}
 	} else {
-		shared.ErrorBadRequest(r, "invalid login method").Send(w)
+		shared.ErrorBadRequest(r, "invalid login method").Send(w, r)
 	}
 }
 
 func handleLogout(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodPost) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
@@ -209,13 +209,13 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 
 func handleAddons(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	cookie, err := getCookieValue(w, r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -223,7 +223,7 @@ func handleAddons(w http.ResponseWriter, r *http.Request) {
 	params.APIKey = cookie.AuthKey()
 	res, err := client.GetAddons(params)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -232,7 +232,7 @@ func handleAddons(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := executeTemplate(td, "sidekick_addons_section.html")
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 	SendHTML(w, 200, buf)
@@ -240,13 +240,13 @@ func handleAddons(w http.ResponseWriter, r *http.Request) {
 
 func handleAddonsBackup(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	cookie, err := getCookieValue(w, r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -254,25 +254,25 @@ func handleAddonsBackup(w http.ResponseWriter, r *http.Request) {
 	params.APIKey = cookie.AuthKey()
 	res, err := client.GetAddons(params)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
 	filename := "Stremio-Addons-" + cookie.Email() + "-" + strconv.FormatInt(res.Data.LastModified.UnixMilli(), 10) + ".json"
 	w.Header().Add("Content-Disposition", `attachment; filename="`+filename+`"`)
 
-	SendResponse(w, 200, res.Data)
+	SendResponse(w, r, 200, res.Data)
 }
 
 func handleAddonsRestore(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodPost) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	cookie, err := getCookieValue(w, r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -292,7 +292,7 @@ func handleAddonsRestore(w http.ResponseWriter, r *http.Request) {
 		_, err := client.SetAddons(params)
 		if err == nil {
 			w.Header().Add("HX-Redirect", "/stremio/sidekick/?addon_operation=move&try_load_addons=1")
-			SendResponse(w, 200, "")
+			SendResponse(w, r, 200, "")
 			return
 		}
 
@@ -301,7 +301,7 @@ func handleAddonsRestore(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := executeTemplate(td, "sidekick_addons_section.html")
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 	SendHTML(w, 200, buf)
@@ -309,7 +309,7 @@ func handleAddonsRestore(w http.ResponseWriter, r *http.Request) {
 
 func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodPost) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
@@ -318,7 +318,7 @@ func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 
 	cookie, err := getCookieValue(w, r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -326,7 +326,7 @@ func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 	params.APIKey = cookie.AuthKey()
 	get_res, err := client.GetAddons(params)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -384,12 +384,12 @@ func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 			set_params.APIKey = cookie.AuthKey()
 			set_res, err := client.SetAddons(set_params)
 			if err != nil {
-				err_msg := fmt.Sprintf("[stremio/sidekick] failed to set addons: %v\n", core.PackError(err))
-				log.Print(err_msg)
-				td.AddonError = strings.TrimSpace(err_msg)
+				err = core.PackError(err)
+				log.Error("failed to set addons", "error", err)
+				td.AddonError = fmt.Sprintf("failed to set addons: %v", err)
 			} else if !set_res.Data.Success {
-				err_msg := fmt.Sprintf("[stremio/sidekick] failed to set addons!\n")
-				log.Print(err_msg)
+				err_msg := fmt.Sprintf("failed to set addons!")
+				log.Error(err_msg)
 				td.AddonError = strings.TrimSpace(err_msg)
 			} else {
 				td.Addons = currAddons
@@ -399,7 +399,7 @@ func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := executeTemplate(td, "sidekick_addons_section.html")
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 	SendHTML(w, 200, buf)
@@ -407,13 +407,13 @@ func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 
 func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodPost) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	cookie, err := getCookieValue(w, r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -421,7 +421,7 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 	params.APIKey = cookie.AuthKey()
 	get_res, err := client.GetAddons(params)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -452,9 +452,9 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 
 		oldTransportUrl, err := url.Parse(addon.TransportUrl)
 		if err != nil {
-			err_msg := fmt.Sprintf("[stremio/sidekick] failed to parse old manifest url: %v\n", core.PackError(err))
-			log.Print(err_msg)
-			td.AddonError = strings.TrimSpace(err_msg)
+			err = core.PackError(err)
+			log.Error("failed to parse old manifest url", "error", err)
+			td.AddonError = fmt.Sprintf("failed to parse old manifest url: %v", err)
 		}
 
 		if transportUrl, err := url.Parse(manifestUrl); err == nil && td.AddonError == "" {
@@ -466,13 +466,13 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 			transportUrl.Path, _ = url.PathUnescape(transportUrl.RawPath)
 
 			if transportUrl.Host != oldTransportUrl.Host {
-				err_msg := fmt.Sprintf("[stremio/sidekick] manifest url host changed\n")
-				log.Print(err_msg)
-				td.AddonError = strings.TrimSpace(err_msg)
+				err_msg := fmt.Sprintf("manifest url host changed")
+				log.Error(err_msg)
+				td.AddonError = err_msg
 			} else if manifest, err := addon_client.GetManifest(&stremio_addon.GetManifestParams{BaseURL: transportUrl}); err != nil {
-				err_msg := fmt.Sprintf("[stremio/sidekick] failed to get manifest: %v\n", core.PackError(err))
-				log.Print(err_msg)
-				td.AddonError = strings.TrimSpace(err_msg)
+				err = core.PackError(err)
+				log.Error("failed to get manifest", "error", err)
+				td.AddonError = fmt.Sprintf("failed to get manifest: %v", err)
 			} else {
 				refreshedAddon := stremio.Addon{
 					TransportUrl:  manifestUrl,
@@ -491,13 +491,13 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 		set_params.APIKey = cookie.AuthKey()
 		set_res, err := client.SetAddons(set_params)
 		if err != nil {
-			err_msg := fmt.Sprintf("[stremio/sidekick] failed to set addons: %v\n", core.PackError(err))
-			log.Print(err_msg)
-			td.AddonError = strings.TrimSpace(err_msg)
+			err = core.PackError(err)
+			log.Error("failed to set addons", "error", err)
+			td.AddonError = fmt.Sprintf("failed to set addons: %v", err)
 		} else if !set_res.Data.Success {
-			err_msg := fmt.Sprintf("[stremio/sidekick] failed to set addons!\n")
-			log.Print(err_msg)
-			td.AddonError = strings.TrimSpace(err_msg)
+			err_msg := "failed to set addons!"
+			log.Error(err_msg)
+			td.AddonError = err_msg
 		} else {
 			td.Addons = currAddons
 		}
@@ -505,7 +505,7 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := executeTemplate(td, "sidekick_addons_section.html")
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 	SendHTML(w, 200, buf)
@@ -513,7 +513,7 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 
 func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodPost) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
@@ -521,7 +521,7 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 
 	cookie, err := getCookieValue(w, r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -529,7 +529,7 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 	params.APIKey = cookie.AuthKey()
 	get_res, err := client.GetAddons(params)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -562,9 +562,9 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 						BaseURL: transportUrl,
 					})
 					if err != nil {
-						err_msg := fmt.Sprintf("[stremio/sidekick] failed to get manifest: %v\n", core.PackError(err))
-						log.Print(err_msg)
-						td.AddonError = strings.TrimSpace(err_msg)
+						err = core.PackError(err)
+						log.Error("failed to get manifest", "error", err)
+						td.AddonError = fmt.Sprintf("failed to get manifest: %v", err)
 					} else {
 						enabledAddon := stremio.Addon{
 							TransportUrl: transportUrl.JoinPath("manifest.json").String(),
@@ -585,9 +585,9 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 				BaseURL: transportUrl,
 			})
 			if err != nil {
-				err_msg := fmt.Sprintf("[stremio/sidekick] failed to get manifest: %v\n", core.PackError(err))
-				log.Print(err_msg)
-				td.AddonError = strings.TrimSpace(err_msg)
+				err = core.PackError(err)
+				log.Error("failed to get manifest", "error", err)
+				td.AddonError = fmt.Sprintf("failed to get manifest: %v", err)
 			} else {
 				disabledAddon := stremio.Addon{
 					TransportUrl: transportUrl.JoinPath("manifest.json").String(),
@@ -607,12 +607,12 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 		set_params.APIKey = cookie.AuthKey()
 		set_res, err := client.SetAddons(set_params)
 		if err != nil {
-			err_msg := fmt.Sprintf("[stremio/sidekick] failed to set addons: %v\n", core.PackError(err))
-			log.Print(err_msg)
-			td.AddonError = strings.TrimSpace(err_msg)
+			err = core.PackError(err)
+			log.Error("failed to set addons", "error", err)
+			td.AddonError = fmt.Sprintf("failed to set addons: %v", err)
 		} else if !set_res.Data.Success {
-			err_msg := fmt.Sprintf("[stremio/sidekick] failed to set addons!\n")
-			log.Print(err_msg)
+			err_msg := "failed to set addons!"
+			log.Error(err_msg)
 			td.AddonError = strings.TrimSpace(err_msg)
 		} else {
 			td.Addons = currAddons
@@ -621,7 +621,7 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := executeTemplate(td, "sidekick_addons_section.html")
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 	SendHTML(w, 200, buf)
@@ -629,13 +629,13 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 
 func handleLibraryBackup(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	cookie, err := getCookieValue(w, r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -643,7 +643,7 @@ func handleLibraryBackup(w http.ResponseWriter, r *http.Request) {
 	params.APIKey = cookie.AuthKey()
 	res, err := client.GetAllLibraryItems(params)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -658,18 +658,18 @@ func handleLibraryBackup(w http.ResponseWriter, r *http.Request) {
 	filename := "Stremio-Library-" + cookie.Email() + "-" + strconv.FormatInt(lastModified.UnixMilli(), 10) + ".json"
 	w.Header().Add("Content-Disposition", `attachment; filename="`+filename+`"`)
 
-	SendResponse(w, 200, res.Data)
+	SendResponse(w, r, 200, res.Data)
 }
 
 func handleLibraryRestore(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodPost) {
-		shared.ErrorMethodNotAllowed(r).Send(w)
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
 
 	cookie, err := getCookieValue(w, r)
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 
@@ -703,26 +703,38 @@ func handleLibraryRestore(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := executeTemplate(td, "sidekick_library_section.html")
 	if err != nil {
-		SendError(w, err)
+		SendError(w, r, err)
 		return
 	}
 	SendHTML(w, 200, buf)
 }
 
+func commonMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := server.GetReqCtx(r)
+		ctx.Log = log.With("request_id", ctx.RequestId)
+		next.ServeHTTP(w, r)
+		ctx.RedactURLPathValues(r, "transportUrl")
+	})
+}
+
 func AddStremioSidekickEndpoints(mux *http.ServeMux) {
-	mux.HandleFunc("/stremio/sidekick", handleRoot)
-	mux.HandleFunc("/stremio/sidekick/{$}", handleRoot)
+	router := http.NewServeMux()
 
-	mux.HandleFunc("/stremio/sidekick/login", handleLogin)
-	mux.HandleFunc("/stremio/sidekick/logout", handleLogout)
+	router.HandleFunc("/{$}", handleRoot)
 
-	mux.HandleFunc("/stremio/sidekick/addons", handleAddons)
-	mux.HandleFunc("/stremio/sidekick/addons/backup", handleAddonsBackup)
-	mux.HandleFunc("/stremio/sidekick/addons/restore", handleAddonsRestore)
-	mux.HandleFunc("/stremio/sidekick/addons/{transportUrl}/move/{direction}", handleAddonMove)
-	mux.HandleFunc("/stremio/sidekick/addons/{transportUrl}/reload", handleAddonReload)
-	mux.HandleFunc("/stremio/sidekick/addons/{transportUrl}/toggle", handleAddonToggle)
+	router.HandleFunc("/login", handleLogin)
+	router.HandleFunc("/logout", handleLogout)
 
-	mux.HandleFunc("/stremio/sidekick/library/backup", handleLibraryBackup)
-	mux.HandleFunc("/stremio/sidekick/library/restore", handleLibraryRestore)
+	router.HandleFunc("/addons", handleAddons)
+	router.HandleFunc("/addons/backup", handleAddonsBackup)
+	router.HandleFunc("/addons/restore", handleAddonsRestore)
+	router.HandleFunc("/addons/{transportUrl}/move/{direction}", handleAddonMove)
+	router.HandleFunc("/addons/{transportUrl}/reload", handleAddonReload)
+	router.HandleFunc("/addons/{transportUrl}/toggle", handleAddonToggle)
+
+	router.HandleFunc("/library/backup", handleLibraryBackup)
+	router.HandleFunc("/library/restore", handleLibraryRestore)
+
+	mux.Handle("/stremio/sidekick/", http.StripPrefix("/stremio/sidekick", commonMiddleware(router)))
 }

@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -40,7 +39,7 @@ func (ct *CaptchaToken) inject(c APIClient, ctx *Ctx, method, endpoint string) e
 			return nil
 		}
 	}
-	log.Printf("[pikpak] refreshing captcha")
+	log.Info("refreshing captcha")
 	params := c.getInitCaptchaParams(action)
 	params.DeviceId = deviceId
 	params.Meta.Timestamp = getTimestamp()
@@ -50,13 +49,13 @@ func (ct *CaptchaToken) inject(c APIClient, ctx *Ctx, method, endpoint string) e
 	params.Meta.UserId = ctx.auth.UserId
 	res, err := c.initCaptcha(params)
 	if err != nil {
-		log.Printf("[pikpak] failed to refresh captcha: %v\n", err)
+		log.Error("failed to refresh captcha", "error", err)
 		return err
 	}
 	ct.Token = res.Data.CaptchaToken
 	ct.ExpiresAt = time.Now().Unix() + res.Data.ExpiresIn
 	if err := captchaCache.Add(cacheKey, *ct); err != nil {
-		log.Printf("[pikpak] failed to cache captcha: %v\n", err)
+		log.Error("failed to cache captcha", "error", err)
 	}
 	ctx.auth.CaptchaToken = ct.Token
 	return nil
@@ -327,7 +326,7 @@ func (c APIClient) withAccessToken(ctx *Ctx) error {
 		shouldTryToLogin := false
 		if ctx.auth.IsExpiring() {
 			if err := c.refreshAuthToken(ctx); err != nil {
-				log.Printf("[pikpak] failed to refresh access token: %v", deviceId)
+				log.Error("failed to refresh access token", "device_id", deviceId, "error", err)
 				if uerr, ok := err.(*core.UpstreamError); ok {
 					if rerr, ok := uerr.UpstreamCause.(*ResponseContainer); ok {
 						if rerr.Err == "invalid_grant" {
@@ -336,7 +335,7 @@ func (c APIClient) withAccessToken(ctx *Ctx) error {
 					}
 				}
 			} else {
-				log.Printf("[pikpak] refreshed access token: %v", deviceId)
+				log.Info("refreshed access token", "device_id", deviceId)
 			}
 		}
 		if !shouldTryToLogin {
@@ -364,7 +363,7 @@ func (c APIClient) withAccessToken(ctx *Ctx) error {
 	}
 	_, err = c.UserRequest("POST", "/v1/auth/signin", signinParams, sResponse)
 	if err != nil {
-		log.Printf("[pikpak] failed to signin: %v\n", err)
+		log.Error("failed to signin", "error", err)
 		return err
 	}
 
@@ -375,7 +374,7 @@ func (c APIClient) withAccessToken(ctx *Ctx) error {
 
 	err = ctx.auth.save(deviceId)
 	if err != nil {
-		log.Printf("[pikpak] failed to store auth state: %v\n", err)
+		log.Error("failed to store auth state", "error", err)
 		return err
 	}
 	return nil

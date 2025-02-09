@@ -7,6 +7,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/endpoint"
+	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
@@ -37,8 +38,10 @@ func main() {
 	db.Ping()
 	RunSchemaMigration(database.URI)
 
+	handler := shared.RootServerContext(mux)
+
 	addr := ":" + config.Port
-	server := &http.Server{Addr: addr, Handler: mux}
+	server := &http.Server{Addr: addr, Handler: handler}
 
 	if len(config.ProxyAuthPassword) == 0 {
 		server.SetKeepAlivesEnabled(false)
