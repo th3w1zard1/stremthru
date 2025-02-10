@@ -837,10 +837,11 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		if sid == "" {
 			sid = "*"
 		}
-		re := query.Get("re")
 		var pattern *regexp.Regexp
-		if pat, err := regexp.Compile(re); err == nil {
-			pattern = pat
+		if re := query.Get("re"); re != "" {
+			if pat, err := regexp.Compile(re); err == nil {
+				pattern = pat
+			}
 		}
 
 		go buddy.TrackMagnet(ctx.Store, magnet.Hash, magnet.Files, sid, magnet.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
@@ -869,7 +870,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		if pattern != nil {
+		if file == nil && pattern != nil {
 			for i := range magnet.Files {
 				f := &magnet.Files[i]
 				if pattern.MatchString(f.Name) {
