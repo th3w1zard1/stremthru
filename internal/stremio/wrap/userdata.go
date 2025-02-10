@@ -341,7 +341,12 @@ func getUserData(r *http.Request) (*UserData, error) {
 		hasMissingExtractor := false
 		for i := range data.Upstreams {
 			up := &data.Upstreams[i]
+
 			if up.ExtractorId != "" {
+				if config.IsPublicInstance {
+					up.ExtractorId = getNewTransformerExtractorId(up.ExtractorId)
+				}
+
 				if err := extractorStore.Get(up.ExtractorId, &up.extractor); err != nil {
 					LogError(r, fmt.Sprintf("failed to fetch extractor(%s)", up.ExtractorId), err)
 					hasMissingExtractor = true
@@ -352,6 +357,10 @@ func getUserData(r *http.Request) (*UserData, error) {
 		}
 
 		if !hasMissingExtractor && data.TemplateId != "" {
+			if config.IsPublicInstance && !strings.HasPrefix(data.TemplateId, SEED_TRANSFORMER_ENTITY_ID_PREFIX) {
+				data.TemplateId = SEED_TRANSFORMER_ENTITY_ID_PREFIX + data.TemplateId
+			}
+
 			if err := templateStore.Get(data.TemplateId, &data.template); err != nil {
 				LogError(r, fmt.Sprintf("failed to fetch template(%s)", data.TemplateId), err)
 			}

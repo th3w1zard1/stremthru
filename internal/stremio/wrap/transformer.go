@@ -7,6 +7,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/kv"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
@@ -301,9 +302,24 @@ func (st StreamTransformer) Do(stream *stremio.Stream, tryReconfigure bool) (*Wr
 	return s, nil
 }
 
+const SEED_TRANSFORMER_ENTITY_ID_PREFIX = "✨ "
+
+var newTransformerExtractorIdMap = map[string]string{
+	"Debridio":    SEED_TRANSFORMER_ENTITY_ID_PREFIX + "Debridio",
+	"Mediafusion": SEED_TRANSFORMER_ENTITY_ID_PREFIX + "MediaFusion",
+	"Torrentio":   SEED_TRANSFORMER_ENTITY_ID_PREFIX + "Torrentio",
+}
+
+func getNewTransformerExtractorId(oldId string) string {
+	if newId, ok := newTransformerExtractorIdMap[oldId]; ok {
+		return newId
+	}
+	return oldId
+}
+
 func seedDefaultTransformerEntities() {
 	extractors := map[string]StreamTransformerExtractorBlob{}
-	extractors["Debridio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+	extractors[SEED_TRANSFORMER_ENTITY_ID_PREFIX+"Debridio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
 name
 (?i)^(?:\[(?<debrid>\w+?)(?<cached>\+?)\] \n)?(?<addon>\w+) (?:Other|(?<resolution>\d[^kp]*[kp]))
 
@@ -313,7 +329,7 @@ description
 url
 \/(?<hash>[a-f0-9]{40})(?:\/(?<season>\d+)\/(?<episode>\d+))?
 `))
-	extractors["Mediafusion"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+	extractors[SEED_TRANSFORMER_ENTITY_ID_PREFIX+"MediaFusion"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
 name
 (?i)^(?<addon>\w+(?: \| [^ ]+)?) (?:P2P|(?<debrid>[A-Z]{2})) (?:N\/A|(?<resolution>[^kp]+[kp])) (?<cached>⚡️)?
 
@@ -326,7 +342,7 @@ bingeGroup
 url
 \/stream\/(?<hash>[a-f0-9]{40})\/
 `))
-	extractors["Torrentio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+	extractors[SEED_TRANSFORMER_ENTITY_ID_PREFIX+"Torrentio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
 name
 (?i)^(?:\[(?<debrid>\w+?)(?<cached>\+?)\] )?(?<addon>\w+)\n(?<resolution>[^kp]+[kp])?(?: 3D(?: SBS))?(?: (?<hdr>.+))?
 
@@ -342,15 +358,8 @@ url
 (?i)\/(?<hash>[a-f0-9]{40})\/[^/]+\/(?<fileidx>\d+)\/
 `))
 
-	for key, value := range extractors {
-		var existingValue StreamTransformerExtractorBlob
-		if err := extractorStore.Get(key, &existingValue); err == nil && existingValue == "" {
-			extractorStore.Set(key, value)
-		}
-	}
-
 	templates := map[string]StreamTransformerTemplateBlob{}
-	templates["Default"] = StreamTransformerTemplateBlob{
+	templates[SEED_TRANSFORMER_ENTITY_ID_PREFIX+"Default"] = StreamTransformerTemplateBlob{
 		Name: strings.TrimSpace(`
 {{if ne .Debrid ""}}[{{if .IsCached}}⚡️{{end}}{{.Debrid}}]
 {{end}}{{.Addon}}
@@ -363,6 +372,28 @@ url
 📁 {{.Title}}
 {{end}}
 `),
+	}
+
+	if config.IsPublicInstance {
+		for oldId := range newTransformerExtractorIdMap {
+			if err := extractorStore.Del(oldId); err != nil {
+				log.Warn("Failed to cleanup seed extractor: " + oldId)
+			}
+		}
+
+		for key := range templates {
+			key = strings.TrimPrefix(key, SEED_TRANSFORMER_ENTITY_ID_PREFIX)
+			if err := templateStore.Del(key); err != nil {
+				log.Warn("Failed to cleanup seed template: " + key)
+			}
+		}
+	}
+
+	for key, value := range extractors {
+		var existingValue StreamTransformerExtractorBlob
+		if err := extractorStore.Get(key, &existingValue); err == nil && existingValue == "" {
+			extractorStore.Set(key, value)
+		}
 	}
 
 	for key, value := range templates {
