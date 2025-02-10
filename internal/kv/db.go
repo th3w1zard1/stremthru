@@ -43,11 +43,8 @@ type SQLKVStore[V any] struct {
 
 func (kv SQLKVStore[V]) Get(key string, value *V) error {
 	var val string
-	query := "SELECT v FROM " + TableName + " WHERE k = ?"
-	if kv.t != "" {
-		query += " AND t = '" + kv.t + "'"
-	}
-	row := db.QueryRow(query, kv.getKey(key))
+	query := "SELECT v FROM " + TableName + " WHERE t = ? AND k = ?"
+	row := db.QueryRow(query, kv.t, kv.getKey(key))
 	if err := row.Scan(&val); err != nil {
 		if err == sql.ErrNoRows {
 			return nil
@@ -61,8 +58,8 @@ func (kv SQLKVStore[V]) List() ([]ParsedKV[V], error) {
 	if kv.t == "" {
 		return nil, errors.New("missing kv type value")
 	}
-	query := "SELECT k, v FROM " + TableName + " WHERE t = '" + kv.t + "'"
-	rows, err := db.Query(query)
+	query := "SELECT k, v FROM " + TableName + " WHERE t = ?"
+	rows, err := db.Query(query, kv.t)
 	if err != nil {
 		return nil, err
 	}
@@ -93,23 +90,14 @@ func (kv SQLKVStore[V]) Set(key string, value V) error {
 	if err != nil {
 		return err
 	}
-	query := "INSERT INTO " + TableName
-	if kv.t == "" {
-		query += " (k,v) VALUES (?, ?)"
-	} else {
-		query += " (t,k,v) VALUES ('" + kv.t + "', ?, ?)"
-	}
-	query += " ON CONFLICT (t, k) DO UPDATE SET v = EXCLUDED.v, uat = " + db.CurrentTimestamp
-	_, err = db.Exec(query, kv.getKey(key), val)
+	query := "INSERT INTO " + TableName + " (t,k,v) VALUES (?,?,?) ON CONFLICT (t,k) DO UPDATE SET v = EXCLUDED.v, uat = " + db.CurrentTimestamp
+	_, err = db.Exec(query, kv.t, kv.getKey(key), val)
 	return err
 }
 
 func (kv SQLKVStore[V]) Del(key string) error {
-	query := "DELETE FROM " + TableName + " WHERE k = ?"
-	if kv.t != "" {
-		query += " AND t = '" + kv.t + "'"
-	}
-	_, err := db.Exec(query, kv.getKey(key))
+	query := "DELETE FROM " + TableName + " WHERE t = ? AND k = ?"
+	_, err := db.Exec(query, kv.t, kv.getKey(key))
 	return err
 }
 
@@ -129,7 +117,7 @@ func NewKVStore[V any](config *KVStoreConfig) *SQLKVStore[V] {
 		panic("GetKey output does not contain input")
 	}
 	return &SQLKVStore[V]{
-		t:      config.Type,
+		t:      strings.ToLower(config.Type),
 		getKey: config.GetKey,
 	}
 }
