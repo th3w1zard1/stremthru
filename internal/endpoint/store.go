@@ -7,6 +7,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/buddy"
 	"github.com/MunifTanjim/stremthru/internal/context"
 	"github.com/MunifTanjim/stremthru/internal/peer_token"
+	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/internal/store/video"
 	"github.com/MunifTanjim/stremthru/store"
@@ -313,6 +314,9 @@ func handleStoreLinkGenerate(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleStoreLinkAccess(w http.ResponseWriter, r *http.Request) {
+	ctx := server.GetReqCtx(r)
+	ctx.RedactURLPathValues(r, "token")
+
 	if !shared.IsMethod(r, http.MethodGet) && !shared.IsMethod(r, http.MethodHead) {
 		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
