@@ -616,11 +616,11 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 			err = core.PackError(err)
 			log.Error("failed to set addons", "error", err)
 			td.AddonError = fmt.Sprintf("failed to set addons: %v", err)
+			td.Addons = currAddons
 		} else if !set_res.Data.Success {
 			err_msg := "failed to set addons!"
 			log.Error(err_msg)
 			td.AddonError = strings.TrimSpace(err_msg)
-		} else {
 			td.Addons = currAddons
 		}
 	}
