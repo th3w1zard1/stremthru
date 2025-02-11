@@ -1,9 +1,12 @@
 package torbox
 
 import (
+	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
@@ -139,16 +142,40 @@ func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.Check
 	}
 	tByHash := map[string]CheckTorrentsCachedDataItem{}
 	if len(uncachedHashes) > 0 {
-		res, err := c.client.CheckTorrentsCached(&CheckTorrentsCachedParams{
-			Ctx:       params.Ctx,
-			Hashes:    uncachedHashes,
-			ListFiles: true,
-		})
-		if err != nil {
-			return nil, err
+		chunkCount := len(uncachedHashes)/100 + 1
+		cItems := make([][]CheckTorrentsCachedDataItem, chunkCount)
+		errs := make([]error, chunkCount)
+		hasError := false
+
+		var wg sync.WaitGroup
+		for i, cUncachedHashes := range slices.Collect(slices.Chunk(uncachedHashes, 100)) {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				ctcParams := &CheckTorrentsCachedParams{
+					Hashes:    cUncachedHashes,
+					ListFiles: true,
+				}
+				ctcParams.APIKey = params.APIKey
+				res, err := c.client.CheckTorrentsCached(ctcParams)
+				if err != nil {
+					hasError = true
+					errs[i] = err
+					return
+				}
+				cItems[i] = res.Data
+			}()
 		}
-		for _, t := range res.Data {
-			tByHash[strings.ToLower(t.Hash)] = t
+		wg.Wait()
+
+		if hasError {
+			return nil, errors.Join(errs...)
+		}
+
+		for _, items := range cItems {
+			for _, t := range items {
+				tByHash[strings.ToLower(t.Hash)] = t
+			}
 		}
 	}
 	data := &store.CheckMagnetData{}

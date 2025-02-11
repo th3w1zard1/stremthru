@@ -1,6 +1,6 @@
 module github.com/MunifTanjim/stremthru
 
-go 1.22.5
+go 1.23.3
 
 require (
 	ariga.io/atlas-go-sdk v0.6.4
