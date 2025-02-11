@@ -15,14 +15,19 @@ type Cache[V any] interface {
 }
 
 type CacheConfig struct {
-	Lifetime time.Duration
-	Name     string
+	Lifetime      time.Duration
+	Name          string
+	LocalCapacity uint32
 }
 
 func NewCache[V any](conf *CacheConfig) Cache[V] {
+	if conf.LocalCapacity == 0 {
+		conf.LocalCapacity = 1024
+	}
+
 	if config.RedisURI != "" {
 		return newRedisCache[V](conf)
 	}
 
-	return newLRUCache[V](conf)
+	return NewLRUCache[V](conf)
 }

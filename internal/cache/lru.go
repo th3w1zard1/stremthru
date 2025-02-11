@@ -51,8 +51,12 @@ func CacheHashKeyString(key string) uint32 {
 	return uint32(xxh3.HashString(key))
 }
 
-func newLRUCache[V any](config *CacheConfig) *LRUCache[V] {
-	lru, err := freelru.New[string, V](1024, CacheHashKeyString)
+func NewLRUCache[V any](config *CacheConfig) *LRUCache[V] {
+	if config.LocalCapacity == 0 {
+		config.LocalCapacity = 1024
+	}
+
+	lru, err := freelru.New[string, V](config.LocalCapacity, CacheHashKeyString)
 	if err != nil {
 		errMsg := "failed to create cache"
 		if config.Name != "" {

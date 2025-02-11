@@ -4,9 +4,11 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/buddy"
+	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
@@ -16,8 +18,9 @@ type StoreClientConfig struct {
 }
 
 type StoreClient struct {
-	Name   store.StoreName
-	client *APIClient
+	Name                    store.StoreName
+	client                  *APIClient
+	subscriptionStatusCache cache.Cache[store.UserSubscriptionStatus]
 }
 
 func NewStoreClient(config *StoreClientConfig) *StoreClient {
@@ -27,6 +30,12 @@ func NewStoreClient(config *StoreClientConfig) *StoreClient {
 		UserAgent:  config.UserAgent,
 	})
 	c.Name = store.StoreNameDebridLink
+
+	c.subscriptionStatusCache = cache.NewLRUCache[store.UserSubscriptionStatus](&cache.CacheConfig{
+		Name:     "store:debridlink:subscriptionStatus",
+		Lifetime: 5 * time.Minute,
+	})
+
 	return c
 }
 
@@ -58,17 +67,31 @@ func (c *StoreClient) GetUser(params *store.GetUserParams) (*store.User, error) 
 	return data, err
 }
 
-func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.CheckMagnetData, error) {
-	user, err := c.GetUser(&store.GetUserParams{
-		Ctx: params.Ctx,
-	})
-	if err != nil {
-		return nil, err
+func (c *StoreClient) assertValidSubscription(apiKey string) error {
+	var status store.UserSubscriptionStatus
+	if !c.subscriptionStatusCache.Get(apiKey, &status) {
+		params := &store.GetUserParams{}
+		params.APIKey = apiKey
+		user, err := c.GetUser(params)
+		if err != nil {
+			return err
+		}
+		status = user.SubscriptionStatus
+		if err := c.subscriptionStatusCache.Add(apiKey, status); err != nil {
+			return err
+		}
 	}
-	if user.SubscriptionStatus != store.UserSubscriptionStatusPremium {
-		err := core.NewAPIError("forbidden")
-		err.Code = core.ErrorCodeForbidden
-		err.StatusCode = http.StatusForbidden
+	if status == store.UserSubscriptionStatusPremium {
+		return nil
+	}
+	err := core.NewAPIError("forbidden")
+	err.Code = core.ErrorCodeForbidden
+	err.StatusCode = http.StatusForbidden
+	return err
+}
+
+func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.CheckMagnetData, error) {
+	if err := c.assertValidSubscription(params.GetAPIKey(c.client.apiKey)); err != nil {
 		return nil, err
 	}
 
