@@ -5,6 +5,7 @@ import (
 
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/logger"
+	"github.com/MunifTanjim/stremthru/internal/util"
 )
 
 const FileTableName = "magnet_cache_file"
@@ -86,20 +87,26 @@ func TrackFiles(hash string, files Files, sid string) {
 	}
 }
 
-func BulkTrackFiles(filesByHash map[string]Files, sid string) {
+func execBulkTrackFiles(count int, args []any) {
 	var query strings.Builder
 	query.WriteString("INSERT INTO " + FileTableName + " (h,i,n,s,sid) VALUES ")
+
 	placeholder := "(?,?,?,?,?)"
+	if count > 0 {
+		query.WriteString(util.RepeatJoin(placeholder, count, ","))
+		query.WriteString(" ON CONFLICT (h, n) DO UPDATE SET i = CASE WHEN " + FileTableName + ".i = -1 THEN EXCLUDED.i ELSE " + FileTableName + ".i END, s = CASE WHEN " + FileTableName + ".s = -1 THEN EXCLUDED.s ELSE " + FileTableName + ".s END, sid = CASE WHEN " + FileTableName + ".sid IN ('', '*') THEN EXCLUDED.sid ELSE " + FileTableName + ".sid END")
+		_, err := db.Exec(query.String(), args...)
+		if err != nil {
+			mcfLog.Error("failed to partially bulk track", "error", err)
+		}
+	}
+}
+
+func BulkTrackFiles(filesByHash map[string]Files, sid string) {
 	count := 0
-
-	var args []interface{}
-
+	args := []any{}
 	for hash, files := range filesByHash {
 		for _, file := range files {
-			if count > 0 {
-				query.WriteString(",")
-			}
-			query.WriteString(placeholder)
 			fsid := file.SId
 			if fsid == "" {
 				fsid = sid
@@ -107,13 +114,11 @@ func BulkTrackFiles(filesByHash map[string]Files, sid string) {
 			args = append(args, hash, file.Idx, file.Name, file.Size, fsid)
 			count++
 		}
-	}
-
-	if count > 0 {
-		query.WriteString(" ON CONFLICT (h, n) DO UPDATE SET i = CASE WHEN " + FileTableName + ".i = -1 THEN excluded.i ELSE " + FileTableName + ".i END, s = CASE WHEN " + FileTableName + ".s = -1 THEN excluded.s ELSE " + FileTableName + ".s END, sid = CASE WHEN " + FileTableName + ".sid IN ('', '*') THEN excluded.sid ELSE " + FileTableName + ".sid END")
-		_, err := db.Exec(query.String(), args...)
-		if err != nil {
-			mcfLog.Error("failed to bulk track", "error", err)
+		if count >= 200 {
+			execBulkTrackFiles(count, args)
+			count = 0
+			args = []any{}
 		}
 	}
+	execBulkTrackFiles(count, args)
 }
