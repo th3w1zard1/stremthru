@@ -34,7 +34,7 @@ var reqLog = logger.Scoped("http")
 func RootServerContext(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rw := &responseWriter{ResponseWriter: w}
-		ctx := &server.ReqCtx{StartTime: time.Now(), URL: r.URL.String()}
+		ctx := &server.ReqCtx{StartTime: time.Now(), ReqPath: r.URL.Path, ReqQuery: r.URL.Query()}
 		r = server.SetReqCtx(r, ctx)
 
 		defer func() {
@@ -88,11 +88,17 @@ func logRequest(w *responseWriter, r *http.Request) {
 	ctx := server.GetReqCtx(r)
 
 	status := w.getStatusCode()
+	req := slog.GroupValue(
+		slog.String("id", ctx.RequestId),
+		slog.String("method", r.Method),
+		slog.String("path", ctx.ReqPath),
+		slog.String("query", ctx.ReqQuery.Encode()),
+	)
 	if status < 400 {
-		reqLog.Debug("HTTP Request", "request_id", ctx.RequestId, "method", r.Method, "url", ctx.URL, "status", w.getStatusCode(), "latency", time.Since(ctx.StartTime))
+		reqLog.Debug("HTTP Request", "req", req, "status", w.getStatusCode(), "latency", time.Since(ctx.StartTime))
 	} else if status < 500 {
-		reqLog.Warn("HTTP Request", "request_id", ctx.RequestId, "method", r.Method, "url", ctx.URL, "status", w.getStatusCode(), "latency", time.Since(ctx.StartTime), "error", ctx.Error)
+		reqLog.Warn("HTTP Request", "req", req, "status", w.getStatusCode(), "latency", time.Since(ctx.StartTime), "error", ctx.Error)
 	} else {
-		reqLog.Error("HTTP Request", "request_id", ctx.RequestId, "method", r.Method, "url", ctx.URL, "status", w.getStatusCode(), "latency", time.Since(ctx.StartTime), "error", ctx.Error)
+		reqLog.Error("HTTP Request", "req", req, "status", w.getStatusCode(), "latency", time.Since(ctx.StartTime), "error", ctx.Error)
 	}
 }

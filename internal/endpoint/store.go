@@ -2,6 +2,7 @@ package endpoint
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/internal/buddy"
@@ -112,6 +113,9 @@ func handleStoreMagnetsCheck(w http.ResponseWriter, r *http.Request) {
 			return r == ','
 		})...)
 	}
+
+	rCtx := server.GetReqCtx(r)
+	rCtx.ReqQuery.Set("magnet", "..."+strconv.Itoa(len(magnets))+" items...")
 
 	if len(magnets) == 0 {
 		shared.ErrorBadRequest(r, "missing magnet").Send(w, r)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -14,14 +15,15 @@ type ReqCtx struct {
 	StartTime time.Time
 	RequestId string
 	Error     error
-	URL       string
+	ReqPath   string
+	ReqQuery  url.Values
 	Log       *slog.Logger
 }
 
 func (ctx *ReqCtx) RedactURLPathValues(r *http.Request, names ...string) {
 	for _, name := range names {
 		if value := r.PathValue(name); value != "" {
-			ctx.URL = strings.Replace(ctx.URL, value, "{"+name+"}", 1)
+			ctx.ReqPath = strings.Replace(ctx.ReqPath, value, "{"+name+"}", 1)
 		}
 	}
 }
