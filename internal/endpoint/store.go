@@ -118,6 +118,11 @@ func handleStoreMagnetsCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(magnets) > 500 {
+		shared.ErrorBadRequest(r, "too many magnets, max allowed 500").Send(w, r)
+		return
+	}
+
 	sid := queryParams.Get("sid")
 
 	ctx := context.GetStoreContext(r)
