@@ -337,7 +337,7 @@ description
 (?i)(?:📂 (?<title>.+)\n)?💾 (?<size>.+?)(?: 👤 \d+)?\n.+\n🔗 (?<site>.+?)(?: 🧑‍💻 |$)
 
 bingeGroup
-(?i)-(?:🎨 (?<hdr>[^ ]+))? ?📺 (?<quality>cam|scr|dvd|vhs|r5|(?:\w+(?:rip|ray|mux|tv))|(?:(?:tele|web)[\w-]*?))(?: ?🎞️ (?<codec>[^- ]+))?(?: ?🎵 .+)?-(?:N\/A|(?:\d+[kp]))
+(?i)-(?:🎨 (?<hdr>[^ ]+) )?📺 (?<quality>cam|scr|dvd|vhs|r5|(?:.+(?:rip|ray|mux|tv))|(?:(?:tele|web)[\w-]*?))(?: ?🎞️ (?<codec>[^- ]+))?(?: ?🎵 .+)?-(?:N\/A|(?:\d+[kp]))
 
 url
 \/stream\/(?<hash>[a-f0-9]{40})\/
