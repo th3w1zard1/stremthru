@@ -357,6 +357,13 @@ bingeGroup
 url
 (?i)\/(?<hash>[a-f0-9]{40})\/[^/]+\/(?<fileidx>\d+)\/
 `))
+	extractors[SEED_TRANSFORMER_ENTITY_ID_PREFIX+"Orion"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+name
+(?:🪐 (?<addon>\w+) 📺 (?<resolution>\w+))|(?:(?<cached>🚀) (?<addon>\w+)\n\[(?<debrid>[^\]]+)\])
+
+description
+(?<title>.+)\n(?:📺(?<resolution>.+?) )?💾(?<size>[0-9.]+ [^ ]+) (?:👤\d+ )?🎥(?<codec>\w+) 🔊.+\n👂.+ ☁️(?<site>.+)
+`))
 
 	templates := map[string]StreamTransformerTemplateBlob{}
 	templates[SEED_TRANSFORMER_ENTITY_ID_PREFIX+"Default"] = StreamTransformerTemplateBlob{
