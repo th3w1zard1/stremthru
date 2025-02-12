@@ -192,50 +192,57 @@ func (st StreamTransformer) parse(stream *stremio.Stream) *StreamTransformerResu
 
 		for _, match := range pattern.Regex.FindAllStringSubmatch(fieldValue, -1) {
 			for i, name := range pattern.Regex.SubexpNames() {
-				if i != 0 && name != "" {
+				value := match[i]
+				if i != 0 && name != "" && value != "" {
 					switch name {
 					case "addon":
-						result.Addon = match[i]
+						result.Addon = value
 					case "bitdepth":
-						result.BitDepth = match[i]
+						result.BitDepth = value
 					case "cached":
-						result.IsCached = match[i] != ""
+						result.IsCached = true
 					case "codec":
-						result.Codec = match[i]
+						result.Codec = value
 					case "debrid":
-						result.Debrid = match[i]
+						result.Debrid = value
 					case "episode":
-						result.Episode = match[i]
+						result.Episode = value
 					case "fileidx":
-						if fileIdx, err := strconv.Atoi(match[i]); err == nil {
+						if fileIdx, err := strconv.Atoi(value); err == nil {
 							result.FileIdx = fileIdx
 						}
 					case "filename":
-						result.Filename = strings.TrimSpace(match[i])
+						result.Filename = value
 					case "hash":
-						result.Hash = match[i]
+						result.Hash = value
 					case "hdr":
-						result.HDR = match[i]
+						result.HDR = value
 					case "quality":
-						result.Quality = match[i]
+						result.Quality = value
 					case "resolution":
-						result.Resolution = match[i]
+						result.Resolution = value
 					case "season":
-						result.Season = match[i]
+						result.Season = value
 					case "site":
-						result.Site = match[i]
+						result.Site = value
 					case "size":
-						result.Size = match[i]
+						result.Size = value
 					case "title":
-						result.Title = match[i]
+						result.Title = value
 					}
 				}
 			}
 		}
 	}
+
+	// normalize
+	if result.Filename != "" {
+		result.Filename = strings.TrimSpace(result.Filename)
+	}
 	if result.Resolution != "" {
 		result.Resolution = strings.ToUpper(result.Resolution)
 	}
+
 	return result
 }
 
