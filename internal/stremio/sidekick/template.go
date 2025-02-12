@@ -38,9 +38,11 @@ type TemplateData struct {
 		LibraryRestoreBlob string
 		HasError           struct {
 			LibraryRestoreBlob bool
+			AddonsReset        bool
 		}
 		Message struct {
 			LibraryRestoreBlob string
+			AddonsReset        string
 		}
 		Error struct {
 			AddonsRestoreBlob string
@@ -87,6 +89,7 @@ func getTemplateData(cookie *CookieValue, r *http.Request) *TemplateData {
 			}
 		}
 	}
+
 	return td
 }
 

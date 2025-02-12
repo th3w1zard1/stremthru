@@ -307,6 +307,142 @@ func handleAddonsRestore(w http.ResponseWriter, r *http.Request) {
 	SendHTML(w, 200, buf)
 }
 
+func handleAddonsReset(w http.ResponseWriter, r *http.Request) {
+	log := server.GetReqCtx(r).Log
+
+	cookie, err := getCookieValue(w, r)
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+
+	td := getTemplateData(cookie, r)
+	understood := r.FormValue("understood") == "on"
+
+	if !understood {
+		td.BackupRestore.HasError.AddonsReset = true
+		td.BackupRestore.Message.AddonsReset = "Missing Acknowledgement"
+	} else {
+		addons := []stremio.Addon{
+			{
+				Flags:         &stremio.AddonFlags{Official: true, Protected: true},
+				TransportName: "",
+				TransportUrl:  "https://v3-cinemeta.strem.io/manifest.json",
+			},
+			{
+				Flags: &stremio.AddonFlags{Official: true, Protected: true},
+				Manifest: stremio.Manifest{
+					BehaviorHints: &stremio.BehaviorHints{},
+					Catalogs:      []stremio.Catalog{},
+					Description:   "Local add-on to find playable files: .torrent, .mp4, .mkv and .avi",
+					ID:            "org.stremio.local",
+					Name:          "Local Files (without catalog support)",
+					Resources: []stremio.Resource{
+						{
+							IDPrefixes: []string{"local:", "bt:"},
+							Name:       stremio.ResourceNameMeta,
+							Types:      []stremio.ContentType{"other"},
+						},
+						{
+							IDPrefixes: []string{"tt"},
+							Name:       stremio.ResourceNameStream,
+							Types:      []stremio.ContentType{stremio.ContentTypeMovie, stremio.ContentTypeSeries},
+						},
+					},
+					Types:   []stremio.ContentType{stremio.ContentTypeMovie, stremio.ContentTypeSeries, "other"},
+					Version: "1.10.0",
+				},
+				TransportName: "",
+				TransportUrl:  "http://127.0.0.1:11470/local-addon/manifest.json",
+			},
+			{
+				Flags: &stremio.AddonFlags{Official: true},
+				Manifest: stremio.Manifest{
+					BehaviorHints: &stremio.BehaviorHints{},
+					Catalogs:      []stremio.Catalog{},
+					Description:   "The official add-on for subtitles from OpenSubtitles",
+					ID:            "org.stremio.opensubtitles",
+					Logo:          "http://www.strem.io/images/addons/opensubtitles-logo.png",
+					Name:          "OpenSubtitles",
+					Resources: []stremio.Resource{
+						{Name: stremio.ResourceNameSubtitles},
+					},
+					Types:   []stremio.ContentType{stremio.ContentTypeSeries, stremio.ContentTypeMovie, "other"},
+					Version: "0.24.0",
+				},
+				TransportName: "",
+				TransportUrl:  "https://opensubtitles.strem.io/stremio/v1",
+			},
+			{
+				Flags:         &stremio.AddonFlags{Official: true},
+				TransportName: "",
+				TransportUrl:  "https://opensubtitles-v3.strem.io/manifest.json",
+			},
+			{
+				Flags:         &stremio.AddonFlags{Official: true},
+				TransportName: "",
+				TransportUrl:  "https://caching.stremio.net/publicdomainmovies.now.sh/manifest.json",
+			},
+			{
+				Flags:         &stremio.AddonFlags{Official: true},
+				TransportName: "",
+				TransportUrl:  "https://watchhub.strem.io/manifest.json",
+			},
+		}
+
+		for i := range addons {
+			addon := &addons[i]
+			if addon.Manifest.ID != "" {
+				continue
+			}
+			manifestUrl, err := url.Parse(addon.TransportUrl)
+			if err != nil {
+				log.Error("failed to parse manifest url", "error", err)
+				td.BackupRestore.HasError.AddonsReset = true
+				td.BackupRestore.Message.AddonsReset = "Failed to reset: " + err.Error()
+				break
+			}
+			if manifestUrl.RawPath == "" {
+				manifestUrl.RawPath = manifestUrl.Path
+			}
+			manifestUrl.RawPath = strings.TrimSuffix(manifestUrl.RawPath, "/manifest.json")
+			manifestUrl.Path, _ = url.PathUnescape(manifestUrl.RawPath)
+			manifest, err := addon_client.GetManifest(&stremio_addon.GetManifestParams{
+				BaseURL: manifestUrl,
+			})
+			if err != nil {
+				log.Error("failed to get manifest", "url", addon.TransportUrl, "error", err)
+				td.BackupRestore.HasError.AddonsReset = true
+				td.BackupRestore.Message.AddonsReset = "Failed to reset: " + err.Error()
+				break
+			}
+			addon.Manifest = manifest.Data
+		}
+
+		if !td.BackupRestore.HasError.AddonsReset {
+			params := &stremio_api.SetAddonsParams{Addons: addons}
+			params.APIKey = cookie.AuthKey()
+			_, err := client.SetAddons(params)
+			if err == nil {
+				w.Header().Add("HX-Redirect", "/stremio/sidekick/?addon_operation=move&try_load_addons=1")
+				SendResponse(w, r, 200, "")
+				return
+			}
+
+			log.Error("failed to set addons", "error", err)
+			td.BackupRestore.HasError.AddonsReset = true
+			td.BackupRestore.Message.AddonsReset = "Failed to reset: " + err.Error()
+		}
+	}
+
+	buf, err := executeTemplate(td, "sidekick_addons_section.html")
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+	SendHTML(w, 200, buf)
+}
+
 func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodPost) {
 		shared.ErrorMethodNotAllowed(r).Send(w, r)
@@ -735,6 +871,7 @@ func AddStremioSidekickEndpoints(mux *http.ServeMux) {
 	router.HandleFunc("/addons", handleAddons)
 	router.HandleFunc("/addons/backup", handleAddonsBackup)
 	router.HandleFunc("/addons/restore", handleAddonsRestore)
+	router.HandleFunc("/addons/reset", handleAddonsReset)
 	router.HandleFunc("/addons/{transportUrl}/move/{direction}", handleAddonMove)
 	router.HandleFunc("/addons/{transportUrl}/reload", handleAddonReload)
 	router.HandleFunc("/addons/{transportUrl}/toggle", handleAddonToggle)

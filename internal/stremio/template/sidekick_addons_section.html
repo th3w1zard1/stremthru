@@ -198,6 +198,27 @@
   </form>
 </article>
 
+<article id="addons_backup_reset">
+  <header>
+    <h3>Reset Addons</h3>
+    <small>
+      ⚠️ This will remove all unofficial addons
+    </small>
+  </header>
+
+  <form hx-post="addons/reset" hx-target="#addons_section">
+    <fieldset {{if .BackupRestore.HasError.AddonsReset}}aria-invalid="true"{{end}}>
+      <label>
+        <input type="checkbox" name="understood" {{if .BackupRestore.HasError.AddonsReset}}aria-invalid="true"{{end}}>
+        I Understand
+      </label>
+    </fieldset>
+    <small>{{.BackupRestore.Message.AddonsReset}}</small>
+
+    <button type="submit" class="grow">Reset</button>
+  </form>
+</article>
+
 </div>
 
 
