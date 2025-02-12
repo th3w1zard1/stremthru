@@ -197,7 +197,7 @@ func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.Check
 			for idx, f := range t.Files {
 				item.Files = append(item.Files, store.MagnetFile{
 					Idx:  idx,
-					Name: f.Name,
+					Name: f.GetName(),
 					Size: f.Size,
 				})
 			}

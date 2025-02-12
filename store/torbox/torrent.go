@@ -2,6 +2,7 @@ package torbox
 
 import (
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -9,8 +10,16 @@ import (
 )
 
 type CheckTorrentsCachedDataItemFile struct {
-	Name string `json:"name"`
+	Name string `json:"name"` // full path
 	Size int    `json:"size"`
+}
+
+func (f CheckTorrentsCachedDataItemFile) GetName() string {
+	return filepath.Base(f.Name)
+}
+
+func (f CheckTorrentsCachedDataItemFile) GetPath() string {
+	return "/" + f.Name
 }
 
 type CheckTorrentsCachedDataItem struct {
