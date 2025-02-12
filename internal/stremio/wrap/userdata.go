@@ -394,6 +394,9 @@ func getUserData(r *http.Request) (*UserData, error) {
 			if strings.HasPrefix(upURL, "stremio:") {
 				upURL = "https:" + strings.TrimPrefix(upURL, "stremio:")
 			}
+			if strings.HasSuffix(upURL, "/configure") {
+				upURL = strings.TrimSuffix(upURL, "/configure") + "/manifest.json"
+			}
 			extractorId := r.Form.Get("upstreams[" + strconv.Itoa(idx) + "].transformer.extractor_id")
 			up := UserDataUpstream{
 				URL:         upURL,
