@@ -611,6 +611,10 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 
 					if manifest.BehaviorHints != nil && manifest.BehaviorHints.Configurable {
 						tup.IsConfigurable = true
+						if manifest.BehaviorHints.ConfigurationRequired {
+							tup.Error = "Configuration Required"
+							continue
+						}
 					}
 				}
 			}
