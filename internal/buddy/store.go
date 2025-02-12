@@ -207,15 +207,5 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 		}
 	}
 
-	for _, hash := range staleOrMissingHashes {
-		magnet := magnetByHash[hash]
-		item := store.CheckMagnetDataItem{
-			Hash:   magnet.Hash,
-			Magnet: magnet.Link,
-			Status: store.MagnetStatusUnknown,
-			Files:  []store.MagnetFile{},
-		}
-		data.Items = append(data.Items, item)
-	}
 	return data, nil
 }
