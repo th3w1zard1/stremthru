@@ -390,16 +390,14 @@ url
 	}
 
 	for key, value := range extractors {
-		var existingValue StreamTransformerExtractorBlob
-		if err := extractorStore.Get(key, &existingValue); err == nil && existingValue == "" {
-			extractorStore.Set(key, value)
+		if err := extractorStore.Set(key, value); err != nil {
+			log.Warn("Failed to seed extractor: " + key)
 		}
 	}
 
 	for key, value := range templates {
-		var existingValue StreamTransformerTemplateBlob
-		if err := templateStore.Get(key, &existingValue); err == nil && existingValue.IsEmpty() {
-			templateStore.Set(key, value)
+		if err := templateStore.Set(key, value); err != nil {
+			log.Warn("Failed to seed template: " + key)
 		}
 	}
 }
