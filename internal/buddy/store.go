@@ -70,6 +70,47 @@ func TrackMagnet(s store.Store, hash string, files []store.MagnetFile, sid strin
 	}
 }
 
+func BulkTrackMagnet(s store.Store, filesByHash map[string][]store.MagnetFile, storeToken string) {
+	mcFilesByHash := map[string]magnet_cache.Files{}
+	for hash, files := range filesByHash {
+		mcFiles := magnet_cache.Files{}
+		for _, f := range files {
+			mcFiles = append(mcFiles, magnet_cache.File{Idx: f.Idx, Name: f.Name, Size: f.Size})
+		}
+		mcFilesByHash[hash] = mcFiles
+	}
+	magnet_cache.BulkTouch(s.GetName().Code(), mcFilesByHash, "*")
+
+	if config.HasBuddy {
+		params := &TrackMagnetCacheParams{
+			Store:       s.GetName(),
+			FilesByHash: filesByHash,
+		}
+		start := time.Now()
+		if _, err := Buddy.TrackMagnetCache(params); err != nil {
+			buddyLog.Error("failed to bulk track magnet cache", "store", s.GetName(), "error", core.PackError(err), "duration", time.Since(start))
+		} else {
+			buddyLog.Info("bulk track magnet cache", "store", s.GetName(), "duration", time.Since(start))
+		}
+	}
+
+	if config.HasPeer && config.PeerAuthToken != "" {
+		params := &peer.TrackMagnetParams{
+			StoreName:   s.GetName(),
+			StoreToken:  storeToken,
+			FilesByHash: filesByHash,
+		}
+		go func() {
+			start := time.Now()
+			if _, err := Peer.TrackMagnet(params); err != nil {
+				peerLog.Error("failed to bulk track magnet cache", "store", s.GetName(), "error", core.PackError(err), "duration", time.Since(start))
+			} else {
+				peerLog.Info("bulk track magnet cache", "store", s.GetName(), "duration", time.Since(start))
+			}
+		}()
+	}
+}
+
 func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp string, sid string) (*store.CheckMagnetData, error) {
 	if matched, err := regexp.MatchString("^tt[0-9]+(:[0-9]{1,2}:[0-9]{1,3})?$", sid); err != nil || !matched {
 		sid = ""

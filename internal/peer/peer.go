@@ -193,12 +193,17 @@ func (c APIClient) CheckMagnet(params *CheckMagnetParams) (request.APIResponse[s
 
 type TrackMagnetParams struct {
 	store.Ctx
-	StoreName  store.StoreName    `json:"-"`
-	StoreToken string             `json:"-"`
-	Hash       string             `json:"hash"`
-	Files      []store.MagnetFile `json:"files"`
-	IsMiss     bool               `json:"is_miss"`
-	SId        string             `json:"sid"`
+	StoreName  store.StoreName `json:"-"`
+	StoreToken string          `json:"-"`
+
+	// single
+	Hash   string             `json:"hash"`
+	Files  []store.MagnetFile `json:"files"`
+	IsMiss bool               `json:"is_miss"`
+	SId    string             `json:"sid"`
+
+	// bulk
+	FilesByHash map[string][]store.MagnetFile `json:"files_by_hash"`
 }
 
 type TrackMagnetData struct{}

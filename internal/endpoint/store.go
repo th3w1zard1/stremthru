@@ -51,10 +51,14 @@ func checkMagnet(ctx *context.StoreContext, magnets []string, sid string) (*stor
 }
 
 type TrackMagnetPayload struct {
+	// single
 	Hash   string             `json:"hash"`
 	Files  []store.MagnetFile `json:"files"`
 	IsMiss bool               `json:"is_miss"`
 	SId    string             `json:"sid"`
+
+	// bulk
+	FilesByHash map[string][]store.MagnetFile `json:"files_by_hash"`
 }
 
 type TrackMagnetData struct {
@@ -84,7 +88,11 @@ func hadleStoreMagnetsTrack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	buddy.TrackMagnet(ctx.Store, payload.Hash, payload.Files, payload.SId, payload.IsMiss, ctx.StoreAuthToken)
+	if payload.Hash != "" {
+		go buddy.TrackMagnet(ctx.Store, payload.Hash, payload.Files, payload.SId, payload.IsMiss, ctx.StoreAuthToken)
+	} else {
+		go buddy.BulkTrackMagnet(ctx.Store, payload.FilesByHash, ctx.StoreAuthToken)
+	}
 
 	SendResponse(w, r, 202, &TrackMagnetData{}, nil)
 }

@@ -55,11 +55,16 @@ type TrackMagnetCacheData struct {
 
 type TrackMagnetCacheParams struct {
 	Ctx
-	Store     store.StoreName
+	Store store.StoreName
+
+	// single
 	Hash      string             `json:"hash"`
 	Files     []store.MagnetFile `json:"files"`
 	CacheMiss bool               `json:"cache_miss"`
 	SId       string             `json:"sid"`
+
+	// bulk
+	FilesByHash map[string][]store.MagnetFile `json:"files_by_hash"`
 }
 
 func (c APIClient) TrackMagnetCache(params *TrackMagnetCacheParams) (APIResponse[TrackMagnetCacheData], error) {

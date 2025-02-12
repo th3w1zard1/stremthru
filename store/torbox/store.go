@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/buddy"
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/store"
 )
@@ -120,40 +121,49 @@ func (c *StoreClient) setCachedCheckMagnet(params *store.CheckMagnetParams, magn
 }
 
 func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.CheckMagnetData, error) {
-	magnetByHash := map[string]core.MagnetLink{}
-	hashes := []string{}
+	magnetByHash := make(map[string]core.MagnetLink, len(params.Magnets))
+	hashes := make([]string, len(params.Magnets))
 
-	cachedItemByHash := map[string]store.CheckMagnetDataItem{}
-	uncachedHashes := []string{}
+	foundItemByHash := map[string]store.CheckMagnetDataItem{}
+	missingHashes := []string{}
 
-	for _, m := range params.Magnets {
+	for i, m := range params.Magnets {
 		magnet, err := core.ParseMagnetLink(m)
 		if err != nil {
 			return nil, err
 		}
-		hash := strings.ToLower(magnet.Hash)
-		magnetByHash[hash] = magnet
-		hashes = append(hashes, hash)
-		if v := c.getCachedCheckMagnet(params, hash); v != nil {
-			cachedItemByHash[hash] = *v
-		} else {
-			uncachedHashes = append(uncachedHashes, hash)
+		magnetByHash[magnet.Hash] = magnet
+		hashes[i] = magnet.Hash
+	}
+
+	if data, err := buddy.CheckMagnet(c, hashes, params.GetAPIKey(c.client.apiKey), params.ClientIP, params.SId); err != nil {
+		return nil, err
+	} else {
+		for _, item := range data.Items {
+			foundItemByHash[item.Hash] = item
 		}
 	}
+
+	for _, hash := range hashes {
+		if _, ok := foundItemByHash[hash]; !ok {
+			missingHashes = append(missingHashes, hash)
+		}
+	}
+
 	tByHash := map[string]CheckTorrentsCachedDataItem{}
-	if len(uncachedHashes) > 0 {
-		chunkCount := len(uncachedHashes)/100 + 1
+	if len(missingHashes) > 0 {
+		chunkCount := len(missingHashes)/100 + 1
 		cItems := make([][]CheckTorrentsCachedDataItem, chunkCount)
 		errs := make([]error, chunkCount)
 		hasError := false
 
 		var wg sync.WaitGroup
-		for i, cUncachedHashes := range slices.Collect(slices.Chunk(uncachedHashes, 100)) {
+		for i, cMissingHashes := range slices.Collect(slices.Chunk(missingHashes, 100)) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				ctcParams := &CheckTorrentsCachedParams{
-					Hashes:    cUncachedHashes,
+					Hashes:    cMissingHashes,
 					ListFiles: true,
 				}
 				ctcParams.APIKey = params.APIKey
@@ -179,8 +189,9 @@ func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.Check
 		}
 	}
 	data := &store.CheckMagnetData{}
+	filesByHash := map[string][]store.MagnetFile{}
 	for _, hash := range hashes {
-		if item, ok := cachedItemByHash[hash]; ok {
+		if item, ok := foundItemByHash[hash]; ok {
 			data.Items = append(data.Items, item)
 			continue
 		}
@@ -201,10 +212,11 @@ func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.Check
 					Size: f.Size,
 				})
 			}
-			c.setCachedCheckMagnet(params, hash, &item)
 		}
 		data.Items = append(data.Items, item)
+		filesByHash[hash] = item.Files
 	}
+	go buddy.BulkTrackMagnet(c, filesByHash, params.GetAPIKey(c.client.apiKey))
 	return data, nil
 }
 
