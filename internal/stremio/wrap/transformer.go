@@ -2,6 +2,7 @@ package stremio_wrap
 
 import (
 	"bytes"
+	"errors"
 	"regexp"
 	"strconv"
 	"strings"
@@ -33,15 +34,6 @@ const (
 	StreamTransformerFieldSeason  StreamTransformerField = "season"
 	StreamTransformerFieldEpisode StreamTransformerField = "episode"
 )
-
-var extractorStore = func() kv.KVStore[StreamTransformerExtractorBlob] {
-	return kv.NewKVStore[StreamTransformerExtractorBlob](&kv.KVStoreConfig{
-		Type: "st:wrap:transformer:extractor",
-		GetKey: func(key string) string {
-			return key
-		},
-	})
-}()
 
 type StreamTransformerExtractorBlob string
 
@@ -88,15 +80,6 @@ func (steb StreamTransformerExtractorBlob) Parse() (StreamTransformerExtractor, 
 
 	return ste, nil
 }
-
-var templateStore = func() kv.KVStore[StreamTransformerTemplateBlob] {
-	return kv.NewKVStore[StreamTransformerTemplateBlob](&kv.KVStoreConfig{
-		Type: "st:wrap:transformer:template",
-		GetKey: func(key string) string {
-			return key
-		},
-	})
-}()
 
 type StreamTransformerTemplateBlob struct {
 	Name        string `json:"name"`
@@ -309,12 +292,13 @@ func (st StreamTransformer) Do(stream *stremio.Stream, tryReconfigure bool) (*Wr
 	return s, nil
 }
 
-const SEED_TRANSFORMER_ENTITY_ID_PREFIX = "✨ "
+const BUILTIN_TRANSFORMER_ENTITY_ID_EMOJI = "✨"
+const BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX = BUILTIN_TRANSFORMER_ENTITY_ID_EMOJI + " "
 
 var newTransformerExtractorIdMap = map[string]string{
-	"Debridio":    SEED_TRANSFORMER_ENTITY_ID_PREFIX + "Debridio",
-	"Mediafusion": SEED_TRANSFORMER_ENTITY_ID_PREFIX + "MediaFusion",
-	"Torrentio":   SEED_TRANSFORMER_ENTITY_ID_PREFIX + "Torrentio",
+	"Debridio":    BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX + "Debridio",
+	"Mediafusion": BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX + "MediaFusion",
+	"Torrentio":   BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX + "Torrentio",
 }
 
 func getNewTransformerExtractorId(oldId string) string {
@@ -324,9 +308,10 @@ func getNewTransformerExtractorId(oldId string) string {
 	return oldId
 }
 
-func seedDefaultTransformerEntities() {
+var builtInExtractors = func() map[string]StreamTransformerExtractorBlob {
 	extractors := map[string]StreamTransformerExtractorBlob{}
-	extractors[SEED_TRANSFORMER_ENTITY_ID_PREFIX+"Debridio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+
+	extractors[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Debridio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
 name
 (?i)^(?:\[(?<debrid>\w+?)(?<cached>\+?)\] \n)?(?<addon>\w+) (?:Other|(?<resolution>\d[^kp]*[kp]))
 
@@ -336,7 +321,8 @@ description
 url
 \/(?<hash>[a-f0-9]{40})(?:\/(?<season>\d+)\/(?<episode>\d+))?
 `))
-	extractors[SEED_TRANSFORMER_ENTITY_ID_PREFIX+"MediaFusion"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+
+	extractors[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"MediaFusion"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
 name
 (?i)^(?<addon>\w+(?: \| [^ ]+)?) (?:P2P|(?<debrid>[A-Z]{2})) (?:N\/A|(?<resolution>[^kp]+[kp])) (?<cached>⚡️)?
 
@@ -349,7 +335,8 @@ bingeGroup
 url
 \/stream\/(?<hash>[a-f0-9]{40})\/
 `))
-	extractors[SEED_TRANSFORMER_ENTITY_ID_PREFIX+"Torrentio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+
+	extractors[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Torrentio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
 name
 (?i)^(?:\[(?<debrid>\w+?)(?<cached>\+?)\] )?(?<addon>\w+)\n(?<resolution>[^kp]+[kp])?(?: 3D(?: SBS))?(?: (?<hdr>.+))?
 
@@ -364,7 +351,8 @@ bingeGroup
 url
 (?i)\/(?<hash>[a-f0-9]{40})\/[^/]+\/(?<fileidx>\d+)\/
 `))
-	extractors[SEED_TRANSFORMER_ENTITY_ID_PREFIX+"Orion"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+
+	extractors[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Orion"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
 name
 (?:🪐 (?<addon>\w+) 📺 (?<resolution>\w+))|(?:(?<cached>🚀) (?<addon>\w+)\n\[(?<debrid>[^\]]+)\])
 
@@ -372,8 +360,57 @@ description
 (?<title>.+)\n(?:📺(?<resolution>.+?) )?💾(?<size>[0-9.]+ [^ ]+) (?:👤\d+ )?🎥(?<codec>\w+) 🔊.+\n👂.+ ☁️(?<site>.+)
 `))
 
+	return extractors
+}()
+
+var extractorStore = func() kv.KVStore[StreamTransformerExtractorBlob] {
+	return kv.NewKVStore[StreamTransformerExtractorBlob](&kv.KVStoreConfig{
+		Type: "st:wrap:transformer:extractor",
+		GetKey: func(key string) string {
+			return key
+		},
+	})
+}()
+
+func getExtractor(extractorId string) (StreamTransformerExtractorBlob, error) {
+	if strings.HasPrefix(extractorId, BUILTIN_TRANSFORMER_ENTITY_ID_EMOJI) {
+		if extractor, ok := builtInExtractors[extractorId]; ok {
+			return extractor, nil
+		}
+		return "", errors.New("built-in extractor not found")
+	}
+
+	var extractor StreamTransformerExtractorBlob
+	if err := extractorStore.Get(extractorId, &extractor); err != nil {
+		return "", err
+	}
+	return extractor, nil
+}
+
+func getExtractorIds() ([]string, error) {
+	extractors, err := extractorStore.List()
+	if err != nil {
+		return nil, err
+	}
+	builtInExtractorsCount := len(builtInExtractors)
+	extractorIds := make([]string, builtInExtractorsCount+len(extractors))
+	idx := 0
+	for id := range builtInExtractors {
+		extractorIds[idx] = id
+		idx++
+	}
+	for _, extractor := range extractors {
+		extractorIds[idx] = extractor.Key
+		idx++
+	}
+	return extractorIds, nil
+
+}
+
+var builtInTemplates = func() map[string]StreamTransformerTemplateBlob {
 	templates := map[string]StreamTransformerTemplateBlob{}
-	templates[SEED_TRANSFORMER_ENTITY_ID_PREFIX+"Default"] = StreamTransformerTemplateBlob{
+
+	templates[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Default"] = StreamTransformerTemplateBlob{
 		Name: strings.TrimSpace(`
 {{if ne .Debrid ""}}[{{if .IsCached}}⚡️{{end}}{{.Debrid}}]
 {{end}}{{.Addon}}
@@ -388,30 +425,75 @@ description
 `),
 	}
 
+	return templates
+}()
+
+var templateStore = func() kv.KVStore[StreamTransformerTemplateBlob] {
+	return kv.NewKVStore[StreamTransformerTemplateBlob](&kv.KVStoreConfig{
+		Type: "st:wrap:transformer:template",
+		GetKey: func(key string) string {
+			return key
+		},
+	})
+}()
+
+func getTemplate(templateId string) (StreamTransformerTemplateBlob, error) {
+	if strings.HasPrefix(templateId, BUILTIN_TRANSFORMER_ENTITY_ID_EMOJI) {
+		if template, ok := builtInTemplates[templateId]; ok {
+			return template, nil
+		}
+		return StreamTransformerTemplateBlob{}, errors.New("built-in template not found")
+	}
+
+	var template StreamTransformerTemplateBlob
+	if err := templateStore.Get(templateId, &template); err != nil {
+		return StreamTransformerTemplateBlob{}, err
+	}
+	return template, nil
+}
+
+func getTemplateIds() ([]string, error) {
+	templates, err := templateStore.List()
+	if err != nil {
+		return nil, err
+	}
+	builtInTemplatesCount := len(builtInTemplates)
+	templateIds := make([]string, builtInTemplatesCount+len(templates))
+	idx := 0
+	for id := range builtInTemplates {
+		templateIds[idx] = id
+		idx++
+	}
+	for _, template := range templates {
+		templateIds[idx] = template.Key
+		idx++
+	}
+	return templateIds, nil
+}
+
+func seedDefaultTransformerEntities() {
 	if config.IsPublicInstance {
 		for oldId := range newTransformerExtractorIdMap {
 			if err := extractorStore.Del(oldId); err != nil {
 				log.Warn("Failed to cleanup seed extractor: " + oldId)
 			}
 		}
+	}
+	for id := range builtInExtractors {
+		if err := extractorStore.Del(id); err != nil {
+			log.Warn("Failed to cleanup seed extractor: " + id)
+		}
+	}
 
-		for key := range templates {
-			key = strings.TrimPrefix(key, SEED_TRANSFORMER_ENTITY_ID_PREFIX)
+	for key := range builtInTemplates {
+		if err := templateStore.Del(key); err != nil {
+			log.Warn("Failed to cleanup seed template: " + key)
+		}
+		if config.IsPublicInstance {
+			key = strings.TrimPrefix(key, BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX)
 			if err := templateStore.Del(key); err != nil {
 				log.Warn("Failed to cleanup seed template: " + key)
 			}
-		}
-	}
-
-	for key, value := range extractors {
-		if err := extractorStore.Set(key, value); err != nil {
-			log.Warn("Failed to seed extractor: " + key)
-		}
-	}
-
-	for key, value := range templates {
-		if err := templateStore.Set(key, value); err != nil {
-			log.Warn("Failed to seed template: " + key)
 		}
 	}
 }

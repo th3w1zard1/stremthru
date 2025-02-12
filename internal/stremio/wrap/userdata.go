@@ -347,9 +347,11 @@ func getUserData(r *http.Request) (*UserData, error) {
 					up.ExtractorId = getNewTransformerExtractorId(up.ExtractorId)
 				}
 
-				if err := extractorStore.Get(up.ExtractorId, &up.extractor); err != nil {
+				if extractor, err := getExtractor(up.ExtractorId); err != nil {
 					LogError(r, fmt.Sprintf("failed to fetch extractor(%s)", up.ExtractorId), err)
 					hasMissingExtractor = true
+				} else {
+					up.extractor = extractor
 				}
 			} else {
 				hasMissingExtractor = true
@@ -357,12 +359,14 @@ func getUserData(r *http.Request) (*UserData, error) {
 		}
 
 		if !hasMissingExtractor && data.TemplateId != "" {
-			if config.IsPublicInstance && !strings.HasPrefix(data.TemplateId, SEED_TRANSFORMER_ENTITY_ID_PREFIX) {
-				data.TemplateId = SEED_TRANSFORMER_ENTITY_ID_PREFIX + data.TemplateId
+			if config.IsPublicInstance && !strings.HasPrefix(data.TemplateId, BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX) {
+				data.TemplateId = BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX + data.TemplateId
 			}
 
-			if err := templateStore.Get(data.TemplateId, &data.template); err != nil {
+			if template, err := getTemplate(data.TemplateId); err != nil {
 				LogError(r, fmt.Sprintf("failed to fetch template(%s)", data.TemplateId), err)
+			} else {
+				data.template = template
 			}
 		}
 	}

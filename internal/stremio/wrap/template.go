@@ -86,8 +86,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 	td.Template = ud.template
 	if !isExecutingAction {
 		if td.TemplateId != "" {
-			var storedBlob StreamTransformerTemplateBlob
-			if err := templateStore.Get(td.TemplateId, &storedBlob); err == nil {
+			if storedBlob, err := getTemplate(td.TemplateId); err == nil {
 				if !storedBlob.IsEmpty() {
 					if storedBlob.Name != td.Template.Name {
 						td.TemplateError.Name = "Template is not updated"
@@ -121,8 +120,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 		extractorError := ""
 		if !isExecutingAction {
 			if up.ExtractorId != "" {
-				var storedBlob StreamTransformerExtractorBlob
-				if err := extractorStore.Get(up.ExtractorId, &storedBlob); err == nil {
+				if storedBlob, err := getExtractor(up.ExtractorId); err == nil {
 					if storedBlob != "" {
 						if storedBlob != up.extractor {
 							extractorError = "Extractor is not updated"
@@ -173,25 +171,15 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 		}
 	}
 
-	extractors, err := extractorStore.List()
-	if err != nil {
+	if extractorIds, err := getExtractorIds(); err != nil {
 		LogError(r, "failed to list extractors", err)
 	} else {
-		extractorIds := make([]string, len(extractors))
-		for i, extractor := range extractors {
-			extractorIds[i] = extractor.Key
-		}
 		td.ExtractorIds = extractorIds
 	}
 
-	templates, err := templateStore.List()
-	if err != nil {
+	if templateIds, err := getTemplateIds(); err != nil {
 		LogError(r, "failed to list templates", err)
 	} else {
-		templateIds := make([]string, len(templates))
-		for i, template := range templates {
-			templateIds[i] = template.Key
-		}
 		td.TemplateIds = templateIds
 	}
 

@@ -427,17 +427,17 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			}
 			up := &td.Upstreams[idx]
 			id := up.ExtractorId
-			var value StreamTransformerExtractorBlob
 			if id != "" {
-				if err := extractorStore.Get(id, &value); err != nil {
+				value, err := getExtractor(id)
+				if err != nil {
 					LogError(r, "failed to fetch extractor", err)
 					up.ExtractorError = "Failed to fetch extractor"
 				} else if _, err := value.Parse(); err != nil {
 					LogError(r, "failed to parse extractor", err)
 					up.ExtractorError = err.Error()
 				}
+				up.Extractor = value
 			}
-			up.Extractor = value
 		case "save-extractor":
 			if td.IsAuthed {
 				id := r.Form.Get("extractor_id")
@@ -448,12 +448,17 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				}
 				up := &td.Upstreams[idx]
 				value := up.Extractor
-				if _, err := value.Parse(); err != nil {
-					LogError(r, "failed to parse extractor", err)
-					up.ExtractorError = err.Error()
-				} else {
-					up.ExtractorId = id
-					up.Extractor = value
+				if strings.HasPrefix(id, BUILTIN_TRANSFORMER_ENTITY_ID_EMOJI) {
+					up.ExtractorError = "✨-prefixed ids are reserved"
+				}
+				if up.ExtractorError == "" {
+					if _, err := value.Parse(); err != nil {
+						LogError(r, "failed to parse extractor", err)
+						up.ExtractorError = err.Error()
+					} else {
+						up.ExtractorId = id
+						up.Extractor = value
+					}
 				}
 				if up.ExtractorError == "" {
 					if value == "" {
@@ -494,9 +499,9 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			}
 		case "set-template":
 			id := ud.TemplateId
-			value := StreamTransformerTemplateBlob{}
 			if id != "" {
-				if err := templateStore.Get(id, &value); err != nil {
+				value, err := getTemplate(id)
+				if err != nil {
 					LogError(r, "failed to fetch template", err)
 					td.TemplateError.Name = "Failed to fetch template"
 					td.TemplateError.Description = "Failed to fetch template"
@@ -508,23 +513,29 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 						td.TemplateError.Description = err.Error()
 					}
 				}
+				td.Template = value
 			}
-			td.Template = value
 		case "save-template":
 			if td.IsAuthed {
 				id := r.Form.Get("template_id")
 				value := td.Template
-				if t, err := value.Parse(); err != nil {
-					LogError(r, "failed to parse template", err)
-					if t.Name == nil {
-						td.TemplateError.Name = err.Error()
-					} else {
-						td.TemplateError.Description = err.Error()
-					}
-				} else {
-					td.TemplateId = id
+				if strings.HasPrefix(id, BUILTIN_TRANSFORMER_ENTITY_ID_EMOJI) {
+					td.TemplateError.Name = "✨-prefixed ids are reserved"
+					td.TemplateError.Description = "✨-prefixed ids are reserved"
 				}
-				if td.TemplateError.Name == "" && td.TemplateError.Description == "" {
+				if td.TemplateError.IsEmpty() {
+					if t, err := value.Parse(); err != nil {
+						LogError(r, "failed to parse template", err)
+						if t.Name == nil {
+							td.TemplateError.Name = err.Error()
+						} else {
+							td.TemplateError.Description = err.Error()
+						}
+					} else {
+						td.TemplateId = id
+					}
+				}
+				if td.TemplateError.IsEmpty() {
 					if value.Name == "" && value.Description == "" {
 						if err := templateStore.Del(id); err != nil {
 							LogError(r, "failed to delete template", err)
