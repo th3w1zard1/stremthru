@@ -11,12 +11,11 @@ import (
 func getManifest(r *http.Request) *stremio.Manifest {
 	manifest := &stremio.Manifest{
 		AddonCatalogs: []stremio.Catalog{{Type: "other", Id: "stremthru", Name: "StremThru"}},
-		Background:    "",
 		BehaviorHints: &stremio.BehaviorHints{},
 		Catalogs:      []stremio.Catalog{},
 		Description:   "Companion for Stremio",
 		ID:            shared.GetReversedHostname(r),
-		Logo:          "",
+		Logo:          "https://emojiapi.dev/api/v1/sparkles/256.png",
 		Name:          "StremThru",
 		Resources:     []stremio.Resource{{Name: stremio.ResourceNameAddonCatalog}},
 		Types:         []stremio.ContentType{},
