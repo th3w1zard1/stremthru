@@ -29,6 +29,7 @@ func getManifestResourceIdPrefixes(manifest *stremio.Manifest, resource stremio.
 func GetManifest(r *http.Request, upstreamManifests []stremio.Manifest, ud *UserData) *stremio.Manifest {
 	manifest := &stremio.Manifest{
 		Version:   config.Version,
+		Logo:      "https://emojiapi.dev/api/v1/sparkles/256.png",
 		Resources: []stremio.Resource{},
 		Types:     []stremio.ContentType{},
 		Catalogs:  []stremio.Catalog{},
