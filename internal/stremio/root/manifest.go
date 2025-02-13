@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
+	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
 
@@ -14,7 +15,7 @@ func getManifest(r *http.Request) *stremio.Manifest {
 		BehaviorHints: &stremio.BehaviorHints{},
 		Catalogs:      []stremio.Catalog{},
 		Description:   "Companion for Stremio",
-		ID:            "stremthru",
+		ID:            shared.GetReversedHostname(r),
 		Logo:          "",
 		Name:          "StremThru",
 		Resources:     []stremio.Resource{{Name: stremio.ResourceNameAddonCatalog}},
