@@ -32,52 +32,6 @@ var addon = func() *stremio_addon.Client {
 	return stremio_addon.NewClient(&stremio_addon.ClientConfig{})
 }()
 
-func parseCatalogId(id string, ud *UserData) (idx int, catalogId string, err error) {
-	idxStr, catalogId, ok := strings.Cut(id, "::")
-	if !ok {
-		return -1, "", errors.New("invalid id")
-	}
-	idx, err = strconv.Atoi(idxStr)
-	if err != nil {
-		return -1, "", err
-	}
-	if len(ud.Upstreams) <= idx {
-		return -1, "", errors.New("invalid id")
-	}
-	return idx, catalogId, nil
-}
-
-func (ud UserData) fetchAddonCatalog(ctx *context.StoreContext, w http.ResponseWriter, r *http.Request, rType, id string) {
-	idx, catalogId, err := parseCatalogId(id, &ud)
-	if err != nil {
-		SendError(w, r, err)
-		return
-	}
-	addon.ProxyResource(w, r, &stremio_addon.ProxyResourceParams{
-		BaseURL:  ud.Upstreams[idx].baseUrl,
-		Resource: string(stremio.ResourceNameAddonCatalog),
-		Type:     rType,
-		Id:       catalogId,
-		ClientIP: ctx.ClientIP,
-	})
-}
-
-func (ud UserData) fetchCatalog(ctx *context.StoreContext, w http.ResponseWriter, r *http.Request, rType, id, extra string) {
-	idx, catalogId, err := parseCatalogId(id, &ud)
-	if err != nil {
-		SendError(w, r, err)
-		return
-	}
-	addon.ProxyResource(w, r, &stremio_addon.ProxyResourceParams{
-		BaseURL:  ud.Upstreams[idx].baseUrl,
-		Resource: string(stremio.ResourceNameCatalog),
-		Type:     rType,
-		Id:       catalogId,
-		Extra:    extra,
-		ClientIP: ctx.ClientIP,
-	})
-}
-
 func (ud UserData) fetchMeta(ctx *context.StoreContext, w http.ResponseWriter, r *http.Request, rType, id, extra string) error {
 	upstreams, err := ud.getUpstreams(ctx, stremio.ResourceNameMeta, rType, id)
 	if err != nil {
