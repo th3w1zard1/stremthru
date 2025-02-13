@@ -437,6 +437,8 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 					up.ExtractorError = err.Error()
 				}
 				up.Extractor = value
+			} else {
+				up.Extractor = StreamTransformerExtractorBlob("")
 			}
 		case "save-extractor":
 			if td.IsAuthed {
@@ -514,6 +516,8 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 				td.Template = value
+			} else {
+				td.Template = StreamTransformerTemplateBlob{}
 			}
 		case "save-template":
 			if td.IsAuthed {
