@@ -33,6 +33,18 @@ const (
 	CatalogGenreStremThru = "StremThru"
 )
 
+var logoByStoreCode = map[string]string{
+	"*":  "https://emojiapi.dev/api/v1/sparkles/256.png",
+	"ad": "https://cdn.alldebrid.com/lib/images/default/logo_alldebrid.png",
+	"dl": "https://debrid-link.com/img/fav/icon_192.png",
+	"ed": "https://paradise-cloud.com/android-chrome-192x192.png",
+	"oc": "https://offcloud.com/images/apple-touch-icon-180x180.png",
+	"pm": "https://www.premiumize.me/apple-touch-icon.png",
+	"pp": "https://mypikpak.com/android-chrome-192x192.png",
+	"rd": "https://fcdn.real-debrid.com/0830/favicons/android-chrome-192x192.png",
+	"tb": "https://torbox.app/android-chrome-192x192.png",
+}
+
 func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 	isConfigured := ud.HasRequiredValues()
 
@@ -64,6 +76,11 @@ func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 		id += "." + storeCode
 	}
 
+	logo := logoByStoreCode["*"]
+	if storeLogo, ok := logoByStoreCode[storeCode]; ok {
+		logo = storeLogo
+	}
+
 	idPrefix := getIdPrefix(storeCode)
 
 	manifest := &stremio.Manifest{
@@ -71,6 +88,7 @@ func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 		Name:        name,
 		Description: description,
 		Version:     config.Version,
+		Logo:        logo,
 		Resources: []stremio.Resource{
 			{
 				Name:       stremio.ResourceNameMeta,
