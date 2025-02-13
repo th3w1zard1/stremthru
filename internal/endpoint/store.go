@@ -35,11 +35,12 @@ type AddMagnetPayload struct {
 	Magnet string `json:"magnet"`
 }
 
-func checkMagnet(ctx *context.StoreContext, magnets []string, sid string) (*store.CheckMagnetData, error) {
+func checkMagnet(ctx *context.StoreContext, magnets []string, sid string, localOnly bool) (*store.CheckMagnetData, error) {
 	params := &store.CheckMagnetParams{}
 	params.APIKey = ctx.StoreAuthToken
 	params.Magnets = magnets
 	params.SId = sid
+	params.LocalOnly = localOnly
 	if ctx.ClientIP != "" {
 		params.ClientIP = ctx.ClientIP
 	}
@@ -138,7 +139,7 @@ func handleStoreMagnetsCheck(w http.ResponseWriter, r *http.Request) {
 	sid := queryParams.Get("sid")
 
 	ctx := context.GetStoreContext(r)
-	data, err := checkMagnet(ctx, magnets, sid)
+	data, err := checkMagnet(ctx, magnets, sid, queryParams.Get("local_only") != "")
 	if err == nil && data != nil {
 		for _, item := range data.Items {
 			item.Hash = strings.ToLower(item.Hash)

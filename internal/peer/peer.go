@@ -173,6 +173,7 @@ type CheckMagnetParams struct {
 	store.CheckMagnetParams
 	StoreName  store.StoreName
 	StoreToken string
+	LocalOnly  bool
 }
 
 func (c APIClient) CheckMagnet(params *CheckMagnetParams) (request.APIResponse[store.CheckMagnetData], error) {
@@ -180,6 +181,9 @@ func (c APIClient) CheckMagnet(params *CheckMagnetParams) (request.APIResponse[s
 	params.Query.Set("client_ip", params.ClientIP)
 	if params.SId != "" {
 		params.Query.Set("sid", params.SId)
+	}
+	if params.LocalOnly {
+		params.Query.Set("local_only", "1")
 	}
 	params.Headers = &http.Header{
 		"X-StremThru-Store-Name":          []string{string(params.StoreName)},

@@ -124,7 +124,6 @@ func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.Check
 	magnetByHash := make(map[string]core.MagnetLink, len(params.Magnets))
 	hashes := make([]string, len(params.Magnets))
 
-	foundItemByHash := map[string]store.CheckMagnetDataItem{}
 	missingHashes := []string{}
 
 	for i, m := range params.Magnets {
@@ -136,12 +135,27 @@ func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.Check
 		hashes[i] = magnet.Hash
 	}
 
+	foundItemByHash := map[string]store.CheckMagnetDataItem{}
+
 	if data, err := buddy.CheckMagnet(c, hashes, params.GetAPIKey(c.client.apiKey), params.ClientIP, params.SId); err != nil {
 		return nil, err
 	} else {
 		for _, item := range data.Items {
 			foundItemByHash[item.Hash] = item
 		}
+	}
+
+	if params.LocalOnly {
+		data := &store.CheckMagnetData{
+			Items: []store.CheckMagnetDataItem{},
+		}
+
+		for _, hash := range hashes {
+			if item, ok := foundItemByHash[hash]; ok {
+				data.Items = append(data.Items, item)
+			}
+		}
+		return data, nil
 	}
 
 	for _, hash := range hashes {
@@ -188,7 +202,9 @@ func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.Check
 			}
 		}
 	}
-	data := &store.CheckMagnetData{}
+	data := &store.CheckMagnetData{
+		Items: []store.CheckMagnetDataItem{},
+	}
 	filesByHash := map[string][]store.MagnetFile{}
 	for _, hash := range hashes {
 		if item, ok := foundItemByHash[hash]; ok {

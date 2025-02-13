@@ -106,9 +106,10 @@ const (
 
 type CheckMagnetParams struct {
 	Ctx
-	Magnets  []string
-	ClientIP string
-	SId      string
+	Magnets   []string
+	ClientIP  string
+	SId       string
+	LocalOnly bool
 }
 
 type CheckMagnetDataItem struct {
