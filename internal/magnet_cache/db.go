@@ -146,16 +146,16 @@ func GetByHashes(store store.StoreCode, hashes []string, sid string) ([]MagnetCa
 	return mcs, nil
 }
 
-func Touch(store store.StoreCode, hash string, files Files, sid string) {
+func Touch(storeCode store.StoreCode, hash string, files Files, sid string) {
 	buf := bytes.NewBuffer([]byte("INSERT INTO " + TableName))
 	var result sql.Result
 	var err error
 	if len(files) == 0 {
 		buf.WriteString(" (store, hash, is_cached) VALUES (?, ?, false) ON CONFLICT (store, hash) DO UPDATE SET is_cached = excluded.is_cached, modified_at = " + db.CurrentTimestamp)
-		result, err = db.Exec(buf.String(), store, hash)
+		result, err = db.Exec(buf.String(), storeCode, hash)
 	} else {
 		buf.WriteString(" (store, hash, is_cached, files) VALUES (?, ?, true, ?) ON CONFLICT (store, hash) DO UPDATE SET is_cached = excluded.is_cached, files = excluded.files, modified_at = " + db.CurrentTimestamp)
-		result, err = db.Exec(buf.String(), store, hash, files)
+		result, err = db.Exec(buf.String(), storeCode, hash, files)
 	}
 	if err == nil {
 		_, err = result.RowsAffected()
@@ -164,10 +164,10 @@ func Touch(store store.StoreCode, hash string, files Files, sid string) {
 		mcLog.Error("failed to touch", "error", err)
 		return
 	}
-	TrackFiles(hash, files, sid)
+	TrackFiles(hash, files, sid, storeCode != store.StoreCodeRealDebrid)
 }
 
-func BulkTouch(store store.StoreCode, filesByHash map[string]Files, sid string) {
+func BulkTouch(storeCode store.StoreCode, filesByHash map[string]Files, sid string) {
 	var hit_query strings.Builder
 	hit_query.WriteString("INSERT INTO " + TableName + " (store,hash,is_cached,files) VALUES ")
 	hit_placeholder := "(?,?,true,?)"
@@ -187,14 +187,14 @@ func BulkTouch(store store.StoreCode, filesByHash map[string]Files, sid string) 
 				miss_query.WriteString(",")
 			}
 			miss_query.WriteString(miss_placeholder)
-			miss_args = append(miss_args, store, hash)
+			miss_args = append(miss_args, storeCode, hash)
 			miss_count++
 		} else {
 			if hit_count > 0 {
 				hit_query.WriteString(",")
 			}
 			hit_query.WriteString(hit_placeholder)
-			hit_args = append(hit_args, store, hash, files)
+			hit_args = append(hit_args, storeCode, hash, files)
 			hit_count++
 		}
 	}
@@ -205,7 +205,7 @@ func BulkTouch(store store.StoreCode, filesByHash map[string]Files, sid string) 
 		if err != nil {
 			mcLog.Error("failed to touch hits", "error", err)
 		}
-		BulkTrackFiles(filesByHash, sid)
+		BulkTrackFiles(filesByHash, sid, storeCode != store.StoreCodeRealDebrid)
 	}
 
 	if miss_count > 0 {
