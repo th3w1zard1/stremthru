@@ -170,10 +170,10 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 		res, err := Buddy.CheckMagnetCache(params)
 		duration := time.Since(start)
 		if err != nil {
-			buddyLog.Error("failed to check magnet", "error", core.PackError(err), "duration", duration)
+			buddyLog.Error("failed to check magnet", "store", s.GetName(), "error", core.PackError(err), "duration", duration)
 			return data, nil
 		} else {
-			buddyLog.Info("check magnet", "duration", duration)
+			buddyLog.Info("check magnet", "store", s.GetName(), "duration", duration)
 			filesByHash := map[string]magnet_cache.Files{}
 			for _, item := range res.Data.Items {
 				res_item := store.CheckMagnetDataItem{
@@ -222,10 +222,10 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 			Peer.HaltCheckMagnet()
 		}
 		if err != nil {
-			peerLog.Error("failed to check magnet", "error", core.PackError(err), "duration", duration)
+			peerLog.Error("failed to check magnet", "store", s.GetName(), "error", core.PackError(err), "duration", duration)
 			return data, nil
 		} else {
-			peerLog.Info("check magnet", "duration", duration)
+			peerLog.Info("check magnet", "store", s.GetName(), "duration", duration)
 			filesByHash := map[string]magnet_cache.Files{}
 			for _, item := range res.Data.Items {
 				files := magnet_cache.Files{}
