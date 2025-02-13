@@ -1,10 +1,11 @@
 package stremio_store
 
 import (
+	"net/http"
 	"strings"
 
-	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
+	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
@@ -32,31 +33,39 @@ const (
 	CatalogGenreStremThru = "StremThru"
 )
 
-func getManifest(ud *UserData) *stremio.Manifest {
+func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
+	isConfigured := ud.HasRequiredValues()
+
+	id := shared.GetReversedHostname(r) + ".store"
 	name := "Store"
-	description := "StremThru Store Catalog and Search"
+	description := "Explore and Search Store Catalog"
 	storeName := ""
 	storeCode := ""
-	switch ud.StoreName {
-	case "":
-		storeName = "StremThru"
-		storeCode = "st"
-	case "stremthru":
-		storeName = "StremThru"
-		storeCode = "st"
-	default:
-		storeName = string(store.StoreName(ud.StoreName))
-		storeCode = string(store.StoreName(ud.StoreName).Code())
+	if isConfigured {
+		switch ud.StoreName {
+		case "":
+			storeName = "StremThru"
+			storeCode = "st"
+		case "stremthru":
+			storeName = "StremThru"
+			storeCode = "st"
+		default:
+			storeName = string(store.StoreName(ud.StoreName))
+			storeCode = string(store.StoreName(ud.StoreName).Code())
+		}
+
+		name = name + " | " + strings.ToUpper(storeCode)
+		description = description + " - " + storeName
+	} else {
+		name = "StremThru Store"
 	}
 
-	name = name + " | " + strings.ToUpper(storeCode)
-	description = description + " - " + storeName
-
-	id := "dev.muniftanjim.stremthru.store." + storeCode
+	if storeCode != "" {
+		id += "." + storeCode
+	}
 
 	idPrefix := getIdPrefix(storeCode)
 
-	contactEmail, _ := core.Base64Decode("Z2l0aHViQG11bmlmdGFuamltLmRldg==")
 	manifest := &stremio.Manifest{
 		ID:          id,
 		Name:        name,
@@ -94,10 +103,9 @@ func getManifest(ud *UserData) *stremio.Manifest {
 				},
 			},
 		},
-		ContactEmail: contactEmail,
 		BehaviorHints: &stremio.BehaviorHints{
 			Configurable:          true,
-			ConfigurationRequired: !ud.HasRequiredValues(),
+			ConfigurationRequired: !isConfigured,
 		},
 	}
 

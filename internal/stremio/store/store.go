@@ -160,7 +160,7 @@ func handleManifest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manifest := getManifest(ud)
+	manifest := GetManifest(r, ud)
 
 	SendResponse(w, r, 200, manifest)
 }

@@ -36,7 +36,7 @@ func getTemplateData() *configure.TemplateData {
 	return &configure.TemplateData{
 		Base: configure.Base{
 			Title:       "StremThru Store",
-			Description: "Stremio Addon for Store Catalog and Search",
+			Description: "Explore and Search Store Catalog",
 			NavTitle:    "Store",
 		},
 		Configs: []configure.Config{

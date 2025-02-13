@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -193,6 +194,17 @@ func extractRequestHost(r *http.Request) string {
 	}
 
 	return host
+}
+
+func GetReversedHostname(r *http.Request) string {
+	hostname := extractRequestHost(r)
+	hostname, _, _ = strings.Cut(hostname, ":")
+	if hostname == "localhost" || hostname == "127.0.0.1" {
+		return "local.stremthru"
+	}
+	parts := strings.Split(hostname, ".")
+	slices.Reverse(parts)
+	return strings.Join(parts, ".")
 }
 
 func ExtractRequestBaseURL(r *http.Request) *url.URL {

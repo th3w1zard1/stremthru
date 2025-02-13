@@ -110,6 +110,25 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	SendHTML(w, 200, buf)
 }
 
+func handleManifest(w http.ResponseWriter, r *http.Request) {
+	if !IsMethod(r, http.MethodGet) {
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
+		return
+	}
+
+	manifest := GetManifest(r)
+	SendResponse(w, r, 200, manifest)
+}
+
+func handleConfigure(w http.ResponseWriter, r *http.Request) {
+	if !IsMethod(r, http.MethodGet) {
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
+		return
+	}
+
+	http.Redirect(w, r, "/stremio/sidekick", http.StatusFound)
+}
+
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodPost) {
 		shared.ErrorMethodNotAllowed(r).Send(w, r)
@@ -861,9 +880,14 @@ func commonMiddleware(next http.Handler) http.Handler {
 }
 
 func AddStremioSidekickEndpoints(mux *http.ServeMux) {
+	withCors := shared.Middleware(shared.EnableCORS)
+
 	router := http.NewServeMux()
 
 	router.HandleFunc("/{$}", handleRoot)
+
+	router.HandleFunc("/manifest.json", withCors(handleManifest))
+	router.HandleFunc("/configure", withCors(handleConfigure))
 
 	router.HandleFunc("/login", handleLogin)
 	router.HandleFunc("/logout", handleLogout)

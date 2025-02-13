@@ -1,0 +1,43 @@
+{{define "head"}}
+{{end}}
+
+{{define "header"}}
+<h1>
+  {{.Title}}
+</h1>
+<div>
+  <p>{{.Description}}</p>
+</div>
+{{end}}
+
+{{define "main"}}
+  {{if gt (.Addons | len) 0}}
+  <div>
+    {{range .Addons}}
+    <article>
+      <header>
+        <h3 class="mb-0">{{.Name}}</h3>
+      </header>
+      {{.Description}}
+      <footer>
+        <a role="button" href="{{.URL}}">Configure</a>
+      </footer>
+    </article>
+    {{end}}
+  </div>
+
+  <button class="w-full mt-4" onclick="onInstall()">Install</button>
+  {{end}}
+{{end}}
+
+{{define "foot"}}
+<script>
+function onInstall() {
+  const manifestUrl = "{{.ManifestURL}}";
+  navigator.clipboard.writeText(manifestUrl);
+  window.location.href = manifestUrl.replace(/^.+:\/\//, 'stremio://');
+}
+</script>
+{{end}}
+
+{{template "layout.html" .}}

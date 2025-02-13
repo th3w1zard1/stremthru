@@ -358,7 +358,7 @@ func handleManifest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manifest := getManifest(manifests, ud)
+	manifest := GetManifest(r, manifests, ud)
 
 	SendResponse(w, r, 200, manifest)
 }

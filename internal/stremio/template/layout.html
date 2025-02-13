@@ -130,18 +130,21 @@
       </ul>
       <ul>
         <li><a href="https://github.com/MunifTanjim/stremthru" class="secondary" target="_blank">GitHub</a></li>
+        {{if ne .NavTitle ""}}
         <li>
           <details class="dropdown">
             <summary>
               {{.NavTitle}}
             </summary>
             <ul dir="rtl">
-              <li><a href="/stremio/sidekick/">Sidekick</a></li>
-              <li><a href="/stremio/store/">Store</a></li>
+              <li><a href="/stremio/">Stremio</a></li>
               <li><a href="/stremio/wrap/">Wrap</a></li>
+              <li><a href="/stremio/store/">Store</a></li>
+              <li><a href="/stremio/sidekick/">Sidekick</a></li>
             </ul>
           </details>
         </li>
+        {{end}}
       </ul>
     </nav>
 

@@ -1,11 +1,13 @@
 package stremio_wrap
 
 import (
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
+	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
@@ -24,7 +26,7 @@ func getManifestResourceIdPrefixes(manifest *stremio.Manifest, resource stremio.
 	return resource.IDPrefixes
 }
 
-func getManifest(upstreamManifests []stremio.Manifest, ud *UserData) *stremio.Manifest {
+func GetManifest(r *http.Request, upstreamManifests []stremio.Manifest, ud *UserData) *stremio.Manifest {
 	manifest := &stremio.Manifest{
 		Version:   config.Version,
 		Resources: []stremio.Resource{},
@@ -67,6 +69,12 @@ func getManifest(upstreamManifests []stremio.Manifest, ud *UserData) *stremio.Ma
 	manifest.BehaviorHints = &stremio.BehaviorHints{
 		Configurable:          true,
 		ConfigurationRequired: !ud.HasRequiredValues(),
+	}
+
+	if len(upstreamManifests) == 0 {
+		manifest.ID = shared.GetReversedHostname(r) + ".wrap"
+		manifest.Name = "StremThru Wrap"
+		manifest.Description = "Stremio Addon to Wrap other Addons with StremThru"
 	}
 
 	if len(upstreamManifests) == 1 {

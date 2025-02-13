@@ -41,7 +41,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 	td := &TemplateData{
 		Base: Base{
 			Title:       "StremThru Wrap",
-			Description: "Stremio Addon to Wrap another Addon with StremThru",
+			Description: "Stremio Addon to Wrap other Addons with StremThru",
 			NavTitle:    "Wrap",
 		},
 		Upstreams: []UpstreamAddon{},
