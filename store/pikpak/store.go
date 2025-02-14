@@ -63,7 +63,7 @@ func (s *StoreClient) getRecentTask(ctx Ctx, taskId string) (*Task, error) {
 		Ctx:   ctx,
 		Limit: 200,
 		Filters: map[string]map[string]any{
-			"phase": map[string]any{
+			"phase": {
 				"in": FilePhaseRunning + "," + FilePhaseError + "," + FilePhaseComplete,
 			},
 		},
@@ -116,8 +116,8 @@ func (s *StoreClient) getFileByMagnetHash(ctx Ctx, hash string) (*File, error) {
 		Limit:    500,
 		ParentId: myPackFolder.Id,
 		Filters: map[string]map[string]any{
-			"trashed": map[string]any{"eq": false},
-			"phase":   map[string]any{"eq": FilePhaseComplete},
+			"trashed": {"eq": false},
+			"phase":   {"eq": FilePhaseComplete},
 		},
 	})
 	if err != nil {
@@ -187,22 +187,20 @@ func (s *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 		if err != nil {
 			log.Error("error waiting for task complete", "error", err)
 		}
-		if task != nil {
-			if task.Phase == FilePhaseComplete {
-				mRes, err := s.GetMagnet(&store.GetMagnetParams{
-					Ctx: ctx.Ctx,
-					Id:  data.Id,
-				})
-				if err != nil {
-					return nil, err
-				}
-				data.Name = mRes.Name
-				data.Status = mRes.Status
-				data.Files = mRes.Files
-				data.AddedAt = mRes.AddedAt
-			} else if task.Phase == FilePhaseError {
-				data.Status = store.MagnetStatusFailed
+		if task.Phase == FilePhaseComplete {
+			mRes, err := s.GetMagnet(&store.GetMagnetParams{
+				Ctx: ctx.Ctx,
+				Id:  data.Id,
+			})
+			if err != nil {
+				return nil, err
 			}
+			data.Name = mRes.Name
+			data.Status = mRes.Status
+			data.Files = mRes.Files
+			data.AddedAt = mRes.AddedAt
+		} else if task.Phase == FilePhaseError {
+			data.Status = store.MagnetStatusFailed
 		}
 	}
 	return data, nil
@@ -292,8 +290,8 @@ func (c *StoreClient) listFilesFlat(ctx Ctx, folderId string, result []store.Mag
 		Ctx:      ctx,
 		ParentId: folderId,
 		Filters: map[string]map[string]any{
-			"trashed": map[string]any{"eq": false},
-			"phase":   map[string]any{"eq": FilePhaseComplete},
+			"trashed": {"eq": false},
+			"phase":   {"eq": FilePhaseComplete},
 		},
 	}
 	lfRes, err := c.client.ListFiles(params)
@@ -403,8 +401,8 @@ func (s *StoreClient) getMyPackFolder(ctx Ctx) (*File, error) {
 	res, err := s.client.ListFiles(&ListFilesParams{
 		Ctx: ctx,
 		Filters: map[string]map[string]any{
-			"trashed": map[string]any{"eq": false},
-			"phase":   map[string]any{"eq": FilePhaseComplete},
+			"trashed": {"eq": false},
+			"phase":   {"eq": FilePhaseComplete},
 		},
 	})
 	if err != nil {
@@ -438,8 +436,8 @@ func (s *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 				Limit:    500,
 				ParentId: myPackFolder.Id,
 				Filters: map[string]map[string]any{
-					"trashed": map[string]any{"eq": false},
-					"phase":   map[string]any{"eq": FilePhaseComplete},
+					"trashed": {"eq": false},
+					"phase":   {"eq": FilePhaseComplete},
 				},
 				PageToken: pageToken,
 			})
