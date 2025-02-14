@@ -9,16 +9,6 @@ import (
 	"github.com/MunifTanjim/stremthru/core"
 )
 
-var ErrByCode = map[int]string{
-	3:    "invalid_argument",
-	5:    "not_found",       // 'file_not_found'
-	9:    "captcha_invalid", // 'file_in_recycle_bin'
-	16:   "unauthenticated",
-	4002: "captcha_invalid",
-	4022: "invalid_account_or_password",
-	4126: "invalid_grant",
-}
-
 type ErrorDetail struct {
 	Type         string `json:"@type"`
 	StackEntries []any  `json:"stack_entries"`
