@@ -316,7 +316,7 @@ name
 (?i)^(?:\[(?<debrid>\w+?)(?<cached>\+?)\] \n)?(?<addon>\w+) (?:Other|(?<resolution>\d[^kp]*[kp]))
 
 description
-^(?<title>.+?) ?\n(?:(?<filename>.+?) ?\n)?⚡? 📺 (?<resolution>[^ ]+) 💾 (?<size>[\d.]+ [^ ]+) (?:👤 \d+)? ⚙️ (?<site>[^ ]+)
+^(?<title>.+?) ?\n(?:(?<filename>.+?) ?\n)?⚡? 📺 (?<resolution>[^ ]+) 💾 (?:Unknown|(?<size>[\d.]+ [^ ]+)|.+?) (?:👤 (?:Unknown|\d+))? ⚙️ (?<site>[^ ]+)
 
 url
 \/(?<hash>[a-f0-9]{40})(?:\/(?<season>\d+)\/(?<episode>\d+))?
