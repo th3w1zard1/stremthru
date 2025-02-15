@@ -64,8 +64,8 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 						Template:  template,
 					}
 					for i := range streams {
-						stream := &streams[i]
-						wstream, err := transformer.Do(stream, up.ReconfigureStore)
+						stream := streams[i]
+						wstream, err := transformer.Do(&stream, up.ReconfigureStore)
 						if err != nil {
 							LogError(r, "failed to transform stream", err)
 						}
