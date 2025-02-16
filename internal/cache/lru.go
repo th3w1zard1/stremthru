@@ -35,6 +35,9 @@ func (cache *LRUCache[V]) AddWithLifetime(key string, value V, lifetime time.Dur
 }
 
 func (cache *LRUCache[V]) Get(key string, value *V) bool {
+	cache.m.Lock()
+	defer cache.m.Unlock()
+
 	val, ok := cache.c.Get(key)
 	*value = val
 	return ok
