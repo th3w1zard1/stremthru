@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/buddy"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
@@ -113,35 +114,85 @@ func (s *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 }
 
 func (s *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.CheckMagnetData, error) {
-	magnets := []core.MagnetLink{}
-	links := []string{}
-	for _, m := range params.Magnets {
+	totalMagnets := len(params.Magnets)
+
+	magnetByHash := make(map[string]core.MagnetLink, totalMagnets)
+	hashes := make([]string, totalMagnets)
+
+	for i, m := range params.Magnets {
 		magnet, err := core.ParseMagnetLink(m)
 		if err != nil {
 			return nil, err
 		}
-		magnets = append(magnets, magnet)
-		links = append(links, magnet.Link)
+		magnetByHash[magnet.Hash] = magnet
+		hashes[i] = magnet.Hash
 	}
-	res, err := s.client.LookupLinkDetails(&LookupLinkDetailsParams{
-		Ctx:  params.Ctx,
-		URLs: links,
-	})
-	if err != nil {
+
+	foundItemByHash := map[string]store.CheckMagnetDataItem{}
+
+	if data, err := buddy.CheckMagnet(s, hashes, params.GetAPIKey(s.client.apiKey), params.ClientIP, params.SId); err != nil {
 		return nil, err
+	} else {
+		for _, item := range data.Items {
+			foundItemByHash[item.Hash] = item
+		}
+	}
+
+	if params.LocalOnly {
+		data := &store.CheckMagnetData{
+			Items: []store.CheckMagnetDataItem{},
+		}
+
+		for _, hash := range hashes {
+			if item, ok := foundItemByHash[hash]; ok {
+				data.Items = append(data.Items, item)
+			}
+		}
+		return data, nil
+	}
+
+	missingHashes := []string{}
+	missingLinks := []string{}
+	for _, hash := range hashes {
+		if _, ok := foundItemByHash[hash]; !ok {
+			magnet := magnetByHash[hash]
+			missingHashes = append(missingHashes, magnet.Hash)
+			missingLinks = append(missingLinks, magnet.Link)
+		}
+	}
+
+	ldByHash := map[string]LookupLinkDetailsDataItem{}
+	if len(missingHashes) > 0 {
+		res, err := s.client.LookupLinkDetails(&LookupLinkDetailsParams{
+			Ctx:  params.Ctx,
+			URLs: missingLinks,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for i, detail := range res.Data.Result {
+			hash := missingHashes[i]
+			ldByHash[hash] = detail
+		}
 	}
 	data := &store.CheckMagnetData{
 		Items: []store.CheckMagnetDataItem{},
 	}
-	for i, detail := range res.Data.Result {
-		magnet := magnets[i]
+	filesByHash := map[string][]store.MagnetFile{}
+	for _, hash := range hashes {
+		if item, ok := foundItemByHash[hash]; ok {
+			data.Items = append(data.Items, item)
+			continue
+		}
+
+		magnet := magnetByHash[hash]
 		item := store.CheckMagnetDataItem{
 			Hash:   magnet.Hash,
 			Magnet: magnet.Link,
 			Status: store.MagnetStatusUnknown,
 			Files:  []store.MagnetFile{},
 		}
-		if detail.Cached {
+		if detail, ok := ldByHash[hash]; ok && detail.Cached {
 			item.Status = store.MagnetStatusCached
 			for idx, f := range detail.Files {
 				item.Files = append(item.Files, store.MagnetFile{
@@ -152,7 +203,10 @@ func (s *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.Check
 			}
 		}
 		data.Items = append(data.Items, item)
+		filesByHash[hash] = item.Files
+
 	}
+	go buddy.BulkTrackMagnet(s, filesByHash, params.GetAPIKey(s.client.apiKey))
 	return data, nil
 }
 
