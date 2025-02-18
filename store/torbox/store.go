@@ -24,8 +24,7 @@ type StoreClient struct {
 	Name              store.StoreName
 	client            *APIClient
 	getUserCache      cache.Cache[store.User]
-	checkMagnetCache  cache.Cache[store.CheckMagnetDataItem] // for cached magnets
-	getMagnetCache    cache.Cache[store.GetMagnetData]       // for downloaded magnets
+	getMagnetCache    cache.Cache[store.GetMagnetData] // for downloaded magnets
 	generateLinkCache cache.Cache[store.GenerateLinkData]
 }
 
@@ -41,13 +40,6 @@ func NewStoreClient(config *StoreClientConfig) *StoreClient {
 		return cache.NewCache[store.User](&cache.CacheConfig{
 			Name:     "store:torbox:getUser",
 			Lifetime: 1 * time.Minute,
-		})
-	}()
-
-	c.checkMagnetCache = func() cache.Cache[store.CheckMagnetDataItem] {
-		return cache.NewCache[store.CheckMagnetDataItem](&cache.CacheConfig{
-			Name:     "store:torbox:checkMagnet",
-			Lifetime: 10 * time.Minute,
 		})
 	}()
 
@@ -106,18 +98,6 @@ func (c *StoreClient) GetUser(params *store.GetUserParams) (*store.User, error) 
 	}
 	c.setCachedGetUser(params, data)
 	return data, nil
-}
-
-func (c *StoreClient) getCachedCheckMagnet(params *store.CheckMagnetParams, magnetHash string) *store.CheckMagnetDataItem {
-	v := &store.CheckMagnetDataItem{}
-	if c.checkMagnetCache.Get(params.GetAPIKey(c.client.apiKey)+":"+magnetHash, v) {
-		return v
-	}
-	return nil
-}
-
-func (c *StoreClient) setCachedCheckMagnet(params *store.CheckMagnetParams, magnetHash string, v *store.CheckMagnetDataItem) {
-	c.checkMagnetCache.Add(params.GetAPIKey(c.client.apiKey)+":"+magnetHash, *v)
 }
 
 func (c *StoreClient) CheckMagnet(params *store.CheckMagnetParams) (*store.CheckMagnetData, error) {
