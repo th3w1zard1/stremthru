@@ -552,6 +552,18 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		}
 
 		magnet, err = waitForMagnetStatus(ctx, magnet, store.MagnetStatusDownloaded, 3, 5*time.Second)
+		if err != nil {
+			strem := &stremResult{
+				error_log:   "failed wait for magnet status",
+				error_video: "500",
+			}
+			if magnet.Status == store.MagnetStatusQueued || magnet.Status == store.MagnetStatusDownloading || magnet.Status == store.MagnetStatusProcessing {
+				strem.error_video = "downloading"
+			} else if magnet.Status == store.MagnetStatusFailed || magnet.Status == store.MagnetStatusInvalid || magnet.Status == store.MagnetStatusUnknown {
+				strem.error_video = "download_failed"
+			}
+			return strem, err
+		}
 
 		query := r.URL.Query()
 		sid := query.Get("sid")
@@ -566,19 +578,6 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		}
 
 		go buddy.TrackMagnet(ctx.Store, magnet.Hash, magnet.Files, sid, magnet.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
-
-		if err != nil {
-			strem := &stremResult{
-				error_log:   "failed wait for magnet status",
-				error_video: "500",
-			}
-			if magnet.Status == store.MagnetStatusQueued || magnet.Status == store.MagnetStatusDownloading || magnet.Status == store.MagnetStatusProcessing {
-				strem.error_video = "downloading"
-			} else if magnet.Status == store.MagnetStatusFailed || magnet.Status == store.MagnetStatusInvalid || magnet.Status == store.MagnetStatusUnknown {
-				strem.error_video = "download_failed"
-			}
-			return strem, err
-		}
 
 		var file *store.MagnetFile
 		if fileName != "" {
@@ -601,12 +600,26 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		if file == nil && strings.Contains(sid, ":") {
+			if parts := strings.SplitN(sid, ":", 3); len(parts) == 3 {
+				if pat, err := regexp.Compile("0?" + parts[1] + ".{1,3}" + "0?" + parts[2]); err == nil {
+					for i := range magnet.Files {
+						f := &magnet.Files[i]
+						if pat.MatchString(f.Name) {
+							file = f
+							log.Debug("matched file using stream id", "sid", sid, "pattern", pattern.String(), "filename", f.Name)
+							break
+						}
+					}
+				}
+			}
+		}
 		if file == nil && fileIdx != -1 {
 			for i := range magnet.Files {
 				f := &magnet.Files[i]
 				if f.Idx == fileIdx {
-					log.Debug("matched file using fileidx", "fileidx", f.Idx, "filename", f.Name)
 					file = f
+					log.Debug("matched file using fileidx", "fileidx", f.Idx, "filename", f.Name)
 					break
 				}
 			}
@@ -615,8 +628,8 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 			for i := range magnet.Files {
 				f := &magnet.Files[i]
 				if file == nil || file.Size < f.Size {
-					log.Debug("matched file using largest size", "filename", f.Name)
 					file = f
+					log.Debug("matched file using largest size", "filename", f.Name)
 				}
 			}
 		}
