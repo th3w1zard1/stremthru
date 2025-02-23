@@ -429,13 +429,13 @@ Generate direct link for a file link.
 
 `/stremio/store`
 
-Store Catalog and Search.
+Explore and Search Store Catalog.
 
 #### Wrap
 
 `/stremio/wrap`
 
-Wrap another Addon with StremThru.
+Stremio Addon to Wrap other Addons with StremThru.
 
 #### Sidekick
 
