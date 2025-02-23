@@ -80,7 +80,7 @@ func AddStremioEndpoints(mux *http.ServeMux) {
 
 	router.HandleFunc("/{$}", handleRoot)
 	router.HandleFunc("/manifest.json", withCors(handleManifest))
-	router.HandleFunc("/addon_catalog/other/stremthru.json", withCors(handleAddonCatalog))
+	router.HandleFunc("/addon_catalog/all/stremthru.json", withCors(handleAddonCatalog))
 	router.HandleFunc("/configure", handleConfigure)
 
 	mux.Handle("/stremio/", http.StripPrefix("/stremio", commonMiddleware(router)))
