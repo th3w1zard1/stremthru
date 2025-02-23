@@ -137,10 +137,18 @@ type StreamTransformerResult struct {
 
 	Season  string
 	Episode string
+
+	Raw StreamTransformerTemplateBlob
 }
 
 func (st StreamTransformer) parse(stream *stremio.Stream) *StreamTransformerResult {
 	result := &StreamTransformerResult{FileIdx: -1}
+	result.Raw.Name = stream.Name
+	result.Raw.Description = stream.Description
+	if stream.Description == "" {
+		result.Raw.Description = stream.Title
+	}
+
 	lastField := ""
 	for _, pattern := range st.Extractor {
 		field := pattern.Field
@@ -423,6 +431,11 @@ var builtInTemplates = func() map[string]StreamTransformerTemplateBlob {
 📁 {{.Title}}
 {{end}}
 `),
+	}
+
+	templates[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Raw"] = StreamTransformerTemplateBlob{
+		Name:        `{{.Raw.Name}}`,
+		Description: `{{.Raw.Description}}`,
 	}
 
 	return templates
