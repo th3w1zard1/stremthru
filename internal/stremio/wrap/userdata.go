@@ -540,7 +540,14 @@ func getUserData(r *http.Request) (*UserData, error) {
 		if up.URL != "" {
 			if baseUrl, err := url.Parse(up.URL); err == nil {
 				if strings.HasSuffix(baseUrl.Path, "/manifest.json") {
-					baseUrl.Path = strings.TrimSuffix(baseUrl.Path, "/manifest.json")
+					if baseUrl.RawPath != "" && baseUrl.RawPath != baseUrl.Path {
+						baseUrl.RawPath = strings.TrimSuffix(baseUrl.RawPath, "/manifest.json")
+						if baseUrl.Path, err = url.PathUnescape(baseUrl.RawPath); err != nil {
+							return nil, err
+						}
+					} else {
+						baseUrl.Path = strings.TrimSuffix(baseUrl.Path, "/manifest.json")
+					}
 					up.baseUrl = baseUrl
 				}
 			}
