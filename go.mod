@@ -8,6 +8,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/redis/go-redis/v9 v9.0.0-rc.4
 	github.com/zeebo/xxh3 v1.0.2
+	golang.org/x/sync v0.8.0
 )
 
 require (
@@ -29,7 +30,6 @@ require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/zclconf/go-cty v1.14.1 // indirect
 	golang.org/x/crypto v0.27.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/text v0.18.0 // indirect
 )
@@ -38,11 +38,11 @@ require (
 	github.com/dpotapov/slogpfx v0.0.0-20230917063348-41a73c95c536
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-redis/cache/v9 v9.0.0
-	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/lmittmann/tint v1.0.7
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mattn/go-sqlite3 v1.14.24
+	github.com/rs/xid v1.6.0
 	github.com/sahilm/fuzzy v0.1.1
 )

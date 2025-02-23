@@ -8,7 +8,7 @@ import (
 
 	"github.com/MunifTanjim/stremthru/internal/logger"
 	"github.com/MunifTanjim/stremthru/internal/server"
-	"github.com/google/uuid"
+	"github.com/rs/xid"
 )
 
 type MiddlewareFunc func(http.HandlerFunc) http.HandlerFunc
@@ -51,7 +51,7 @@ func RootServerContext(next http.Handler) http.Handler {
 
 		ctx.RequestId = r.Header.Get("Request-ID")
 		if ctx.RequestId == "" {
-			ctx.RequestId = uuid.New().String()
+			ctx.RequestId = xid.New().String()
 			r.Header.Set("Request-ID", ctx.RequestId)
 		}
 		w.Header().Set("Request-ID", ctx.RequestId)
