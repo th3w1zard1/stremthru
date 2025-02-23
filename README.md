@@ -362,7 +362,7 @@ Check magnet links.
 **Query Parameter**:
 
 - `magnet`: comma seperated magnet links (min `1`, max `500`)
-- `sid`: strmeio stream id
+- `sid`: stremio stream id
 
 **Response**:
 
