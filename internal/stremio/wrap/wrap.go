@@ -622,7 +622,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 						f := &magnet.Files[i]
 						if pat.MatchString(f.Name) {
 							file = f
-							log.Debug("matched file using stream id", "sid", sid, "pattern", pattern.String(), "filename", f.Name)
+							log.Debug("matched file using stream id", "sid", sid, "pattern", pat.String(), "filename", f.Name)
 							break
 						}
 					}
