@@ -121,24 +121,23 @@ type Config struct {
 	LogLevel  slog.Level
 	LogFormat string
 
-	Port               string
-	StoreAuthToken     StoreAuthTokenMap
-	ProxyAuthPassword  ProxyAuthPasswordMap
-	ProxyStreamEnabled bool
-	BuddyURL           string
-	HasBuddy           bool
-	PeerURL            string
-	PeerAuthToken      string
-	HasPeer            bool
-	RedisURI           string
-	DatabaseURI        string
-	StremioAddon       StremioAddonConfig
-	Version            string
-	LandingPage        string
-	ServerStartTime    time.Time
-	StoreContentProxy  StoreContentProxyMap
-	StoreTunnel        StoreTunnelConfigMap
-	IP                 *IPResolver
+	Port              string
+	StoreAuthToken    StoreAuthTokenMap
+	ProxyAuthPassword ProxyAuthPasswordMap
+	BuddyURL          string
+	HasBuddy          bool
+	PeerURL           string
+	PeerAuthToken     string
+	HasPeer           bool
+	RedisURI          string
+	DatabaseURI       string
+	StremioAddon      StremioAddonConfig
+	Version           string
+	LandingPage       string
+	ServerStartTime   time.Time
+	StoreContentProxy StoreContentProxyMap
+	StoreTunnel       StoreTunnelConfigMap
+	IP                *IPResolver
 }
 
 func parseUri(uri string) (parsedUrl, parsedToken string) {
@@ -216,23 +215,22 @@ var config = func() Config {
 		LogLevel:  logLevel,
 		LogFormat: logFormat,
 
-		Port:               getEnv("STREMTHRU_PORT", "8080"),
-		ProxyAuthPassword:  proxyAuthPasswordMap,
-		ProxyStreamEnabled: len(proxyAuthPasswordMap) > 0,
-		StoreAuthToken:     storeAuthTokenMap,
-		BuddyURL:           buddyUrl,
-		HasBuddy:           len(buddyUrl) > 0,
-		PeerURL:            peerUrl,
-		PeerAuthToken:      peerAuthToken,
-		HasPeer:            len(peerUrl) > 0,
-		RedisURI:           getEnv("STREMTHRU_REDIS_URI", ""),
-		DatabaseURI:        databaseUri,
-		StremioAddon:       stremioAddon,
-		Version:            "0.55.1", // x-release-please-version
-		LandingPage:        getEnv("STREMTHRU_LANDING_PAGE", "{}"),
-		ServerStartTime:    time.Now(),
-		StoreContentProxy:  storeContentProxyMap,
-		IP:                 &IPResolver{},
+		Port:              getEnv("STREMTHRU_PORT", "8080"),
+		ProxyAuthPassword: proxyAuthPasswordMap,
+		StoreAuthToken:    storeAuthTokenMap,
+		BuddyURL:          buddyUrl,
+		HasBuddy:          len(buddyUrl) > 0,
+		PeerURL:           peerUrl,
+		PeerAuthToken:     peerAuthToken,
+		HasPeer:           len(peerUrl) > 0,
+		RedisURI:          getEnv("STREMTHRU_REDIS_URI", ""),
+		DatabaseURI:       databaseUri,
+		StremioAddon:      stremioAddon,
+		Version:           "0.55.1", // x-release-please-version
+		LandingPage:       getEnv("STREMTHRU_LANDING_PAGE", "{}"),
+		ServerStartTime:   time.Now(),
+		StoreContentProxy: storeContentProxyMap,
+		IP:                &IPResolver{},
 	}
 }()
 
@@ -241,7 +239,6 @@ var LogFormat = config.LogFormat
 
 var Port = config.Port
 var ProxyAuthPassword = config.ProxyAuthPassword
-var ProxyStreamEnabled = config.ProxyStreamEnabled
 var StoreAuthToken = config.StoreAuthToken
 var BuddyURL = config.BuddyURL
 var HasBuddy = config.HasBuddy
@@ -256,6 +253,7 @@ var LandingPage = config.LandingPage
 var ServerStartTime = config.ServerStartTime
 var StoreContentProxy = config.StoreContentProxy
 var IP = config.IP
+
 var IsPublicInstance = len(ProxyAuthPassword) == 0
 
 func getRedactedURI(uri string) (string, error) {

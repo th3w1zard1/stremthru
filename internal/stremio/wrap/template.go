@@ -22,7 +22,7 @@ func getStoreNameConfig() configure.Config {
 		{Value: "realdebrid", Label: "RealDebrid"},
 		{Value: "torbox", Label: "TorBox"},
 	}
-	if !config.ProxyStreamEnabled {
+	if config.IsPublicInstance {
 		options[0].Disabled = true
 		options[0].Label = ""
 	}
@@ -32,7 +32,7 @@ func getStoreNameConfig() configure.Config {
 		Default:  "",
 		Title:    "Store Name",
 		Options:  options,
-		Required: !config.ProxyStreamEnabled,
+		Required: config.IsPublicInstance,
 	}
 	return config
 }
@@ -49,7 +49,7 @@ func getStoreCodeOptions() []configure.ConfigOption {
 		{Value: "rd", Label: "RealDebrid"},
 		{Value: "tb", Label: "TorBox"},
 	}
-	if !config.ProxyStreamEnabled {
+	if config.IsPublicInstance {
 		options[0].Disabled = true
 		options[0].Label = ""
 	}
