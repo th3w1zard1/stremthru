@@ -418,7 +418,7 @@ var builtInTemplates = func() map[string]StreamTransformerTemplateBlob {
 `),
 		Description: strings.TrimSpace(`
 {{if ne .Quality ""}}🎥 {{.Quality}} {{end}}{{if ne .Codec ""}}🎞️ {{.Codec}}{{end}}
-{{if ne .Size ""}}📦 {{.Size}} {{end}}{{if ne .HDR ""}}📺 {{.HDR}}{{end}}{{if ne .Filename ""}}
+{{if ne .Size ""}}📦 {{.Size}} {{end}}{{if ne .HDR ""}}📺 {{.HDR}} {{end}}{{if ne .Site ""}}🔗 {{.Site}}{{end}}{{if ne .Filename ""}}
 📄 {{.Filename}}{{else if ne .Title ""}}
 📁 {{.Title}}
 {{end}}
