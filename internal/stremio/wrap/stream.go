@@ -152,7 +152,7 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 			if ok && storeCode != "" {
 				surl.RawQuery += "&s=" + storeCode
 				stream.URL = surl.String()
-				stream.Name = "⚡ [" + storeCode + "]" + stream.Name
+				stream.Name = "⚡ [" + storeCode + "] " + stream.Name
 
 				cachedStreams = append(cachedStreams, *stream.Stream)
 			} else if !ud.CachedOnly {
