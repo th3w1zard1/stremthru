@@ -521,9 +521,11 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	query := r.URL.Query()
+
 	ctx.Store, ctx.StoreAuthToken = ud.stores[0].store, ud.stores[0].authToken
 	if len(ud.stores) > 1 {
-		storeCode := store.StoreCode(strings.ToLower(r.PathValue("s")))
+		storeCode := store.StoreCode(strings.ToLower(query.Get("s")))
 		for i := range ud.stores {
 			us := &ud.stores[i]
 			if us.store.GetName().Code() == storeCode {
@@ -533,7 +535,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cacheKey := strings.Join([]string{ctx.ClientIP, string(ctx.Store.GetName()), ctx.StoreAuthToken, magnetHash, strconv.Itoa(fileIdx), fileName}, ":")
+	cacheKey := strings.Join([]string{ctx.ClientIP, string(ctx.Store.GetName()), ctx.StoreAuthToken, magnetHash, strconv.Itoa(fileIdx), fileName, query.Encode()}, ":")
 
 	stremLink := ""
 	if stremLinkCache.Get(cacheKey, &stremLink) {
@@ -580,7 +582,6 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 			return strem, err
 		}
 
-		query := r.URL.Query()
 		sid := query.Get("sid")
 		if sid == "" {
 			sid = "*"
