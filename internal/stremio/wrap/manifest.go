@@ -8,7 +8,6 @@ import (
 
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/shared"
-	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
 
@@ -59,10 +58,18 @@ func GetManifest(r *http.Request, upstreamManifests []stremio.Manifest, ud *User
 	manifest.ID = "st:wrap::" + id
 
 	storeHint := ""
-	if ud.StoreName == "" {
-		storeHint = "(ST)"
-	} else {
-		storeHint = "(" + strings.ToUpper(string(store.StoreName(ud.StoreName).Code())) + ")"
+	for i := range ud.Stores {
+		code := string(ud.Stores[i].Code)
+		if code == "" {
+			code = "st"
+		}
+		if i > 0 {
+			storeHint += "|"
+		}
+		storeHint += code
+	}
+	if storeHint != "" {
+		storeHint = "(" + strings.ToUpper(storeHint) + ")"
 	}
 
 	manifest.Name = "StremThru" + storeHint + name
