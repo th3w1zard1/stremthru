@@ -58,7 +58,7 @@ func GetClientIP(r *http.Request) string {
 		}
 	}
 
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err != nil && isCorrectIP(host) {
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil && isCorrectIP(host) {
 		return host
 	}
 
