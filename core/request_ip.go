@@ -40,11 +40,7 @@ func getClientIPFromXForwardedFor(headers string) (string, bool) {
 }
 
 // Credit: https://github.com/pbojinov/request-ip/blob/e1d0f4b89edf26c77cf62b5ef662ba1a0bd1c9fd/src/index.js#L55
-func GetClientIP(r *http.Request) string {
-	ip := r.URL.Query().Get("client_ip")
-	if ip != "" {
-		return ip
-	}
+func GetRequestIP(r *http.Request) string {
 	for _, header := range ipRequestHeaders {
 		switch header {
 		case "X-Forwarded-For":
@@ -63,4 +59,12 @@ func GetClientIP(r *http.Request) string {
 	}
 
 	return ""
+}
+
+func GetClientIP(r *http.Request) string {
+	ip := r.URL.Query().Get("client_ip")
+	if ip != "" {
+		return ip
+	}
+	return GetRequestIP(r)
 }

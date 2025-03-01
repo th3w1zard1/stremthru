@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
@@ -137,7 +136,7 @@ var proxyHttpClientByTunnelType = map[config.TunnelType]*http.Client{
 	}(),
 }
 
-func ProxyResponse(w http.ResponseWriter, r *http.Request, url string, tunnelType config.TunnelType) {
+func ProxyResponse(w http.ResponseWriter, r *http.Request, url string, tunnelType config.TunnelType) (bytesWritten int64, err error) {
 	request, err := http.NewRequest(r.Method, url, nil)
 	if err != nil {
 		e := ErrorInternalServerError(r, "failed to create request")
@@ -163,10 +162,7 @@ func ProxyResponse(w http.ResponseWriter, r *http.Request, url string, tunnelTyp
 
 	w.WriteHeader(response.StatusCode)
 
-	_, err = io.Copy(w, response.Body)
-	if err != nil {
-		slog.Info("[proxy] connection closed", "error", err)
-	}
+	return io.Copy(w, response.Body)
 }
 
 func extractRequestScheme(r *http.Request) string {

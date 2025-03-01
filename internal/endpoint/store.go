@@ -5,8 +5,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/buddy"
 	"github.com/MunifTanjim/stremthru/internal/context"
+	"github.com/MunifTanjim/stremthru/internal/kv"
 	"github.com/MunifTanjim/stremthru/internal/peer_token"
 	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/shared"
@@ -331,11 +333,21 @@ func handleStoreLinkGenerate(w http.ResponseWriter, r *http.Request) {
 	SendResponse(w, r, 200, link, err)
 }
 
+type contentProxyConnection struct {
+	IP   string `json:"ip"`
+	Link string `json:"link"`
+}
+
+var contentProxyConnectionStore = kv.NewKVStore[contentProxyConnection](&kv.KVStoreConfig{
+	Type: "cproxyconn",
+})
+
 func handleStoreLinkAccess(w http.ResponseWriter, r *http.Request) {
 	ctx := server.GetReqCtx(r)
 	ctx.RedactURLPathValues(r, "token")
 
-	if !shared.IsMethod(r, http.MethodGet) && !shared.IsMethod(r, http.MethodHead) {
+	isGetReq := shared.IsMethod(r, http.MethodGet)
+	if !isGetReq && !shared.IsMethod(r, http.MethodHead) {
 		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
@@ -346,7 +358,7 @@ func handleStoreLinkAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	link, headers, tunnelType, err := shared.UnwrapProxyLinkToken(encodedToken)
+	user, link, headers, tunnelType, err := shared.UnwrapProxyLinkToken(encodedToken)
 	if err != nil {
 		SendError(w, r, err)
 		return
@@ -358,7 +370,16 @@ func handleStoreLinkAccess(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	shared.ProxyResponse(w, r, link, tunnelType)
+	if isGetReq && user != "" {
+		cpStore := contentProxyConnectionStore.WithScope(user)
+		if err := cpStore.Set(ctx.RequestId, contentProxyConnection{IP: core.GetRequestIP(r), Link: link}); err != nil {
+			ctx.Log.Error("[proxy] failed to record connection", "error", err)
+		} else {
+			defer cpStore.Del(ctx.RequestId)
+		}
+	}
+	bytesWritten, err := shared.ProxyResponse(w, r, link, tunnelType)
+	ctx.Log.Info("[proxy] connection closed", "user", user, "size", shared.ToSize(bytesWritten), "error", err)
 }
 
 func handleStatic(w http.ResponseWriter, r *http.Request) {

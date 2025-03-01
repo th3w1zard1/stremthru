@@ -150,6 +150,7 @@ func GenerateStremThruLink(r *http.Request, ctx *context.StoreContext, link stri
 }
 
 type proxyLink struct {
+	User    string
 	Value   string
 	Headers map[string]string
 	TunT    config.TunnelType
@@ -162,45 +163,41 @@ var proxyLinkTokenCache = func() cache.Cache[proxyLink] {
 	})
 }()
 
-func getUserSecretFromJWT(t *jwt.Token) (string, []byte, error) {
-	username, err := t.Claims.GetSubject()
+func getUserCredsFromJWT(t *jwt.Token) (user, password string, err error) {
+	user, err = t.Claims.GetSubject()
 	if err != nil {
-		return "", nil, err
+		return "", "", err
 	}
-	password := config.ProxyAuthPassword.GetPassword(username)
-	return password, []byte(password), nil
+	password = config.ProxyAuthPassword.GetPassword(user)
+	return user, password, nil
 }
 
-func UnwrapProxyLinkToken(encodedToken string) (link string, headers map[string]string, tunnelType config.TunnelType, err error) {
+func UnwrapProxyLinkToken(encodedToken string) (user string, link string, headers map[string]string, tunnelType config.TunnelType, err error) {
 	proxyLink := &proxyLink{}
 	if found := proxyLinkTokenCache.Get(encodedToken, proxyLink); found {
-		return proxyLink.Value, proxyLink.Headers, proxyLink.TunT, nil
+		return proxyLink.User, proxyLink.Value, proxyLink.Headers, proxyLink.TunT, nil
 	}
 
 	claims := &core.JWTClaims[proxyLinkTokenData]{}
-	token, err := core.ParseJWT(func(t *jwt.Token) (interface{}, error) {
-		_, secret, err := getUserSecretFromJWT(t)
-		return secret, err
+	password := ""
+	_, err = core.ParseJWT(func(t *jwt.Token) (any, error) {
+		user, password, err = getUserCredsFromJWT(t)
+		return []byte(password), err
 	}, encodedToken, claims)
 
 	if err != nil {
-		return "", nil, "", err
+		return "", "", nil, "", err
 	}
 
-	secret, _, err := getUserSecretFromJWT(token)
+	linkBlob, err := core.Decrypt(password, claims.Data.EncLink)
 	if err != nil {
-		return "", nil, "", err
-	}
-
-	proxyLink.TunT = claims.Data.TunnelType
-
-	linkBlob, err := core.Decrypt(secret, claims.Data.EncLink)
-	if err != nil {
-		return "", nil, "", err
+		return "", "", nil, "", err
 	}
 
 	link, headersBlob, hasHeaders := strings.Cut(linkBlob, "\n")
 
+	proxyLink.User = user
+	proxyLink.TunT = claims.Data.TunnelType
 	proxyLink.Value = link
 
 	if hasHeaders {
@@ -214,5 +211,5 @@ func UnwrapProxyLinkToken(encodedToken string) (link string, headers map[string]
 
 	proxyLinkTokenCache.Add(encodedToken, *proxyLink)
 
-	return proxyLink.Value, proxyLink.Headers, proxyLink.TunT, nil
+	return proxyLink.User, proxyLink.Value, proxyLink.Headers, proxyLink.TunT, nil
 }

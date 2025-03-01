@@ -21,3 +21,7 @@ func ToBytes(size string) int64 {
 	}
 	return int64(bytes)
 }
+
+func ToSize(bytes int64) string {
+	return humanize.Bytes(uint64(bytes))
+}
