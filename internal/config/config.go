@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -117,27 +118,41 @@ func (scp StoreContentProxyMap) IsEnabled(name string) bool {
 	return scp[name]
 }
 
+type ContentProxyConnectionLimitMap map[string]int
+
+func (cpcl ContentProxyConnectionLimitMap) Get(user string) int {
+	if limit, ok := cpcl[user]; ok {
+		return limit
+	}
+	if user != "*" {
+		cpcl[user] = cpcl.Get("*")
+	} else {
+		cpcl[user] = 0
+	}
+	return cpcl[user]
+}
+
 type Config struct {
 	LogLevel  slog.Level
 	LogFormat string
 
-	Port              string
-	StoreAuthToken    StoreAuthTokenMap
-	ProxyAuthPassword ProxyAuthPasswordMap
-	BuddyURL          string
-	HasBuddy          bool
-	PeerURL           string
-	PeerAuthToken     string
-	HasPeer           bool
-	RedisURI          string
-	DatabaseURI       string
-	StremioAddon      StremioAddonConfig
-	Version           string
-	LandingPage       string
-	ServerStartTime   time.Time
-	StoreContentProxy StoreContentProxyMap
-	StoreTunnel       StoreTunnelConfigMap
-	IP                *IPResolver
+	Port                        string
+	StoreAuthToken              StoreAuthTokenMap
+	ProxyAuthPassword           ProxyAuthPasswordMap
+	BuddyURL                    string
+	HasBuddy                    bool
+	PeerURL                     string
+	PeerAuthToken               string
+	HasPeer                     bool
+	RedisURI                    string
+	DatabaseURI                 string
+	StremioAddon                StremioAddonConfig
+	Version                     string
+	LandingPage                 string
+	ServerStartTime             time.Time
+	StoreContentProxy           StoreContentProxyMap
+	ContentProxyConnectionLimit ContentProxyConnectionLimitMap
+	IP                          *IPResolver
 }
 
 func parseUri(uri string) (parsedUrl, parsedToken string) {
@@ -211,26 +226,41 @@ var config = func() Config {
 		log.Fatalf("Invalid log format: %s, expected: json / text", logFormat)
 	}
 
+	contentProxyConnectionMap := make(ContentProxyConnectionLimitMap)
+	contentProxyConnectionList := strings.FieldsFunc(getEnv("STREMTHRU_CONTENT_PROXY_CONNECTION_LIMIT", "*:0"), func(c rune) bool {
+		return c == ','
+	})
+	for _, contentProxyConnection := range contentProxyConnectionList {
+		if user, limitStr, ok := strings.Cut(contentProxyConnection, ":"); ok {
+			limit, err := strconv.Atoi(limitStr)
+			if err != nil {
+				log.Fatalf("Invalid content proxy connection limit: %v", err)
+			}
+			contentProxyConnectionMap[user] = max(0, limit)
+		}
+	}
+
 	return Config{
 		LogLevel:  logLevel,
 		LogFormat: logFormat,
 
-		Port:              getEnv("STREMTHRU_PORT", "8080"),
-		ProxyAuthPassword: proxyAuthPasswordMap,
-		StoreAuthToken:    storeAuthTokenMap,
-		BuddyURL:          buddyUrl,
-		HasBuddy:          len(buddyUrl) > 0,
-		PeerURL:           peerUrl,
-		PeerAuthToken:     peerAuthToken,
-		HasPeer:           len(peerUrl) > 0,
-		RedisURI:          getEnv("STREMTHRU_REDIS_URI", ""),
-		DatabaseURI:       databaseUri,
-		StremioAddon:      stremioAddon,
-		Version:           "0.56.3", // x-release-please-version
-		LandingPage:       getEnv("STREMTHRU_LANDING_PAGE", "{}"),
-		ServerStartTime:   time.Now(),
-		StoreContentProxy: storeContentProxyMap,
-		IP:                &IPResolver{},
+		Port:                        getEnv("STREMTHRU_PORT", "8080"),
+		ProxyAuthPassword:           proxyAuthPasswordMap,
+		StoreAuthToken:              storeAuthTokenMap,
+		BuddyURL:                    buddyUrl,
+		HasBuddy:                    len(buddyUrl) > 0,
+		PeerURL:                     peerUrl,
+		PeerAuthToken:               peerAuthToken,
+		HasPeer:                     len(peerUrl) > 0,
+		RedisURI:                    getEnv("STREMTHRU_REDIS_URI", ""),
+		DatabaseURI:                 databaseUri,
+		StremioAddon:                stremioAddon,
+		Version:                     "0.56.3", // x-release-please-version
+		LandingPage:                 getEnv("STREMTHRU_LANDING_PAGE", "{}"),
+		ServerStartTime:             time.Now(),
+		StoreContentProxy:           storeContentProxyMap,
+		ContentProxyConnectionLimit: contentProxyConnectionMap,
+		IP:                          &IPResolver{},
 	}
 }()
 
@@ -252,6 +282,7 @@ var Version = config.Version
 var LandingPage = config.LandingPage
 var ServerStartTime = config.ServerStartTime
 var StoreContentProxy = config.StoreContentProxy
+var ContentProxyConnectionLimit = config.ContentProxyConnectionLimit
 var IP = config.IP
 
 var IsPublicInstance = len(ProxyAuthPassword) == 0
@@ -345,8 +376,11 @@ func PrintConfig(state *AppState) {
 					}
 				}
 			}
-			storeConfig := " (store:" + strings.Join(stores, ",") + ")"
-			l.Println("   - " + user + storeConfig)
+			l.Println("   - " + user)
+			l.Println("       store: " + strings.Join(stores, ","))
+			if cpcl := ContentProxyConnectionLimit.Get(user); cpcl > 0 {
+				l.Println("       content_proxy_connection_limit: " + strconv.FormatUint(uint64(cpcl), 10))
+			}
 		}
 		l.Println()
 	}

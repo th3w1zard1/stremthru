@@ -32,6 +32,7 @@ type KVStoreConfig struct {
 type KVStore[V any] interface {
 	Get(key string, value *V) error
 	List() ([]ParsedKV[V], error)
+	Count() (int, error)
 	Set(key string, value V) error
 	Del(key string) error
 
@@ -85,6 +86,19 @@ func (kv *SQLKVStore[V]) List() ([]ParsedKV[V], error) {
 	}
 
 	return vs, nil
+}
+
+func (kv *SQLKVStore[V]) Count() (int, error) {
+	if kv.t == "" {
+		return -1, errors.New("missing kv type value")
+	}
+	query := "SELECT COUNT(t) FROM " + TableName + " WHERE t = ?"
+	var val int
+	row := db.QueryRow(query, kv.t)
+	if err := row.Scan(&val); err != nil {
+		return -1, err
+	}
+	return val, nil
 }
 
 func (kv *SQLKVStore[V]) Set(key string, value V) error {

@@ -39,11 +39,24 @@ func Serve(name string, w http.ResponseWriter, r *http.Request) error {
 	return errors.New("unexpected error from store video")
 }
 
-func GetLink(name string, r *http.Request) string {
+type StoreVideoName = string
+
+const (
+	StoreVideoName200                      StoreVideoName = "200"
+	StoreVideoName401                      StoreVideoName = "401"
+	StoreVideoName403                      StoreVideoName = "403"
+	StoreVideoName500                      StoreVideoName = "500"
+	StoreVideoNameContentProxyLimitReached StoreVideoName = "content_proxy_limit_reached"
+	StoreVideoNameDownloadFailed           StoreVideoName = "download_failed"
+	StoreVideoNameDownloading              StoreVideoName = "downloading"
+	StoreVideoNameNoMatchingFile           StoreVideoName = "no_matching_file"
+)
+
+func GetLink(name StoreVideoName, r *http.Request) string {
 	return shared.ExtractRequestBaseURL(r).JoinPath("/v0/store/_/static/" + name + ".mp4").String()
 }
 
-func Redirect(name string, w http.ResponseWriter, r *http.Request) (url string) {
+func Redirect(name StoreVideoName, w http.ResponseWriter, r *http.Request) (url string) {
 	url = GetLink(name, r)
 	http.Redirect(w, r, url, http.StatusFound)
 	return url

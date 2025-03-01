@@ -7,6 +7,7 @@ import (
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/buddy"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
 	"github.com/MunifTanjim/stremthru/internal/kv"
 	"github.com/MunifTanjim/stremthru/internal/peer_token"
@@ -372,6 +373,17 @@ func handleStoreLinkAccess(w http.ResponseWriter, r *http.Request) {
 
 	if isGetReq && user != "" {
 		cpStore := contentProxyConnectionStore.WithScope(user)
+
+		if limit := config.ContentProxyConnectionLimit.Get(user); limit > 0 {
+			activeConnectionCount, err := cpStore.Count()
+			if err != nil {
+				ctx.Log.Error("[proxy] failed to count connections", "error", err)
+			} else if activeConnectionCount >= limit {
+				store_video.Redirect(store_video.StoreVideoNameContentProxyLimitReached, w, r)
+				return
+			}
+		}
+
 		if err := cpStore.Set(ctx.RequestId, contentProxyConnection{IP: core.GetRequestIP(r), Link: link}); err != nil {
 			ctx.Log.Error("[proxy] failed to record connection", "error", err)
 		} else {

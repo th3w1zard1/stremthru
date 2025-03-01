@@ -173,6 +173,14 @@ If `store_name` is `*`, it is used as fallback.
 
 When enabled, StremThru will proxy the content from the store.
 
+#### `STREMTHRU_CONTENT_PROXY_CONNECTION_LIMIT`
+
+Comma separated list of content proxy connection limit per user, in `username:connection_limit` format.
+
+If `username` is `*`, it is used as fallback.
+
+If `connection_limit` is `0`, no connection limit is applied.
+
 #### `STREMTHRU_PEER_URI`
 
 URI for peer StremThru instance, in format `https://:<pass>@<host>[:<port>]`.
