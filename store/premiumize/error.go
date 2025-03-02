@@ -16,6 +16,9 @@ func UpstreamErrorWithCause(cause error) *core.UpstreamError {
 		if err.Msg == "Not logged in." {
 			err.Code = core.ErrorCodeUnauthorized
 			err.StatusCode = http.StatusUnauthorized
+		} else if err.Msg == "Account not premium." {
+			err.Code = core.ErrorCodePaymentRequired
+			err.StatusCode = http.StatusPaymentRequired
 		}
 		err.UpstreamCause = rerr
 	} else {

@@ -191,8 +191,7 @@ func (c *StoreClient) checkMagnet(params *store.CheckMagnetParams, includeLink b
 
 			files, err := c.getCachedMagnetFiles(params.APIKey, item.Magnet, includeLink)
 			if err != nil {
-				item.Status = store.MagnetStatusUnknown
-				continue
+				return nil, err
 			}
 			item.Files = files
 		}
