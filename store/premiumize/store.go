@@ -1,6 +1,8 @@
 package premiumize
 
 import (
+	"errors"
+	"log/slog"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -20,11 +22,12 @@ type StoreClientConfig struct {
 }
 
 type StoreClient struct {
-	Name             store.StoreName
-	client           *APIClient
-	config           *StoreClientConfig
-	parentFolderId   string
-	listMagnetsCache cache.Cache[[]store.ListMagnetsDataItem]
+	Name   store.StoreName
+	client *APIClient
+	config *StoreClientConfig
+
+	listMagnetsCache    cache.Cache[[]store.ListMagnetsDataItem]
+	parentFolderIdCache cache.Cache[string]
 }
 
 func NewStoreClient(config *StoreClientConfig) *StoreClient {
@@ -47,6 +50,11 @@ func NewStoreClient(config *StoreClientConfig) *StoreClient {
 		})
 	}()
 
+	c.parentFolderIdCache = cache.NewLRUCache[string](&cache.CacheConfig{
+		Name:     "store:premiumize:parentFolderId",
+		Lifetime: 15 * time.Minute,
+	})
+
 	return c
 }
 
@@ -54,29 +62,61 @@ func (c *StoreClient) getCacheKey(params request.Context, key string) string {
 	return params.GetAPIKey(c.client.apiKey) + ":" + key
 }
 
+func (c *StoreClient) getParentFolderId(apiKey string) (string, error) {
+	parentFolderId := ""
+	if c.parentFolderIdCache.Get(apiKey, &parentFolderId) {
+		return parentFolderId, nil
+	}
+
+	lf_params := &ListFoldersParams{}
+	lf_params.APIKey = apiKey
+	lf_res, err := c.client.ListFolders(lf_params)
+	if err != nil {
+		return "", err
+	}
+	for _, folder := range lf_res.Data.Content {
+		if folder.Name == c.config.ParentFolderName {
+			parentFolderId = folder.Id
+			break
+		}
+	}
+
+	if parentFolderId == "" {
+		cf_params := &CreateFolderParams{Name: c.config.ParentFolderName}
+		cf_params.APIKey = apiKey
+		cf_res, err := c.client.CreateFolder(cf_params)
+		if err != nil {
+			return "", err
+		}
+		parentFolderId = cf_res.Data.Id
+	}
+
+	if parentFolderId == "" {
+		return "", errors.New("failed to resolve parent folder id")
+	}
+
+	if err := c.parentFolderIdCache.Add(apiKey, parentFolderId); err != nil {
+		slog.Error("[premiumize] failed to cache parent folder id", "error", err)
+	}
+
+	return parentFolderId, nil
+}
+
 func (c *StoreClient) getFolderByName(apiKey string, folderName string) (*CreateFolderData, error) {
-	if c.parentFolderId == "" && folderName != c.config.ParentFolderName {
-		folder, err := c.getFolderByName(apiKey, c.config.ParentFolderName)
+	parentFolderId := ""
+	if folderName != c.config.ParentFolderName {
+		// resolve parent-folder id, if querying for non-parent-folder
+		id, err := c.getParentFolderId(apiKey)
 		if err != nil {
 			return nil, err
 		}
-		if folder != nil {
-			c.parentFolderId = folder.Id
-		} else {
-			params := &CreateFolderParams{Name: c.config.ParentFolderName}
-			params.APIKey = apiKey
-			res, err := c.client.CreateFolder(params)
-			if err != nil {
-				return nil, err
-			}
-			c.parentFolderId = res.Data.Id
-		}
+		parentFolderId = id
 	}
 
 	params := &ListFoldersParams{}
 	params.APIKey = apiKey
-	if c.parentFolderId != "" {
-		params.Id = c.parentFolderId
+	if parentFolderId != "" {
+		params.Id = parentFolderId
 	}
 	res, err := c.client.ListFolders(params)
 	if err != nil {
@@ -93,16 +133,19 @@ func (c *StoreClient) getFolderByName(apiKey string, folderName string) (*Create
 }
 
 func (c *StoreClient) ensureFolder(apiKey string, name string) (*CreateFolderData, error) {
-	folder, err := c.getFolderByName(apiKey, name)
-	if err != nil {
+	if folder, err := c.getFolderByName(apiKey, name); err != nil {
 		return nil, err
-	}
-	if folder != nil {
+	} else if folder != nil {
 		return &CreateFolderData{Id: folder.Id}, nil
 	}
 
+	parentFolderId, err := c.getParentFolderId(apiKey)
+	if err != nil {
+		return nil, err
+	}
+
 	cf_params := &CreateFolderParams{Name: name}
-	cf_params.ParentId = c.parentFolderId
+	cf_params.ParentId = parentFolderId
 	cf_params.APIKey = apiKey
 	cf_res, err := c.client.CreateFolder(cf_params)
 	if err != nil {
