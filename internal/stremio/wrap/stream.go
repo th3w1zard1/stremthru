@@ -139,7 +139,7 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 			}
 			surl := shared.ExtractRequestBaseURL(r).JoinPath("/stremio/wrap/" + eud + "/_/strem/" + magnet.Hash + "/" + strconv.Itoa(stream.FileIndex) + "/")
 			if stream.BehaviorHints != nil && stream.BehaviorHints.Filename != "" {
-				surl = surl.JoinPath(stream.BehaviorHints.Filename)
+				surl = surl.JoinPath(url.PathEscape(stream.BehaviorHints.Filename))
 			}
 			surl.RawQuery = "sid=" + stremId
 			if stream.r != nil && stream.r.Season != "" && stream.r.Episode != "" {
