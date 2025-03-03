@@ -71,17 +71,17 @@ func Decrypt(secret, value string) (string, error) {
 	return string(plaintext), nil
 }
 
-type JWTClaims[T interface{}] struct {
+type JWTClaims[T any] struct {
 	jwt.RegisteredClaims
 	Data *T `json:"data,omitempty"`
 }
 
-func CreateJWT[T interface{}](secret string, claims JWTClaims[T]) (string, error) {
+func CreateJWT[T any](secret string, claims JWTClaims[T]) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
 }
 
-func ParseJWT[T interface{}](secretFunc jwt.Keyfunc, encodedToken string, claims *JWTClaims[T], options ...jwt.ParserOption) (*jwt.Token, error) {
+func ParseJWT[T any](secretFunc jwt.Keyfunc, encodedToken string, claims *JWTClaims[T], options ...jwt.ParserOption) (*jwt.Token, error) {
 	token, err := jwt.ParseWithClaims(encodedToken, claims, secretFunc, options...)
 	if err != nil {
 		return nil, err

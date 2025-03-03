@@ -12,7 +12,7 @@ func (t Timestamp) Value() (driver.Value, error) {
 	return t.Unix(), nil
 }
 
-func (t *Timestamp) Scan(value interface{}) error {
+func (t *Timestamp) Scan(value any) error {
 	switch v := value.(type) {
 	case int64:
 		t.Time = time.Unix(v, 0)

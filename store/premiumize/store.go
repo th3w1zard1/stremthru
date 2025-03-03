@@ -545,14 +545,8 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 	}
 
 	totalItems := len(lm)
-	startIdx := params.Offset
-	if startIdx > totalItems {
-		startIdx = totalItems
-	}
-	endIdx := startIdx + params.Limit
-	if endIdx > totalItems {
-		endIdx = totalItems
-	}
+	startIdx := min(params.Offset, totalItems)
+	endIdx := min(startIdx+params.Limit, totalItems)
 	items := lm[startIdx:endIdx]
 
 	data := &store.ListMagnetsData{

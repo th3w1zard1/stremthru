@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func UnmarshalJSON(statusCode int, body []byte, v interface{}) error {
+func UnmarshalJSON(statusCode int, body []byte, v any) error {
 	if statusCode == 204 && len(strings.TrimSpace(string(body))) == 0 {
 		return nil
 	}

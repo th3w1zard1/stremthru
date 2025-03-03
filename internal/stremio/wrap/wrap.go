@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -15,8 +16,8 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/context"
 	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/shared"
-	"github.com/MunifTanjim/stremthru/internal/store/video"
-	"github.com/MunifTanjim/stremthru/internal/stremio/addon"
+	store_video "github.com/MunifTanjim/stremthru/internal/store/video"
+	stremio_addon "github.com/MunifTanjim/stremthru/internal/stremio/addon"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
 	"golang.org/x/sync/singleflight"
@@ -116,7 +117,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			if end == 0 {
 				end = 1
 			}
-			td.Upstreams = append([]UpstreamAddon{}, td.Upstreams[0:end]...)
+			td.Upstreams = slices.Clone(td.Upstreams[0:end])
 		case "add-store":
 			if td.IsAuthed || len(td.Upstreams) < MaxPublicInstanceStoreCount {
 				td.Stores = append(td.Stores, StoreConfig{})
@@ -126,7 +127,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			if end == 0 {
 				end = 1
 			}
-			td.Stores = append([]StoreConfig{}, td.Stores[0:end]...)
+			td.Stores = slices.Clone(td.Stores[0:end])
 		case "set-extractor":
 			idx, err := strconv.Atoi(r.Form.Get("upstream_index"))
 			if err != nil {
@@ -544,7 +545,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err, _ := stremGroup.Do(cacheKey, func() (interface{}, error) {
+	result, err, _ := stremGroup.Do(cacheKey, func() (any, error) {
 		log.Debug("creating stream link")
 		amParams := &store.AddMagnetParams{
 			Magnet:   magnetHash,

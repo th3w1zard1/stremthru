@@ -90,7 +90,7 @@ func getSizeRank(input string) int64 {
 	return shared.ToBytes(input)
 }
 
-func (str StreamTransformerResult) GetFieldRank(field string) interface{} {
+func (str StreamTransformerResult) GetFieldRank(field string) any {
 	switch field {
 	case "resolution":
 		return getResolutionRank(str.Resolution)

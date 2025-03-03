@@ -19,7 +19,7 @@ func (e *ResponseError) Error() string {
 	return string(ret)
 }
 
-type Response[T interface{}] struct {
+type Response[T any] struct {
 	Data  T              `json:"data,omitempty"`
 	Error *ResponseError `json:"error,omitempty"`
 }
@@ -35,13 +35,13 @@ func (r Response[any]) GetError() error {
 	return r.Error
 }
 
-type APIResponse[T interface{}] struct {
+type APIResponse[T any] struct {
 	Header     http.Header
 	StatusCode int
 	Data       T
 }
 
-func newAPIResponse[T interface{}](res *http.Response, data T) APIResponse[T] {
+func newAPIResponse[T any](res *http.Response, data T) APIResponse[T] {
 	apiResponse := APIResponse[T]{
 		StatusCode: 503,
 		Data:       data,

@@ -27,7 +27,7 @@ func GetFilesByHashes(hashes []string) (map[string]Files, error) {
 		return byHash, nil
 	}
 
-	args := make([]interface{}, len(hashes))
+	args := make([]any, len(hashes))
 	hashPlaceholders := make([]string, len(hashes))
 	for i, hash := range hashes {
 		args[i] = hash
@@ -65,7 +65,7 @@ func TrackFiles(hash string, files Files, sid string, discardIdx bool) {
 	placeholder := "(?,?,?,?,?)"
 	count := 0
 
-	var args []interface{}
+	var args []any
 
 	for _, file := range files {
 		if count > 0 {

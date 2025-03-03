@@ -93,7 +93,7 @@ func (e *ResponseError) Error() string {
 	return string(ret)
 }
 
-type Response[D interface{}] struct {
+type Response[D any] struct {
 	Data  D              `json:"data,omitempty"`
 	Error *ResponseError `json:"error,omitempty"`
 }

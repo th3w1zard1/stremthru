@@ -32,7 +32,7 @@ func (files Files) Value() (driver.Value, error) {
 	return json.Marshal(files)
 }
 
-func (files *Files) Scan(value interface{}) error {
+func (files *Files) Scan(value any) error {
 	var bytes []byte
 	switch v := value.(type) {
 	case string:
@@ -101,7 +101,7 @@ func GetByHashes(store store.StoreCode, hashes []string, sid string) ([]MagnetCa
 		args_len += 1
 	}
 	arg_idx := 0
-	args := make([]interface{}, args_len)
+	args := make([]any, args_len)
 
 	query := "SELECT store, hash, is_cached, modified_at, files FROM " + TableName
 	if sid != "" {
@@ -178,8 +178,8 @@ func BulkTouch(storeCode store.StoreCode, filesByHash map[string]Files, sid stri
 	miss_placeholder := "(?,?,false)"
 	miss_count := 0
 
-	var hit_args []interface{}
-	var miss_args []interface{}
+	var hit_args []any
+	var miss_args []any
 
 	for hash, files := range filesByHash {
 		if len(files) == 0 {

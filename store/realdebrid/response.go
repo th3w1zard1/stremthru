@@ -36,7 +36,7 @@ type APIResponse[T any] struct {
 	Data       T
 }
 
-func newAPIResponse[T interface{}](res *http.Response, data T) APIResponse[T] {
+func newAPIResponse[T any](res *http.Response, data T) APIResponse[T] {
 	apiResponse := APIResponse[T]{
 		StatusCode: 503,
 		Data:       data,

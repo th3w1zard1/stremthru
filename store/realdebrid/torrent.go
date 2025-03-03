@@ -27,7 +27,7 @@ type checkTorrentInstantAvailabilityData struct {
 }
 
 func (c *checkTorrentInstantAvailabilityData) UnmarshalJSON(data []byte) error {
-	temp := map[string]interface{}{}
+	temp := map[string]any{}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err

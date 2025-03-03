@@ -37,7 +37,7 @@ func GetQueryInt(queryParams url.Values, name string, defaultValue int) (int, er
 	return defaultValue, nil
 }
 
-func ReadRequestBodyJSON[T interface{}](r *http.Request, payload T) error {
+func ReadRequestBodyJSON[T any](r *http.Request, payload T) error {
 	contentType := r.Header.Get("Content-Type")
 	if !strings.Contains(contentType, "application/json") {
 		return ErrorUnsupportedMediaType(r)

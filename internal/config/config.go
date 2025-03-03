@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -96,12 +97,7 @@ func (sa StremioAddonConfig) IsEnabled(name string) bool {
 		return true
 	}
 
-	for _, addon := range sa.enabled {
-		if addon == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(sa.enabled, name)
 }
 
 type StoreContentProxyMap map[string]bool

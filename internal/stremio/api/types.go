@@ -21,11 +21,11 @@ type User struct {
 	Avatar         string          `json:"avatar"`
 	Anonymous      bool            `json:"anonymous"`
 	GDPRConsent    UserGDPRConsent `json:"gdpr_consent"`
-	Taste          interface{}     `json:"taste"`
+	Taste          any             `json:"taste"`
 	Lang           string          `json:"lang"`
 	DateRegistered time.Time       `json:"dateRegistered"`
 	LastModified   time.Time       `json:"lastModified"`
-	Trakt          interface{}     `json:"trakt"`
+	Trakt          any             `json:"trakt"`
 	StremioAddons  string          `json:"stremio_addons"`
 	PremiumExpire  time.Time       `json:"premium_expire"`
 }

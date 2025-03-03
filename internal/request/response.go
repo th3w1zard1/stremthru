@@ -4,13 +4,13 @@ import (
 	"net/http"
 )
 
-type APIResponse[T interface{}] struct {
+type APIResponse[T any] struct {
 	Header     http.Header
 	StatusCode int
 	Data       T
 }
 
-func NewAPIResponse[T interface{}](res *http.Response, data T) APIResponse[T] {
+func NewAPIResponse[T any](res *http.Response, data T) APIResponse[T] {
 	apiResponse := APIResponse[T]{
 		StatusCode: 503,
 		Data:       data,

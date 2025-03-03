@@ -27,13 +27,13 @@ type ResponsePagination struct {
 	Previous int `json:"previous"`
 }
 
-type Response[T interface{}] struct {
+type Response[T any] struct {
 	*ResponseError
 	Success bool `json:"success"`
 	Value   T    `json:"value,omitempty"`
 }
 
-type PaginatedResponse[T interface{}] struct {
+type PaginatedResponse[T any] struct {
 	Response[[]T]
 	Pagination ResponsePagination `json:"pagination"`
 }
@@ -54,13 +54,13 @@ func (r Response[any]) GetError() *ResponseError {
 	return r.ResponseError
 }
 
-type APIResponse[T interface{}] struct {
+type APIResponse[T any] struct {
 	Header     http.Header
 	StatusCode int
 	Data       T
 }
 
-func newAPIResponse[T interface{}](res *http.Response, data T) APIResponse[T] {
+func newAPIResponse[T any](res *http.Response, data T) APIResponse[T] {
 	apiResponse := APIResponse[T]{
 		StatusCode: 503,
 		Data:       data,

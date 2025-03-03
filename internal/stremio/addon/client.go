@@ -177,7 +177,7 @@ var fetchStreamGroup singleflight.Group
 func (c Client) FetchStream(params *FetchStreamParams) (request.APIResponse[stremio.StreamHandlerResponse], error) {
 	path := "stream/" + params.Type + "/" + params.Id
 	url := params.BaseURL.JoinPath(path)
-	apiResponse, err, _ := fetchStreamGroup.Do(url.String(), func() (interface{}, error) {
+	apiResponse, err, _ := fetchStreamGroup.Do(url.String(), func() (any, error) {
 		adjustClientIPHeader(params.Ctx, params.ClientIP, nil)
 		response := &stremio.StreamHandlerResponse{}
 		res, err := c.Request("GET", url, params, response)
