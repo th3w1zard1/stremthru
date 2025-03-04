@@ -448,5 +448,5 @@ func PrintConfig(state *AppState) {
 		l.Println()
 	}
 
-	l.Println("========================\n")
+	l.Print("========================\n\n")
 }
