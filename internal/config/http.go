@@ -21,8 +21,19 @@ const (
 type TunnelMap map[string]url.URL
 
 func (tm TunnelMap) getProxy(hostname string) *url.URL {
-	if proxy, ok := tm[hostname]; ok {
-		return &proxy
+	hn := hostname
+	for {
+		if proxy, ok := tm[hn]; ok {
+			if hn != hostname {
+				tm[hostname] = proxy
+			}
+			return &proxy
+		}
+
+		_, hn, _ = strings.Cut(hn, ".")
+		if hn == "" {
+			break
+		}
 	}
 	return nil
 }
@@ -61,12 +72,12 @@ func (tm TunnelMap) GetProxy(tunnelType TunnelType) func(req *http.Request) (*ur
 	}
 }
 
-var Tunnel = func() TunnelMap {
+func parseTunnel(httpProxy, httpsProxy, tunnel string) TunnelMap {
 	tunnelMap := make(TunnelMap)
 
 	defaultProxy := &url.URL{}
 
-	if value := getEnv("STREMTHRU_HTTP_PROXY", ""); len(value) > 0 {
+	if value := httpProxy; len(value) > 0 {
 		if err := os.Setenv("HTTP_PROXY", value); err != nil {
 			log.Fatal("failed to set http_proxy")
 		}
@@ -79,7 +90,7 @@ var Tunnel = func() TunnelMap {
 	}
 
 	// deprecated
-	if value := getEnv("STREMTHRU_HTTPS_PROXY", getEnv("STREMTHRU_HTTP_PROXY", "")); len(value) > 0 {
+	if value := httpsProxy; len(value) > 0 {
 		if err := os.Setenv("HTTPS_PROXY", value); err != nil {
 			log.Fatal("failed to set https_proxy")
 		}
@@ -92,7 +103,7 @@ var Tunnel = func() TunnelMap {
 
 	tunnelMap["*"] = *defaultProxy
 
-	tunnelList := strings.FieldsFunc(getEnv("STREMTHRU_TUNNEL", ""), func(c rune) bool {
+	tunnelList := strings.FieldsFunc(tunnel, func(c rune) bool {
 		return c == ','
 	})
 
@@ -125,6 +136,14 @@ var Tunnel = func() TunnelMap {
 	}
 
 	return tunnelMap
+}
+
+var Tunnel = func() TunnelMap {
+	httpProxy := getEnv("STREMTHRU_HTTP_PROXY", "")
+	// deprecated
+	httpsProxy := getEnv("STREMTHRU_HTTPS_PROXY", httpProxy)
+	tunnel := getEnv("STREMTHRU_TUNNEL", "")
+	return parseTunnel(httpProxy, httpsProxy, tunnel)
 }()
 
 type StoreTunnelConfig struct {
@@ -170,8 +189,8 @@ func (stc StoreTunnelConfigMap) GetTypeForStream(name string) TunnelType {
 	return TUNNEL_TYPE_NONE
 }
 
-var StoreTunnel = func() StoreTunnelConfigMap {
-	storeTunnelList := strings.FieldsFunc(getEnv("STREMTHRU_STORE_TUNNEL", "*:true"), func(c rune) bool {
+func parseStoreTunnel(storeTunnel string, tunnelMap TunnelMap) StoreTunnelConfigMap {
+	storeTunnelList := strings.FieldsFunc(storeTunnel, func(c rune) bool {
 		return c == ','
 	})
 
@@ -194,20 +213,20 @@ var StoreTunnel = func() StoreTunnelConfigMap {
 			switch store {
 			case "*":
 				for _, hostname := range contentHostnameByStore {
-					if _, exists := Tunnel[hostname]; !exists {
+					if _, exists := tunnelMap[hostname]; !exists {
 						if tunnel == "true" {
-							Tunnel[hostname] = *Tunnel.getProxy("*")
+							tunnelMap[hostname] = *tunnelMap.getProxy("*")
 						} else {
-							Tunnel[hostname] = url.URL{}
+							tunnelMap[hostname] = url.URL{}
 						}
 					}
 				}
 			default:
 				if hostname, ok := contentHostnameByStore[store]; ok {
 					if tunnel == "true" {
-						Tunnel[hostname] = *Tunnel.getProxy("*")
+						tunnelMap[hostname] = *tunnelMap.getProxy("*")
 					} else {
-						Tunnel[hostname] = url.URL{}
+						tunnelMap[hostname] = url.URL{}
 					}
 				}
 			}
@@ -215,6 +234,10 @@ var StoreTunnel = func() StoreTunnelConfigMap {
 	}
 
 	return storeTunnelMap
+}
+
+var StoreTunnel = func() StoreTunnelConfigMap {
+	return parseStoreTunnel(getEnv("STREMTHRU_STORE_TUNNEL", "*:true"), Tunnel)
 }()
 
 // has auto proxy
