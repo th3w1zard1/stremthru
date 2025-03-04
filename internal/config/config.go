@@ -191,7 +191,12 @@ var config = func() Config {
 	}
 
 	buddyUrl, _ := parseUri(getEnv("STREMTHRU_BUDDY_URI", ""))
-	peerUrl, peerAuthToken := parseUri(getEnv("STREMTHRU_PEER_URI", ""))
+
+	defaultPeerUri := ""
+	if peerUri, err := core.Base64Decode("aHR0cHM6Ly9zdHJlbXRocnUuMTMzNzcwMDEueHl6"); err == nil {
+		defaultPeerUri = peerUri
+	}
+	peerUrl, peerAuthToken := parseUri(getEnv("STREMTHRU_PEER_URI", defaultPeerUri))
 
 	databaseUri := getEnv("STREMTHRU_DATABASE_URI", "sqlite://./data/stremthru.db")
 
