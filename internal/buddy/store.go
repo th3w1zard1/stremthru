@@ -90,7 +90,7 @@ func BulkTrackMagnet(s store.Store, filesByHash map[string][]store.MagnetFile, s
 		if _, err := Buddy.TrackMagnetCache(params); err != nil {
 			buddyLog.Error("failed to bulk track magnet cache", "store", s.GetName(), "error", core.PackError(err), "duration", time.Since(start))
 		} else {
-			buddyLog.Info("bulk track magnet cache", "store", s.GetName(), "duration", time.Since(start))
+			buddyLog.Info("bulk track magnet cache", "store", s.GetName(), "hash_count", len(filesByHash), "duration", time.Since(start))
 		}
 	}
 
@@ -105,7 +105,7 @@ func BulkTrackMagnet(s store.Store, filesByHash map[string][]store.MagnetFile, s
 			if _, err := Peer.TrackMagnet(params); err != nil {
 				peerLog.Error("failed to bulk track magnet cache", "store", s.GetName(), "error", core.PackError(err), "duration", time.Since(start))
 			} else {
-				peerLog.Info("bulk track magnet cache", "store", s.GetName(), "duration", time.Since(start))
+				peerLog.Info("bulk track magnet cache", "store", s.GetName(), "hash_count", len(filesByHash), "duration", time.Since(start))
 			}
 		}()
 	}
@@ -173,7 +173,7 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 			buddyLog.Error("failed to check magnet", "store", s.GetName(), "error", core.PackError(err), "duration", duration)
 			return data, nil
 		} else {
-			buddyLog.Info("check magnet", "store", s.GetName(), "duration", duration)
+			buddyLog.Info("check magnet", "store", s.GetName(), "hash_count", len(staleOrMissingHashes), "duration", duration)
 			filesByHash := map[string]magnet_cache.Files{}
 			for _, item := range res.Data.Items {
 				res_item := store.CheckMagnetDataItem{
@@ -212,7 +212,7 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 			StoreName:  s.GetName(),
 			StoreToken: storeToken,
 		}
-		params.Magnets = hashes
+		params.Magnets = staleOrMissingHashes
 		params.ClientIP = clientIp
 		params.SId = sid
 		start := time.Now()
@@ -225,7 +225,7 @@ func CheckMagnet(s store.Store, hashes []string, storeToken string, clientIp str
 			peerLog.Error("failed to check magnet", "store", s.GetName(), "error", core.PackError(err), "duration", duration)
 			return data, nil
 		} else {
-			peerLog.Info("check magnet", "store", s.GetName(), "duration", duration)
+			peerLog.Info("check magnet", "store", s.GetName(), "hash_count", len(staleOrMissingHashes), "duration", duration)
 			filesByHash := map[string]magnet_cache.Files{}
 			for _, item := range res.Data.Items {
 				files := magnet_cache.Files{}
