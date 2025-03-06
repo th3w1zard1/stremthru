@@ -29,9 +29,7 @@ func RunSchemaMigration(uri db.ConnectionURI, database *db.DB) {
 		dir = "migrations/postgres"
 	}
 
-	l.Println("====================")
-	l.Println("= Database Schema ==")
-	l.Println("====================")
+	l.Println("=== Database Schema ====")
 
 	l.Println()
 	l.Println(" STATE:")
@@ -48,5 +46,5 @@ func RunSchemaMigration(uri db.ConnectionURI, database *db.DB) {
 	}
 
 	l.Println()
-	l.Print("====================\n\n")
+	l.Print("========================\n\n")
 }
