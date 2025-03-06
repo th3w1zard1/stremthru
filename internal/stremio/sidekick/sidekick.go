@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -788,6 +789,75 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 	SendHTML(w, 200, buf)
 }
 
+func handleAddonModify(w http.ResponseWriter, r *http.Request) {
+	if !IsMethod(r, http.MethodPost) {
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
+		return
+	}
+
+	log := server.GetReqCtx(r).Log
+
+	transportUrl := r.PathValue("transportUrl")
+	name := r.FormValue("name")
+	description := r.FormValue("description")
+
+	cookie, err := getCookieValue(w, r)
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+
+	params := &stremio_api.GetAddonsParams{}
+	params.APIKey = cookie.AuthKey()
+	get_res, err := client.GetAddons(params)
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+
+	currAddons := get_res.Data.Addons
+
+	td := getTemplateData(cookie, r)
+	td.Addons = slices.Clone(currAddons)
+
+	idx := -1
+	for i := range td.Addons {
+		if td.Addons[i].TransportUrl == transportUrl {
+			idx = i
+			break
+		}
+	}
+
+	if idx != -1 {
+		addon := &td.Addons[idx]
+		addon.Manifest.Name = name
+		addon.Manifest.Description = description
+		set_params := &stremio_api.SetAddonsParams{
+			Addons: td.Addons,
+		}
+		set_params.APIKey = cookie.AuthKey()
+		set_res, err := client.SetAddons(set_params)
+		if err != nil {
+			err = core.PackError(err)
+			log.Error("failed to set addons", "error", err)
+			td.AddonError = fmt.Sprintf("failed to set addons: %v", err)
+			td.Addons = currAddons
+		} else if !set_res.Data.Success {
+			err_msg := "failed to set addons!"
+			log.Error(err_msg)
+			td.AddonError = err_msg
+			td.Addons = currAddons
+		}
+	}
+
+	buf, err := executeTemplate(td, "sidekick_addons_section.html")
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+	SendHTML(w, 200, buf)
+}
+
 func handleLibraryBackup(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
 		shared.ErrorMethodNotAllowed(r).Send(w, r)
@@ -899,6 +969,7 @@ func AddStremioSidekickEndpoints(mux *http.ServeMux) {
 	router.HandleFunc("/addons/{transportUrl}/move/{direction}", handleAddonMove)
 	router.HandleFunc("/addons/{transportUrl}/reload", handleAddonReload)
 	router.HandleFunc("/addons/{transportUrl}/toggle", handleAddonToggle)
+	router.HandleFunc("/addons/{transportUrl}/modify", handleAddonModify)
 
 	router.HandleFunc("/library/backup", handleLibraryBackup)
 	router.HandleFunc("/library/restore", handleLibraryRestore)

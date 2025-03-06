@@ -129,6 +129,18 @@
         {{end}}
       </button>
       <button
+        class="secondary"
+        hx-post="addons/{{.TransportUrl | url_path_escape}}/modify"
+        hx-target="#addons_section"
+        hx-trigger="confirmed"
+        data-name="{{.Manifest.Name}}"
+        data-description="{{.Manifest.Description}}"
+        data-version="{{.Manifest.Version}}"
+        onclick="onAddonModify(this)"
+      >
+        Modify
+      </button>
+      <button
         hx-post="addons/{{.TransportUrl | url_path_escape}}/reload"
         hx-target="#addons_section"
         hx-trigger="confirmed"
@@ -145,6 +157,27 @@
   </article>
   {{end}}
 </div>
+
+<dialog id="addon_modify_modal">
+  <article>
+    <header>
+      <button aria-label="Close" rel="prev" onclick="onAddonModifyModalClose()"></button>
+      <h3>
+        <span id="addon_modify_name"></span>
+        <small><sup>v<span id="addon_modify_version"></span></sup></small>
+      </h3>
+    </header>
+    <form>
+      <label for="addon_modify_new_name">Name *</label>
+      <input id="addon_modify_new_name" name="addon_modify_new_name" value="" required>
+
+      <label for="addon_modify_new_description">Description *</label>
+      <textarea id="addon_modify_new_description" name="addon_modify_new_description" required></textarea>
+
+      <button type="submit">Modify</button>
+    </form>
+  </article>
+</dialog>
 
 <dialog id="addon_reload_modal">
   <article>
@@ -247,6 +280,44 @@ function onAddonOperationChange(el) {
   const url = new URL(window.location.href)
   url.searchParams.set("addon_operation", operation);
   window.history.replaceState(null, "", url.href);
+}
+
+function onAddonModifyModalClose() {
+  const modal = document.querySelector("dialog#addon_modify_modal");
+  modal.removeAttribute("open");
+  document.querySelector("html").classList.remove("modal-is-open");
+}
+
+function onAddonModify(btn) {
+  const modal = document.querySelector("dialog#addon_modify_modal");
+
+  modal.querySelector("#addon_modify_name").textContent = btn.dataset.name;
+  modal.querySelector("#addon_modify_version").textContent = btn.dataset.version;
+  modal.querySelector("#addon_modify_new_name").value = btn.dataset.name;
+  modal.querySelector("#addon_modify_new_description").value = btn.dataset.description;
+  
+  modal.querySelector("form").addEventListener("submit", function(e) {
+    e.preventDefault();
+    btn.setAttribute("hx-vals", JSON.stringify({
+      name: modal.querySelector("#addon_modify_new_name").value,
+      description: modal.querySelector("#addon_modify_new_description").value,
+    }));
+    onAddonModifyModalClose();
+    htmx.trigger(btn, "confirmed");
+  }, { once: true });
+
+  function onModalOutsideClick(e) {
+    const content = modal.querySelector("article");
+    if (!content.contains(e.target)) {
+      onAddonModifyModalClose();
+      modal.removeEventListener("click", onModalOutsideClick);
+    }
+  }
+
+  modal.addEventListener("click", onModalOutsideClick);
+
+  document.querySelector("html").classList.add("modal-is-open");
+  modal.setAttribute("open", "");
 }
 
 function onAddonReloadModalClose() {
