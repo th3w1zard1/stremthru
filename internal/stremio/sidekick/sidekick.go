@@ -609,6 +609,12 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 		if manifestUrl == "" {
 			manifestUrl = addon.TransportUrl
 		}
+		if strings.HasPrefix(manifestUrl, "stremio:") {
+			manifestUrl = "https:" + strings.TrimPrefix(manifestUrl, "stremio:")
+		}
+		if strings.HasSuffix(manifestUrl, "/configure") {
+			manifestUrl = strings.TrimSuffix(manifestUrl, "/configure") + "/manifest.json"
+		}
 
 		oldTransportUrl, err := url.Parse(addon.TransportUrl)
 		if err != nil {
