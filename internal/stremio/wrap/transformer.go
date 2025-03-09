@@ -335,7 +335,7 @@ name
 (?i)^(?<addon>\w+(?: \| [^ ]+)?) (?:P2P|(?<debrid>[A-Z]{2})) (?:N\/A|(?<resolution>[^kp]+[kp])) (?<cached>⚡️)?
 
 description
-(?i)(?:📂 (?<title>.+)\n)?💾 (?<size>.+?)(?: 👤 \d+)?\n.+\n🔗 (?<site>.+?)(?: 🧑‍💻 |$)
+(?i)(?:📂 (?<title>.+)\n)?💾 (?<size>.+?)(?: \/ 💾 .+?)(?: 👤 \d+)?\n(?:.+\n)?🔗 (?<site>.+?)(?: 🧑‍💻 |$)
 
 bingeGroup
 (?i)-(?:🎨 (?<hdr>[^ ]+) )?📺 (?<quality>cam|scr|dvd|vhs|r5|(?:.+(?:rip|ray|mux|tv))|(?:(?:tele|web)[\w-]*?))(?: ?🎞️ (?<codec>[^- ]+))?(?: ?🎵 .+)?-(?:N\/A|(?:\d+[kp]))
@@ -350,6 +350,7 @@ name
 
 description
 ^(?<title>.+)\n(?:(?<filename>[^👤].+)\n)?👤.+ 💾 (?<size>.+) ⚙️ (?<site>\w+)(?:\n(?<lang>.+))?$
+(?i)(?<quality>cam|scr|dvd|vhs|r5|(?:(?:bd|blu|hd)(?:rip|ray|mux|tv))|(?:(?:tele|web)[\w-][\w]+))
 
 bingeGroup
 (?i)(?<codec>hevc|avc|mpeg|xvid|av1|x264|x265|h264|h265)
