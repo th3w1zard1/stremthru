@@ -36,6 +36,26 @@ type Client struct {
 	reqHeader func(query *http.Header, params request.Context)
 }
 
+var commonHeaders = func() map[string]string {
+	encodedHeaders := map[string]string{
+		"UmVmZXJlcg==":     "aHR0cHM6Ly93ZWIuc3RyZW1pby5jb20v",
+		"VXNlci1BZ2VudA==": "TW96aWxsYS81LjAgKE1hY2ludG9zaDsgSW50ZWwgTWFjIE9TIFggMTBfMTVfNykgQXBwbGVXZWJLaXQvNTM3LjM2IChLSFRNTCwgbGlrZSBHZWNrbykgQ2hyb21lLzEzNC4wLjAuMCBTYWZhcmkvNTM3LjM2",
+	}
+	headers := map[string]string{}
+	for k, v := range encodedHeaders {
+		key, err := core.Base64Decode(k)
+		if err != nil {
+			panic(err)
+		}
+		val, err := core.Base64Decode(v)
+		if err != nil {
+			panic(err)
+		}
+		headers[key] = val
+	}
+	return headers
+}()
+
 func NewClient(conf *ClientConfig) *Client {
 	if conf.HTTPClient == nil {
 		conf.HTTPClient = DefaultHTTPClient
@@ -49,6 +69,9 @@ func NewClient(conf *ClientConfig) *Client {
 	}
 
 	c.reqHeader = func(header *http.Header, params request.Context) {
+		for k, v := range commonHeaders {
+			header.Set(k, v)
+		}
 	}
 
 	return c
