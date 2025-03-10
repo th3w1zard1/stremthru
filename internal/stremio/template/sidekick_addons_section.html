@@ -130,17 +130,22 @@
       </button>
       <button
         class="secondary"
+        hx-ext="htmx-modal"
+        data-modal="#addon_modify_modal"
+        data-modal-on-open="onOpenAddonModifyModal"
         hx-post="addons/{{.TransportUrl | url_path_escape}}/modify"
         hx-target="#addons_section"
         hx-trigger="confirmed"
         data-name="{{.Manifest.Name}}"
         data-description="{{.Manifest.Description}}"
         data-version="{{.Manifest.Version}}"
-        onclick="onAddonModify(this)"
       >
         Modify
       </button>
       <button
+        hx-ext="htmx-modal"
+        data-modal="#addon_reload_modal"
+        data-modal-on-open="onOpenAddonReloadModal"
         hx-post="addons/{{.TransportUrl | url_path_escape}}/reload"
         hx-target="#addons_section"
         hx-trigger="confirmed"
@@ -149,7 +154,6 @@
         data-disabled="{{if (has_prefix .Manifest.ID "st:disabled:")}}true{{end}}"
         data-manifest-url="{{.TransportUrl}}"
         data-configure-url="{{get_configure_url .}}"
-        onclick="onAddonReload(this)"
       >
         Reload
       </button>
@@ -161,7 +165,7 @@
 <dialog id="addon_modify_modal">
   <article>
     <header>
-      <button aria-label="Close" rel="prev" onclick="onAddonModifyModalClose()"></button>
+      <button aria-label="Close" rel="prev" data-modal-close></button>
       <h3>
         <span id="addon_modify_name"></span>
         <small><sup>v<span id="addon_modify_version"></span></sup></small>
@@ -182,7 +186,7 @@
 <dialog id="addon_reload_modal">
   <article>
     <header>
-      <button aria-label="Close" rel="prev" onclick="onAddonReloadModalClose()"></button>
+      <button aria-label="Close" rel="prev" data-modal-close></button>
       <h3>
         <span id="addon_reload_name"></span>
         <small><sup>v<span id="addon_reload_version"></span></sup></small>
@@ -282,84 +286,42 @@ function onAddonOperationChange(el) {
   window.history.replaceState(null, "", url.href);
 }
 
-function onAddonModifyModalClose() {
-  const modal = document.querySelector("dialog#addon_modify_modal");
-  modal.removeAttribute("open");
-  document.querySelector("html").classList.remove("modal-is-open");
-}
-
-function onAddonModify(btn) {
-  const modal = document.querySelector("dialog#addon_modify_modal");
-
-  modal.querySelector("#addon_modify_name").textContent = btn.dataset.name;
-  modal.querySelector("#addon_modify_version").textContent = btn.dataset.version;
-  modal.querySelector("#addon_modify_new_name").value = btn.dataset.name;
-  modal.querySelector("#addon_modify_new_description").value = btn.dataset.description;
+function onOpenAddonModifyModal(e, { modal, onClose, trigger }) {
+  modal.querySelector("#addon_modify_name").textContent = trigger.dataset.name;
+  modal.querySelector("#addon_modify_version").textContent = trigger.dataset.version;
+  modal.querySelector("#addon_modify_new_name").value = trigger.dataset.name;
+  modal.querySelector("#addon_modify_new_description").value = trigger.dataset.description;
   
   modal.querySelector("form").addEventListener("submit", function(e) {
     e.preventDefault();
-    btn.setAttribute("hx-vals", JSON.stringify({
+    trigger.setAttribute("hx-vals", JSON.stringify({
       name: modal.querySelector("#addon_modify_new_name").value,
       description: modal.querySelector("#addon_modify_new_description").value,
     }));
-    onAddonModifyModalClose();
-    htmx.trigger(btn, "confirmed");
+    onClose();
+    htmx.trigger(trigger, "confirmed");
   }, { once: true });
-
-  function onModalOutsideClick(e) {
-    const content = modal.querySelector("article");
-    if (!content.contains(e.target)) {
-      onAddonModifyModalClose();
-      modal.removeEventListener("click", onModalOutsideClick);
-    }
-  }
-
-  modal.addEventListener("click", onModalOutsideClick);
-
-  document.querySelector("html").classList.add("modal-is-open");
-  modal.setAttribute("open", "");
 }
 
-function onAddonReloadModalClose() {
-  const modal = document.querySelector("dialog#addon_reload_modal");
-  modal.removeAttribute("open");
-  document.querySelector("html").classList.remove("modal-is-open");
-}
-
-function onAddonReload(btn) {
-  const modal = document.querySelector("dialog#addon_reload_modal");
-
-  modal.querySelector("#addon_reload_name").textContent = btn.dataset.name;
-  modal.querySelector("#addon_reload_version").textContent = btn.dataset.version;
-  modal.querySelector("#addon_reload_manifest_url").value = btn.dataset.manifestUrl;
+function onOpenAddonReloadModal(e, { modal, onClose, trigger }) {
+  modal.querySelector("#addon_reload_name").textContent = trigger.dataset.name;
+  modal.querySelector("#addon_reload_version").textContent = trigger.dataset.version;
+  modal.querySelector("#addon_reload_manifest_url").value = trigger.dataset.manifestUrl;
   
-  const configureUrl = btn.dataset.configureUrl;
-  if (btn.dataset.disabled !== "true" && configureUrl) {
+  const configureUrl = trigger.dataset.configureUrl;
+  if (trigger.dataset.disabled !== "true" && configureUrl) {
     modal.querySelector("#add_reload_configure_url").style.display = "";
-    modal.querySelector("#add_reload_configure_url").href = btn.dataset.configureUrl;
+    modal.querySelector("#add_reload_configure_url").href = trigger.dataset.configureUrl;
   } else {
     modal.querySelector("#add_reload_configure_url").style.display = "none";
   }
 
   modal.querySelector("form").addEventListener("submit", function(e) {
     e.preventDefault();
-    btn.setAttribute("hx-vals", `{"manifest_url":"${modal.querySelector("#addon_reload_manifest_url").value}"}`);
-    onAddonReloadModalClose();
-    htmx.trigger(btn, "confirmed");
+    trigger.setAttribute("hx-vals", `{"manifest_url":"${modal.querySelector("#addon_reload_manifest_url").value}"}`);
+    onClose();
+    htmx.trigger(trigger, "confirmed");
   }, { once: true });
-
-  function onModalOutsideClick(e) {
-    const content = modal.querySelector("article");
-    if (!content.contains(e.target)) {
-      onAddonReloadModalClose();
-      modal.removeEventListener("click", onModalOutsideClick);
-    }
-  }
-
-  modal.addEventListener("click", onModalOutsideClick);
-
-  document.querySelector("html").classList.add("modal-is-open");
-  modal.setAttribute("open", "");
 }
 
 setTimeout(() => {

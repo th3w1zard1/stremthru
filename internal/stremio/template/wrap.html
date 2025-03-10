@@ -25,15 +25,17 @@
       <small>
         {{if .CanAuthorize}}
         <button
+          class="secondary mb-0"
+          style="font-size: 0.75rem; padding: 0.25em;"
           type="button"
+          hx-ext="htmx-modal"
+          data-modal="#auth_modal"
+          data-modal-on-open="onOpenAuthorize"
           hx-target="body"
           hx-post="configure"
           hx-include="#configuration"
           hx-headers='{"x-addon-configure-action":"{{if .IsAuthed}}de{{end}}authorize"}'
           hx-trigger="confirmed"
-          onclick="onAuthorize(this)"
-          class="secondary mb-0"
-          style="font-size: 0.75rem; padding: 0.25em;"
         >
           {{if .IsAuthed}}Deauthorize{{else}}Authorize{{end}}
         </button>
@@ -80,16 +82,18 @@
               <div class="flex flex-row">
                 {{if $.IsAuthed}}
                 <button
+                  class="outline secondary mb-0 mr-2"
+                  style="font-size: 0.75rem; padding: 0.25em 0.75em;"
                   type="button"
+                  hx-ext="htmx-modal"
+                  data-modal="#extractor_save"
+                  data-modal-on-open="onOpenExtractorSaveModal"
                   data-upstream-index="{{$idx}}"
                   hx-target="body"
                   hx-post="configure"
                   hx-include="#configuration"
                   hx-headers='{"x-addon-configure-action":"save-extractor"}'
                   hx-trigger="confirmed"
-                  onclick="onExtractorSave(this)"
-                  class="outline secondary mb-0 mr-2"
-                  style="font-size: 0.75rem; padding: 0.25em 0.75em;"
                 >
                   💾
                 </button>
@@ -164,15 +168,17 @@
           <div class="flex flex-row">
             {{if .IsAuthed}}
             <button
+              class="outline secondary mb-0 mr-2"
+              style="font-size: 0.75rem; padding: 0.25em 0.75em;"
               type="button"
+              hx-ext="htmx-modal"
+              data-modal="#template_save"
+              data-modal-on-open="onOpenTemplateSaveModal"
               hx-target="body"
               hx-post="configure"
               hx-include="#configuration"
               hx-headers='{"x-addon-configure-action":"save-template"}'
               hx-trigger="confirmed"
-              onclick="onTemplateSave(this)"
-              class="outline secondary mb-0 mr-2"
-              style="font-size: 0.75rem; padding: 0.25em 0.75em;"
             >
               💾
             </button>
@@ -305,7 +311,7 @@
 <dialog id="auth_modal">
   <article>
     <header>
-      <button aria-label="Close" rel="prev" onclick="onAuthModalClose()"></button>
+      <button aria-label="Close" rel="prev" data-modal-close></button>
       <h3>
         <span>{{if .IsAuthed}}Deauthorize{{else}}Authorize{{end}}</span>
       </h3>
@@ -325,7 +331,7 @@
 <dialog id="extractor_save">
   <article>
     <header>
-      <button aria-label="Close" rel="prev" onclick="onExtractorSaveClose()"></button>
+      <button aria-label="Close" rel="prev" data-modal-close></button>
       <h3>
         <span>Save Extractor</span>
       </h3>
@@ -344,7 +350,7 @@
 <dialog id="template_save">
   <article>
     <header>
-      <button aria-label="Close" rel="prev" onclick="onTemplateSaveClose()"></button>
+      <button aria-label="Close" rel="prev" data-modal-close></button>
       <h3>
         <span>Save Template</span>
       </h3>
@@ -367,99 +373,47 @@
 
 {{define "foot"}}
 <script>
-  function onAuthModalClose() {
-    const modal = document.querySelector("dialog#auth_modal");
-    modal.removeAttribute("open");
-    document.querySelector("html").classList.remove("modal-is-open");
-  }
-
-  function onAuthorize(btn) {
-    const modal = document.querySelector("dialog#auth_modal");
+  function onOpenAuthorize(e, { modal, onClose, trigger }) {
     modal.querySelector("form").addEventListener("submit", function(e) {
       e.preventDefault();
       {{if not .IsAuthed}}
-      btn.setAttribute("hx-vals", `{"user":"${modal.querySelector("[name='user']").value}","pass":"${modal.querySelector("[name='pass']").value}"}`);
+      trigger.setAttribute("hx-vals", JSON.stringify({
+        user: modal.querySelector("[name='user']").value,
+        pass: modal.querySelector("[name='pass']").value,
+      }));
       {{end}}
-      onAuthModalClose();
-      htmx.trigger(btn, "confirmed");
+      onClose();
+      htmx.trigger(trigger, "confirmed");
     }, { once: true });
-
-    function onModalOutsideClick(e) {
-      const content = modal.querySelector("article");
-      if (!content.contains(e.target)) {
-        onAuthModalClose();
-        modal.removeEventListener("click", onModalOutsideClick);
-      }
-    }
-
-    modal.addEventListener("click", onModalOutsideClick);
-
-    document.querySelector("html").classList.add("modal-is-open");
-    modal.setAttribute("open", "");
   }
 
-  function onExtractorSaveClose() {
-    const modal = document.querySelector("dialog#extractor_save");
-    modal.removeAttribute("open");
-    document.querySelector("html").classList.remove("modal-is-open");
-  }
-
-  function onExtractorSave(btn) {
-    const modal = document.querySelector("dialog#extractor_save");
-    modal.querySelector("[name='extractor_save_id']").value = document.querySelector(`[name='${btn.closest("label").htmlFor}_id']`).value;
-    const valueField = document.querySelector(`[name='${btn.closest("label").htmlFor}']`);
+  function onOpenExtractorSaveModal(e, { modal, onClose, trigger }) {
+    modal.querySelector("[name='extractor_save_id']").value = document.querySelector(`[name='${trigger.closest("label").htmlFor}_id']`).value;
+    const valueField = document.querySelector(`[name='${trigger.closest("label").htmlFor}']`);
     modal.querySelector("[name='extractor_save_value']").value = valueField.value;
     modal.querySelector("form").addEventListener("submit", function(e) {
       e.preventDefault();
-      btn.setAttribute("hx-vals", JSON.stringify({extractor_id:modal.querySelector("[name='extractor_save_id']").value, extractor_upstream_index: btn.dataset.upstreamIndex}));
-      onExtractorSaveClose();
-      htmx.trigger(btn, "confirmed");
+      trigger.setAttribute("hx-vals", JSON.stringify({
+        extractor_id: modal.querySelector("[name='extractor_save_id']").value,
+        extractor_upstream_index: trigger.dataset.upstreamIndex,
+      }));
+      onClose();
+      htmx.trigger(trigger, "confirmed");
     }, { once: true });
-
-    function onModalOutsideClick(e) {
-      const content = modal.querySelector("article");
-      if (!content.contains(e.target)) {
-        onExtractorSaveClose();
-        modal.removeEventListener("click", onModalOutsideClick);
-      }
-    }
-
-    modal.addEventListener("click", onModalOutsideClick);
-
-    document.querySelector("html").classList.add("modal-is-open");
-    modal.setAttribute("open", "");
   }
 
-  function onTemplateSaveClose() {
-    const modal = document.querySelector("dialog#template_save");
-    modal.removeAttribute("open");
-    document.querySelector("html").classList.remove("modal-is-open");
-  }
-
-  function onTemplateSave(btn) {
-    const modal = document.querySelector("dialog#template_save");
+  function onOpenTemplateSaveModal(e, { modal, onClose, trigger }) {
     modal.querySelector("[name='template_save_id']").value = document.querySelector(`[name='transformer.template_id']`).value;
     modal.querySelector("[name='template_save_name']").value = document.querySelector(`[name='transformer.template.name']`).value;
     modal.querySelector("[name='template_save_description']").value = document.querySelector(`[name='transformer.template.description']`).value;
     modal.querySelector("form").addEventListener("submit", function(e) {
       e.preventDefault();
-      btn.setAttribute("hx-vals", JSON.stringify({template_id:modal.querySelector("[name='template_save_id']").value }));
-      onTemplateSaveClose();
-      htmx.trigger(btn, "confirmed");
+      trigger.setAttribute("hx-vals", JSON.stringify({
+        template_id: modal.querySelector("[name='template_save_id']").value,
+      }));
+      onClose();
+      htmx.trigger(trigger, "confirmed");
     }, { once: true });
-
-    function onModalOutsideClick(e) {
-      const content = modal.querySelector("article");
-      if (!content.contains(e.target)) {
-        onTemplateSaveClose();
-        modal.removeEventListener("click", onModalOutsideClick);
-      }
-    }
-
-    modal.addEventListener("click", onModalOutsideClick);
-
-    document.querySelector("html").classList.add("modal-is-open");
-    modal.setAttribute("open", "");
   }
 
   function onUpstreamManifestConfigure(idx) {
@@ -506,16 +460,6 @@
     document.querySelector('#manifest_url_section')?.remove();
   }, { once: true });
 
-
-  Array.from(document.querySelectorAll('[data-field-store-token')).forEach((storeField) => {
-    let storeFields = Array.from(document.querySelectorAll('[data-field-store-token'));
-    storeField.addEventListener("change", (e) => {
-      const isStremThru = storeFields.some((f) => f.value == "");
-      if (isStremThru) {
-        console.log('isStremThru')
-      }
-    });
-  });
   {{.Script}}
 </script>
 {{end}}

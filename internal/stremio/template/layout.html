@@ -112,6 +112,48 @@
 
 
     {{block "head" .}}{{end}}
+
+    <script>
+    htmx.defineExtension("htmx-modal", {
+      onEvent: (name, evt) => {
+        if (name == "htmx:afterProcessNode") {
+          const trigger = evt.target;
+          const modalSelector = trigger.dataset.modal;
+          const modalOnOpenFnName = trigger.dataset.modalOnOpen;
+
+          function onClose() {
+            const modal = document.querySelector(modalSelector);
+            modal.removeAttribute("open");
+            document.querySelector("html").classList.remove("modal-is-open");
+          }
+
+          document
+            .querySelector(modalSelector + " [data-modal-close]")
+            ?.addEventListener("click", onClose);
+
+          trigger.addEventListener("click", function(e) {
+            const modal = document.querySelector(modalSelector);
+
+            window[modalOnOpenFnName](e, { modal, onClose, trigger });
+
+            function onOutsideClick(e) {
+              const content = modal.querySelector("article");
+              if (!content.contains(e.target)) {
+                onClose();
+                modal.removeEventListener("click", onOutsideClick);
+              }
+            }
+
+            modal.addEventListener("click", onOutsideClick);
+
+            document.querySelector("html").classList.add("modal-is-open");
+            modal.setAttribute("open", "");
+          });
+        }
+        return true;
+      },
+    })
+    </script>
   </head>
 
   <body class="container">
