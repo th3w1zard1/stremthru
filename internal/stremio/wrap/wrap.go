@@ -95,7 +95,11 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			if !IsPublicInstance {
 				user := r.Form.Get("user")
 				pass := r.Form.Get("pass")
-				if config.ProxyAuthPassword.GetPassword(user) == pass {
+				if pass == "" || config.ProxyAuthPassword.GetPassword(user) != pass {
+					td.AuthError = "Wrong Credential!"
+				} else if !config.AuthAdmin.IsAdmin(user) {
+					td.AuthError = "Not Authorized!"
+				} else {
 					setCookie(w, user, pass)
 					td.IsAuthed = true
 					if r.Header.Get("hx-request") == "true" {

@@ -80,6 +80,15 @@ func (m ProxyAuthPasswordMap) GetPassword(userName string) string {
 	return ""
 }
 
+type AuthAdminMap map[string]bool
+
+func (m AuthAdminMap) IsAdmin(userName string) bool {
+	if isAdmin, ok := m[userName]; ok {
+		return isAdmin
+	}
+	return false
+}
+
 const (
 	StremioAddonSidekick string = "sidekick"
 	StremioAddonStore    string = "store"
@@ -135,6 +144,7 @@ type Config struct {
 	Port                        string
 	StoreAuthToken              StoreAuthTokenMap
 	ProxyAuthPassword           ProxyAuthPasswordMap
+	AuthAdmin                   AuthAdminMap
 	BuddyURL                    string
 	HasBuddy                    bool
 	PeerURL                     string
@@ -171,9 +181,24 @@ var config = func() Config {
 		return c == ','
 	})
 	proxyAuthPasswordMap := make(ProxyAuthPasswordMap)
+
 	for _, cred := range proxyAuthCredList {
 		if basicAuth, err := core.ParseBasicAuth(cred); err == nil {
 			proxyAuthPasswordMap[basicAuth.Username] = basicAuth.Password
+		}
+	}
+
+	authAdminMap := make(AuthAdminMap)
+	authAdminList := strings.FieldsFunc(getEnv("STREMTHRU_AUTH_ADMIN", ""), func(c rune) bool {
+		return c == ','
+	})
+	if len(authAdminList) > 0 {
+		for _, username := range authAdminList {
+			authAdminMap[username] = true
+		}
+	} else {
+		for username := range proxyAuthPasswordMap {
+			authAdminMap[username] = true
 		}
 	}
 
@@ -247,6 +272,7 @@ var config = func() Config {
 
 		Port:                        getEnv("STREMTHRU_PORT", "8080"),
 		ProxyAuthPassword:           proxyAuthPasswordMap,
+		AuthAdmin:                   authAdminMap,
 		StoreAuthToken:              storeAuthTokenMap,
 		BuddyURL:                    buddyUrl,
 		HasBuddy:                    len(buddyUrl) > 0,
@@ -270,6 +296,7 @@ var LogFormat = config.LogFormat
 
 var Port = config.Port
 var ProxyAuthPassword = config.ProxyAuthPassword
+var AuthAdmin = config.AuthAdmin
 var StoreAuthToken = config.StoreAuthToken
 var BuddyURL = config.BuddyURL
 var HasBuddy = config.HasBuddy

@@ -245,13 +245,15 @@ type TemplateData struct {
 	ManifestURL string
 	Script      template.JS
 
-	CanAuthorize      bool
 	CanAddUpstream    bool
 	CanRemoveUpstream bool
 	CanAddStore       bool
 	CanRemoveStore    bool
 
-	IsAuthed      bool
+	CanAuthorize bool
+	IsAuthed     bool
+	AuthError    string
+
 	ExtractorIds  []string
 	TemplateIds   []string
 	TemplateId    string

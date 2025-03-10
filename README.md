@@ -123,6 +123,10 @@ Comma separated list of credentials, in the following formats:
 
 These will be used for proxy authorization.
 
+#### `STREMTHRU_AUTH_ADMIN`
+
+Comma separated list of admin usernames.
+
 #### `STREMTHRU_STORE_AUTH`
 
 Comma separated list of store credentials, in `username:store_name:store_token` format.
