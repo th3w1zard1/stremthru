@@ -346,11 +346,11 @@ url
 
 	extractors[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Torrentio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
 name
-(?i)^(?:\[(?<debrid>\w+?)(?<cached>\+?)\] )?(?<addon>\w+)\n(?<resolution>[^kp]+[kp])?(?: 3D(?: SBS))?(?: (?<hdr>.+))?
+(?i)^(?:\[(?<debrid>\w+?)(?<cached>\+?)\] )?(?<addon>\w+)\n?(?<resolution>[^kp]+[kp])?(?: 3D(?: SBS))?(?: (?<hdr>.+))?
 
 description
 ^(?<title>.+)\n(?:(?<filename>[^👤].+)\n)?👤.+ 💾 (?<size>.+) ⚙️ (?<site>\w+)(?:\n(?<lang>.+))?$
-(?i)(?<quality>cam|scr|dvd|vhs|r5|(?:(?:bd|blu|hd)(?:rip|ray|mux|tv))|(?:(?:tele|web)[\w-][\w]+))
+(?i)(?<quality>cam|scr|dvd|vhs|r5|(?:(?:bd|blu|hd|sd)(?:rip|ray|mux|tv))|(?:(?:tele|web)[\w-][\w]+))
 
 bingeGroup
 (?i)(?<codec>hevc|avc|mpeg|xvid|av1|x264|x265|h264|h265)
