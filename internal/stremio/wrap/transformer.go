@@ -319,6 +319,19 @@ func getNewTransformerExtractorId(oldId string) string {
 var builtInExtractors = func() map[string]StreamTransformerExtractorBlob {
 	extractors := map[string]StreamTransformerExtractorBlob{}
 
+	extractors[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Comet"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+name
+(?i)^\[(?:TORRENT🧲|(?<debrid>\w+)(?<cached>⚡)?)\] (?<addon>.+) (?:unknown|(?<resolution>\d[^kp]*[kp]))
+
+description
+^(?<title>.+)\n(?:💿 .+\n)?(?:👤 \d+ )?💾 (?:(?<size>[\d.]+ [^ ]+)|.+?) 🔎 (?<site>.+)(?:\n.+)?
+(?i)💿 (?:.+\|)?(?<quality>cam|scr|dvd|vhs|r5|(?:[\w ]+(?:rip|ray|mux|tv))|(?:(?:tele|web)[\w-][\w]+))
+(?i)💿 (?:.+\|)?(?<codec>hevc|avc|mpeg|xvid|av1|x264|x265|h264|h265)
+
+url
+\/playback\/(?<hash>[a-f0-9]{40})\/(?:n|(?<fileidx>\d+))\/[^/]+\/(?:n|(?<season>\d+))\/(?:n|(?<episode>\d+))\/(?<filename>.+)
+`))
+
 	extractors[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Debridio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
 name
 (?i)^(?:\[(?<debrid>\w+?)(?<cached>\+?)\] \n)?(?<addon>\w+) (?:Other|(?<resolution>\d[^kp]*[kp]))
