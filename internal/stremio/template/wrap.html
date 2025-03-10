@@ -3,6 +3,10 @@
   body {
     justify-content: center;
   }
+
+  form:not([data-has-store-stremthru="true"]) .upstream_addons_modifier_no_content_proxy {
+    display: none;
+  }
 </style>
 {{end}}
 
@@ -16,7 +20,7 @@
 {{end}}
 
 {{define "main"}}
-<form id="configuration" action="configure" method="post" hx-boost="true">
+<form id="configuration" action="configure" method="post" hx-boost="true"  data-has-store-stremthru="false">
   <div id="upstream_addons" class="relative border border-dashed rounded-sm mb-4 p-4" style="border-color: gray">
     <header class="w-full flex flex-row justify-between absolute px-4" style="top: -0.75rem; left: 0;">
       <span class="px-2" style="background-color: var(--pico-background-color);">
@@ -62,12 +66,12 @@
 
           <fieldset>
             <legend>Modifiers:</legend>
-            {{if $.IsAuthed}}
-            <input type="checkbox" id="upstreams[{{$idx}}].no_content_proxy" name="upstreams[{{$idx}}].no_content_proxy" {{if $up.NoContentProxy}}checked{{end}}>
-            <label for="upstreams[{{$idx}}].no_content_proxy" data-tooltip="Only affects direct links" style="border: 0;">
-              Skip Content Proxy for Direct Links
-            </label>
-            {{end}}
+            <span class="upstream_addons_modifier_no_content_proxy">
+              <input type="checkbox" id="upstreams[{{$idx}}].no_content_proxy" name="upstreams[{{$idx}}].no_content_proxy" {{if $up.NoContentProxy}}checked{{end}}>
+              <label for="upstreams[{{$idx}}].no_content_proxy" data-tooltip="Only affects direct links" style="border: 0;">
+                Skip Content Proxy for Direct Links
+              </label>
+            </span>
             <input type="checkbox" id="upstreams[{{$idx}}].reconfigure_store" name="upstreams[{{$idx}}].reconfigure_store" {{if $up.ReconfigureStore}}checked{{end}}>
             <label for="upstreams[{{$idx}}].reconfigure_store" data-tooltip="⚠️ Experimental. Needs supported Extractor." style="border: 0;">
               Try to Reconfigure Store
@@ -468,6 +472,18 @@
   htmx.on("form#configuration", "change", function(evt) {
     document.querySelector('#manifest_url_section')?.remove();
   }, { once: true });
+
+  function syncHasStoreStremThru() {
+    document.querySelector("form#configuration").dataset.hasStoreStremthru = Array.from(
+      document.querySelectorAll("[data-field-store-token]")
+    ).some((f) => f[0].textContent != "" && f.value == "");
+  }
+  syncHasStoreStremThru();
+  document.querySelectorAll("[data-field-store-token]").forEach((storeField) => {
+    storeField.addEventListener("change", function(e) {
+      syncHasStoreStremThru();
+    });
+  });
 
   {{.Script}}
 </script>

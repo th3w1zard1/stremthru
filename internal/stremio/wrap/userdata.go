@@ -525,6 +525,21 @@ func getUserData(r *http.Request) (*UserData, error) {
 
 		data.CachedOnly = r.Form.Get("cached") == "on"
 
+		isStoreStremThru := false
+		for i := range data.Stores {
+			if data.Stores[i].Code.IsStremThru() {
+				isStoreStremThru = true
+				break
+			}
+		}
+
+		if !isStoreStremThru {
+			for i := range data.Upstreams {
+				up := &data.Upstreams[i]
+				up.NoContentProxy = false
+			}
+		}
+
 		_, err = data.GetEncoded(false)
 		if err != nil {
 			return nil, err
