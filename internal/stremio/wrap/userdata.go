@@ -97,7 +97,7 @@ type UserData struct {
 
 	Sort string `json:"sort,omitempty"`
 
-	encoded          string             `json:"-"`
+	encoded          string             `json:"-"` // correctly configured
 	manifests        []stremio.Manifest `json:"-"`
 	resolver         upstreamsResolver  `json:"-"`
 	stores           multiStore         `json:"-"`
@@ -112,6 +112,9 @@ func (ud UserData) HasRequiredValues() bool {
 		if ud.Upstreams[i].URL == "" {
 			return false
 		}
+	}
+	if len(ud.Stores) == 0 {
+		return false
 	}
 	for i := range ud.Stores {
 		s := &ud.Stores[i]
@@ -505,21 +508,19 @@ func getUserData(r *http.Request) (*UserData, error) {
 		for idx := range stores_length {
 			code := r.Form.Get("stores[" + strconv.Itoa(idx) + "].code")
 			token := r.Form.Get("stores[" + strconv.Itoa(idx) + "].token")
-			if token != "" {
-				if code == "" {
-					data.Stores = []UserDataStore{
-						{
-							Code:  UserDataStoreCode(code),
-							Token: token,
-						},
-					}
-					break
-				} else {
-					data.Stores = append(data.Stores, UserDataStore{
+			if code == "" {
+				data.Stores = []UserDataStore{
+					{
 						Code:  UserDataStoreCode(code),
 						Token: token,
-					})
+					},
 				}
+				break
+			} else {
+				data.Stores = append(data.Stores, UserDataStore{
+					Code:  UserDataStoreCode(code),
+					Token: token,
+				})
 			}
 		}
 
@@ -538,11 +539,6 @@ func getUserData(r *http.Request) (*UserData, error) {
 				up := &data.Upstreams[i]
 				up.NoContentProxy = false
 			}
-		}
-
-		_, err = data.GetEncoded(false)
-		if err != nil {
-			return nil, err
 		}
 	}
 
