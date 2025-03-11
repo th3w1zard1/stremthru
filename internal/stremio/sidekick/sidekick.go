@@ -255,7 +255,9 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAddons(w http.ResponseWriter, r *http.Request) {
-	if !IsMethod(r, http.MethodGet) {
+	log := server.GetReqCtx(r).Log
+
+	if !IsMethod(r, http.MethodGet) && !IsMethod(r, http.MethodPost) {
 		shared.ErrorMethodNotAllowed(r).Send(w, r)
 		return
 	}
@@ -276,6 +278,56 @@ func handleAddons(w http.ResponseWriter, r *http.Request) {
 
 	td := getTemplateData(cookie, w, r)
 	td.Addons = res.Data.Addons
+
+	if IsMethod(r, http.MethodPost) {
+		manifestUrl := r.FormValue("manifest_url")
+		if strings.HasPrefix(manifestUrl, "stremio:") {
+			manifestUrl = "https:" + strings.TrimPrefix(manifestUrl, "stremio:")
+		}
+		if strings.HasSuffix(manifestUrl, "/configure") {
+			manifestUrl = strings.TrimSuffix(manifestUrl, "/configure") + "/manifest.json"
+		}
+
+		var baseUrl *url.URL
+		if manifestUrl == "" {
+			td.AddonError = "missing manifest url"
+		} else if !strings.HasSuffix(manifestUrl, "/manifest.json") {
+			td.AddonError = "invalid manifest url"
+		} else if u, err := url.Parse(manifestUrl); err != nil {
+			td.AddonError = "invalid manifest url"
+		} else {
+			baseUrl = u.JoinPath("..")
+		}
+
+		if td.AddonError == "" {
+			gmParams := &stremio_addon.GetManifestParams{BaseURL: baseUrl}
+			gmParams.APIKey = cookie.AuthKey()
+			gmRes, err := addon_client.GetManifest(gmParams)
+			if err != nil {
+				td.AddonError = fmt.Sprintf("failed to get manifest: %v", err)
+				log.Error("failed to get manifest", "error", err)
+			} else if slices.ContainsFunc(td.Addons, func(addon stremio.Addon) bool {
+				return addon.TransportUrl == manifestUrl
+			}) {
+				td.AddonError = "addon already exists"
+			} else {
+				td.Addons = append(td.Addons, stremio.Addon{
+					TransportUrl: manifestUrl,
+					Manifest:     gmRes.Data,
+					Flags:        &stremio.AddonFlags{},
+				})
+
+				saParams := &stremio_api.SetAddonsParams{Addons: td.Addons}
+				saParams.APIKey = cookie.AuthKey()
+				_, err := client.SetAddons(saParams)
+				if err != nil {
+					td.AddonError = fmt.Sprintf("failed to install addon: %v", err)
+					log.Error("failed to install addon", "error", err)
+					td.Addons = td.Addons[:len(td.Addons)-1]
+				}
+			}
+		}
+	}
 
 	buf, err := executeTemplate(td, "sidekick_addons_section.html")
 	if err != nil {
@@ -344,6 +396,64 @@ func handleAddonsRestore(w http.ResponseWriter, r *http.Request) {
 		}
 
 		td.BackupRestore.Error.AddonsRestoreBlob = "failed to restore: " + err.Error()
+	}
+
+	buf, err := executeTemplate(td, "sidekick_addons_section.html")
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+	SendHTML(w, 200, buf)
+}
+
+func handleAddonUninstall(w http.ResponseWriter, r *http.Request) {
+	if !IsMethod(r, http.MethodDelete) {
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
+		return
+	}
+
+	log := server.GetReqCtx(r).Log
+
+	cookie, err := getCookieValue(w, r)
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+
+	params := &stremio_api.GetAddonsParams{}
+	params.APIKey = cookie.AuthKey()
+	get_res, err := client.GetAddons(params)
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+
+	currAddons := get_res.Data.Addons
+
+	td := getTemplateData(cookie, w, r)
+
+	transportUrl := r.PathValue("transportUrl")
+
+	td.Addons = slices.Clone(currAddons)
+	td.Addons = slices.DeleteFunc(td.Addons, func(addon stremio.Addon) bool {
+		return addon.TransportUrl == transportUrl
+	})
+
+	set_params := &stremio_api.SetAddonsParams{
+		Addons: td.Addons,
+	}
+	set_params.APIKey = cookie.AuthKey()
+	set_res, err := client.SetAddons(set_params)
+	if err != nil {
+		err = core.PackError(err)
+		log.Error("failed to uninstall addons", "error", err)
+		td.AddonError = fmt.Sprintf("failed to uninstall addons: %v", err)
+		td.Addons = currAddons
+	} else if !set_res.Data.Success {
+		err_msg := "failed to uninstall addons!"
+		log.Error(err_msg)
+		td.AddonError = err_msg
+		td.Addons = currAddons
 	}
 
 	buf, err := executeTemplate(td, "sidekick_addons_section.html")
@@ -1013,6 +1123,7 @@ func AddStremioSidekickEndpoints(mux *http.ServeMux) {
 	router.HandleFunc("/addons/backup", handleAddonsBackup)
 	router.HandleFunc("/addons/restore", handleAddonsRestore)
 	router.HandleFunc("/addons/reset", handleAddonsReset)
+	router.HandleFunc("/addons/{transportUrl}", handleAddonUninstall)
 	router.HandleFunc("/addons/{transportUrl}/move/{direction}", handleAddonMove)
 	router.HandleFunc("/addons/{transportUrl}/reload", handleAddonReload)
 	router.HandleFunc("/addons/{transportUrl}/toggle", handleAddonToggle)

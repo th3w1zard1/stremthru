@@ -29,6 +29,16 @@
     </select>
   </div>
   <div>
+    <button
+      hx-ext="htmx-modal"
+      data-modal="#addon_install_modal"
+      data-modal-on-open="onOpenAddonInstallModal"
+      hx-post="addons"
+      hx-target="#addons_section"
+      hx-trigger="confirmed"
+    >
+      Install
+    </button>
     <button id="load_addons" hx-get="addons" hx-target="#addons_section" hx-trigger="click, addons_load">
       {{if eq (len .Addons) 0}}Load{{else}}Refresh{{end}}
     </button>
@@ -54,6 +64,23 @@
         </h3>
       </div>
       <div>
+        {{if not .Flags.Protected}}
+        <button
+          style="
+          --pico-background-color: #ad2201;
+          "
+          hx-ext="htmx-modal"
+          data-modal="#addon_uninstall_modal"
+          data-modal-on-open="onOpenAddonUninstallModal"
+          hx-delete="addons/{{.TransportUrl | url_path_escape}}"
+          hx-target="#addons_section"
+          hx-trigger="confirmed"
+          data-name="{{.Manifest.Name}}"
+          data-version="{{.Manifest.Version}}"
+        >
+          Uninstall
+        </button>
+        {{end}}
         {{if not (has_prefix .Manifest.ID "st:disabled:")}}
           {{with (get_configure_url .)}}
             <a role="button" href="{{.}}" target="_blank">Configure</a>
@@ -199,6 +226,45 @@
   </article>
 </dialog>
 
+<dialog id="addon_install_modal">
+  <article>
+    <header>
+      <button aria-label="Close" rel="prev" data-modal-close></button>
+      <h3>
+        Install New Addon
+      </h3>
+    </header>
+    <form>
+      <label for="addon_install_manifest_url">Manifest URL *</label>
+      <input type="url" id="addon_install_manifest_url" name="addon_install_manifest_url" value="" required>
+
+      <button type="submit">Install</button>
+    </form>
+  </article>
+</dialog>
+
+<dialog id="addon_uninstall_modal">
+  <article>
+    <header>
+      <button aria-label="Close" rel="prev" data-modal-close></button>
+      <h3>
+        Uninstall <span id="addon_uninstall_name"></span>
+        <small><sup>v<span id="addon_uninstall_version"></span></sup></small>
+      </h3>
+    </header>
+    <form>
+      <button
+        style="
+        --pico-background-color: #ad2201;
+        "
+        type="submit"
+      >
+        Uninstall
+      </button>
+    </form>
+  </article>
+</dialog>
+
 <dialog id="addon_reload_modal">
   <article>
     <header>
@@ -326,6 +392,28 @@ function onOpenAddonModifyModal(e, { modal, onClose, trigger }) {
       data.protected = modal.querySelector("#addon_modify_new_protected").checked
     }
     trigger.setAttribute("hx-vals", JSON.stringify(data));
+    onClose();
+    htmx.trigger(trigger, "confirmed");
+  }, { once: true });
+}
+
+function onOpenAddonInstallModal(e, { modal, onClose, trigger }) {
+  modal.querySelector("form").addEventListener("submit", function(e) {
+    e.preventDefault();
+    trigger.setAttribute("hx-vals", JSON.stringify({
+      manifest_url: modal.querySelector("#addon_install_manifest_url").value
+    }));
+    onClose();
+    htmx.trigger(trigger, "confirmed");
+  }, { once: true });
+}
+
+function onOpenAddonUninstallModal(e, { modal, onClose, trigger }) {
+  modal.querySelector("#addon_uninstall_name").textContent = trigger.dataset.name;
+  modal.querySelector("#addon_uninstall_version").textContent = trigger.dataset.version;
+
+  modal.querySelector("form").addEventListener("submit", function(e) {
+    e.preventDefault();
     onClose();
     htmx.trigger(trigger, "confirmed");
   }, { once: true });
