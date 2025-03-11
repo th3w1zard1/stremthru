@@ -138,6 +138,8 @@
         hx-trigger="confirmed"
         data-name="{{.Manifest.Name}}"
         data-description="{{.Manifest.Description}}"
+        data-configurable="{{if eq .Manifest.BehaviorHints nil}}false{{else}}{{.Manifest.BehaviorHints.Configurable}}{{end}}"
+        data-protected="{{if eq .Flags nil}}false{{else}}{{.Flags.Protected}}{{end}}"
         data-version="{{.Manifest.Version}}"
       >
         Modify
@@ -177,6 +179,20 @@
 
       <label for="addon_modify_new_description">Description *</label>
       <textarea id="addon_modify_new_description" name="addon_modify_new_description" required></textarea>
+
+      {{if .HasAuthAdmin}}
+      <fieldset>
+        <legend>Modifiers:</legend>
+        <input type="checkbox" id="addon_modify_new_configurable" name="addon_modify_new_configurable">
+        <label for="addon_modify_new_configurable" style="border: 0;">
+          Configurable
+        </label>
+        <input type="checkbox" id="addon_modify_new_protected" name="addon_modify_new_protected">
+        <label for="addon_modify_new_protected" style="border: 0;">
+          Protected
+        </label>
+      </fieldset>
+      {{end}}
 
       <button type="submit">Modify</button>
     </form>
@@ -287,17 +303,29 @@ function onAddonOperationChange(el) {
 }
 
 function onOpenAddonModifyModal(e, { modal, onClose, trigger }) {
+  const isAdmin = "{{.HasAuthAdmin}}" == "true";
+
   modal.querySelector("#addon_modify_name").textContent = trigger.dataset.name;
   modal.querySelector("#addon_modify_version").textContent = trigger.dataset.version;
   modal.querySelector("#addon_modify_new_name").value = trigger.dataset.name;
   modal.querySelector("#addon_modify_new_description").value = trigger.dataset.description;
+
+  if (isAdmin) {
+    modal.querySelector("#addon_modify_new_configurable").checked = trigger.dataset.configurable == "true";
+    modal.querySelector("#addon_modify_new_protected").checked = trigger.dataset.protected == "true";
+  }
   
   modal.querySelector("form").addEventListener("submit", function(e) {
     e.preventDefault();
-    trigger.setAttribute("hx-vals", JSON.stringify({
+    const data = {
       name: modal.querySelector("#addon_modify_new_name").value,
       description: modal.querySelector("#addon_modify_new_description").value,
-    }));
+    }
+    if (isAdmin) {
+      data.configurable = modal.querySelector("#addon_modify_new_configurable").checked
+      data.protected = modal.querySelector("#addon_modify_new_protected").checked
+    }
+    trigger.setAttribute("hx-vals", JSON.stringify(data));
     onClose();
     htmx.trigger(trigger, "confirmed");
   }, { once: true });

@@ -11,12 +11,15 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/internal/stremio/addon"
 	"github.com/MunifTanjim/stremthru/internal/stremio/api"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
+
+var IsPublicInstance = config.IsPublicInstance
 
 var client = func() *stremio_api.Client {
 	return stremio_api.NewClient(&stremio_api.ClientConfig{})
@@ -101,7 +104,31 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	td := getTemplateData(cookie, r)
+	td := getTemplateData(cookie, w, r)
+
+	if action := r.Header.Get("x-addon-configure-action"); action != "" {
+		switch action {
+		case "authorize":
+			if !IsPublicInstance {
+				user := r.FormValue("user")
+				pass := r.FormValue("pass")
+				if pass == "" || config.ProxyAuthPassword.GetPassword(user) != pass {
+					td.AuthAdminError = "Wrong Credential!"
+				} else if !config.AuthAdmin.IsAdmin(user) {
+					td.AuthAdminError = "Not Authorized!"
+				} else {
+					setAdminCookie(w, user, pass)
+					td.HasAuthAdmin = true
+					if r.Header.Get("hx-request") == "true" {
+						w.Header().Add("hx-refresh", "true")
+					}
+				}
+			}
+		case "deauthorize":
+			unsetAdminCookie(w)
+			td.HasAuthAdmin = false
+		}
+	}
 
 	buf, err := getPage(td)
 	if err != nil {
@@ -159,7 +186,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if rerr, ok := err.(*stremio_api.ResponseError); ok {
-			td := getTemplateData(nil, r)
+			td := getTemplateData(nil, w, r)
 			td.Login.Email = email
 			td.Login.Password = password
 			switch rerr.Code {
@@ -196,7 +223,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if rerr, ok := err.(*stremio_api.ResponseError); ok {
-			td := getTemplateData(nil, r)
+			td := getTemplateData(nil, w, r)
 			td.Login.Token = token
 			switch rerr.Code {
 			case stremio_api.ErrorCodeSessionNotFound:
@@ -247,7 +274,7 @@ func handleAddons(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	td := getTemplateData(cookie, r)
+	td := getTemplateData(cookie, w, r)
 	td.Addons = res.Data.Addons
 
 	buf, err := executeTemplate(td, "sidekick_addons_section.html")
@@ -296,7 +323,7 @@ func handleAddonsRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	td := getTemplateData(cookie, r)
+	td := getTemplateData(cookie, w, r)
 
 	td.BackupRestore.AddonsRestoreBlob = r.FormValue("blob")
 
@@ -336,7 +363,7 @@ func handleAddonsReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	td := getTemplateData(cookie, r)
+	td := getTemplateData(cookie, w, r)
 	understood := r.FormValue("understood") == "on"
 
 	if !understood {
@@ -491,7 +518,7 @@ func handleAddonMove(w http.ResponseWriter, r *http.Request) {
 	currAddons := get_res.Data.Addons
 	totalAddons := len(currAddons)
 
-	td := getTemplateData(cookie, r)
+	td := getTemplateData(cookie, w, r)
 	td.Addons = make([]stremio.Addon, 0, totalAddons)
 	td.Addons = append(td.Addons, currAddons...)
 
@@ -588,7 +615,7 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 	currAddons := get_res.Data.Addons
 	totalAddons := len(currAddons)
 
-	td := getTemplateData(cookie, r)
+	td := getTemplateData(cookie, w, r)
 	td.Addons = make([]stremio.Addon, 0, totalAddons)
 	td.Addons = append(td.Addons, currAddons...)
 
@@ -704,7 +731,7 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 	currAddons := get_res.Data.Addons
 	totalAddons := len(currAddons)
 
-	td := getTemplateData(cookie, r)
+	td := getTemplateData(cookie, w, r)
 	td.Addons = make([]stremio.Addon, 0, totalAddons)
 	td.Addons = append(td.Addons, currAddons...)
 
@@ -823,7 +850,7 @@ func handleAddonModify(w http.ResponseWriter, r *http.Request) {
 
 	currAddons := get_res.Data.Addons
 
-	td := getTemplateData(cookie, r)
+	td := getTemplateData(cookie, w, r)
 	td.Addons = slices.Clone(currAddons)
 
 	idx := -1
@@ -838,6 +865,20 @@ func handleAddonModify(w http.ResponseWriter, r *http.Request) {
 		addon := &td.Addons[idx]
 		addon.Manifest.Name = name
 		addon.Manifest.Description = description
+		if td.HasAuthAdmin {
+			isConfigurable := r.FormValue("configurable") == "true"
+			isProtected := r.FormValue("protected") == "true"
+
+			if addon.Manifest.BehaviorHints != nil {
+				addon.Manifest.BehaviorHints.Configurable = isConfigurable
+			}
+			if addon.Flags == nil {
+				addon.Flags = &stremio.AddonFlags{}
+			}
+			if !addon.Flags.Official {
+				addon.Flags.Protected = isProtected
+			}
+		}
 		set_params := &stremio_api.SetAddonsParams{
 			Addons: td.Addons,
 		}
@@ -910,7 +951,7 @@ func handleLibraryRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	td := getTemplateData(cookie, r)
+	td := getTemplateData(cookie, w, r)
 
 	td.BackupRestore.LibraryRestoreBlob = r.FormValue("blob")
 

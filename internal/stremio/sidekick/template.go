@@ -48,9 +48,13 @@ type TemplateData struct {
 			AddonsRestoreBlob string
 		}
 	}
+
+	CanAuthAdmin   bool
+	HasAuthAdmin   bool
+	AuthAdminError string
 }
 
-func getTemplateData(cookie *CookieValue, r *http.Request) *TemplateData {
+func getTemplateData(cookie *CookieValue, w http.ResponseWriter, r *http.Request) *TemplateData {
 	td := &TemplateData{
 		Base: Base{
 			Title:       "Stremio Sidekick",
@@ -58,6 +62,11 @@ func getTemplateData(cookie *CookieValue, r *http.Request) *TemplateData {
 			NavTitle:    "Sidekick",
 		},
 	}
+
+	if cookie, err := getAdminCookieValue(w, r); err == nil && !cookie.IsExpired {
+		td.HasAuthAdmin = config.ProxyAuthPassword.GetPassword(cookie.User()) == cookie.Pass()
+	}
+
 	if cookie != nil && !cookie.IsExpired {
 		td.IsAuthed = true
 		td.Email = cookie.Email()
@@ -95,6 +104,8 @@ func getTemplateData(cookie *CookieValue, r *http.Request) *TemplateData {
 
 var executeTemplate = func() stremio_template.Executor[TemplateData] {
 	return stremio_template.GetExecutor("stremio/sidekick", func(td *TemplateData) *TemplateData {
+		td.CanAuthAdmin = !IsPublicInstance
+
 		td.Version = config.Version
 		if td.Addons == nil {
 			td.Addons = []stremio.Addon{}
