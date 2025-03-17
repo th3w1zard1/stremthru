@@ -383,7 +383,7 @@
   {{if and .CanAuthorize (ne .AuthError "")}}
   htmx.on("htmx:load", function(evt) {
     document.querySelector("[data-modal-on-open='onOpenAuthorize']").click();
-  });
+  }, { once: true });
   {{end}}
 
   function onOpenAuthorize(e, { modal, onClose, trigger }) {
@@ -443,28 +443,22 @@
     return manifestUrl;
   }
 
-  function tryInstall() {
-    const url = new URL(window.location.href)
-    if (!url.searchParams.get("try_install")) {
-      return
-    }
-    url.searchParams.delete("try_install");
-    window.history.replaceState(null, "", url.href);
-
+  htmx.off("form#configuration", "try_install");
+  htmx.on("form#configuration", "try_install", function(evt) {
     const manifestUrl = copyManifestUrl();
     if (manifestUrl) {
       window.location.href = manifestUrl.replace(/^.+:\/\//, 'stremio://');
     }
-  }
+  });
 
-  tryInstall()
-
-  htmx.on("htmx:beforeRequest", function(evt) {
+  htmx.off("form#configuration", "htmx:beforeRequest");
+  htmx.on("form#configuration", "htmx:beforeRequest", function(evt) {
     if (evt.detail.elt.id === "configuration") {
       evt.detail.elt.querySelector("button[type='submit']").ariaBusy = true;
     }
   });
-  htmx.on("htmx:afterRequest", function(evt) {
+  htmx.off("form#configuration", "htmx:afterRequest");
+  htmx.on("form#configuration", "htmx:afterRequest", function(evt) {
     if (evt.detail.elt.id === "configuration") {
       evt.detail.elt.querySelector("button[type='submit']").ariaBusy = false;
     }
