@@ -284,3 +284,36 @@ func (c Client) ProxyResource(w http.ResponseWriter, r *http.Request, params *Pr
 	w.Header().Del("Access-Control-Allow-Origin")
 	shared.ProxyResponse(w, r, params.BaseURL.JoinPath(path).String(), config.TUNNEL_TYPE_AUTO)
 }
+
+func NormalizeManifestURL(manifestUrl string) (string, error) {
+	u, err := url.Parse(manifestUrl)
+	if err != nil {
+		return manifestUrl, err
+	}
+	if u.Scheme == "stremio:" {
+		u.Scheme = "https:"
+	}
+	if strings.HasSuffix(u.Path, "/configure") {
+		u.Path = strings.TrimSuffix(u.Path, "/configure") + "/manifest.json"
+	}
+	return u.String(), nil
+}
+
+func ExtractBaseURL(manifestUrl string) (*url.URL, error) {
+	u, err := url.Parse(manifestUrl)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.HasSuffix(u.Path, "/manifest.json") {
+		return nil, errors.New("invalid manifest url")
+	}
+	if u.RawPath != "" && u.RawPath != u.Path {
+		u.RawPath = strings.TrimSuffix(u.RawPath, "/manifest.json")
+		if u.Path, err = url.PathUnescape(u.RawPath); err != nil {
+			return nil, err
+		}
+	} else {
+		u.Path = strings.TrimSuffix(u.Path, "/manifest.json")
+	}
+	return u, nil
+}

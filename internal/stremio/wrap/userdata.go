@@ -377,6 +377,8 @@ func getUserData(r *http.Request) (*UserData, error) {
 	data := &UserData{}
 	data.SetEncoded(r.PathValue("userData"))
 
+	log := server.GetReqCtx(r).Log
+
 	if IsMethod(r, http.MethodGet) || IsMethod(r, http.MethodHead) {
 		if err := udManager.Resolve(data); err != nil {
 			return nil, err
@@ -470,12 +472,9 @@ func getUserData(r *http.Request) (*UserData, error) {
 		}
 
 		for idx := range upstreams_length {
-			upURL := r.Form.Get("upstreams[" + strconv.Itoa(idx) + "].url")
-			if strings.HasPrefix(upURL, "stremio:") {
-				upURL = "https:" + strings.TrimPrefix(upURL, "stremio:")
-			}
-			if strings.HasSuffix(upURL, "/configure") {
-				upURL = strings.TrimSuffix(upURL, "/configure") + "/manifest.json"
+			upURL, err := stremio_addon.NormalizeManifestURL(r.Form.Get("upstreams[" + strconv.Itoa(idx) + "].url"))
+			if err != nil {
+				log.Error("failed to normalize manifest url", "error", err)
 			}
 			extractorId := r.Form.Get("upstreams[" + strconv.Itoa(idx) + "].transformer.extractor_id")
 			up := UserDataUpstream{
@@ -545,18 +544,8 @@ func getUserData(r *http.Request) (*UserData, error) {
 	for i := range data.Upstreams {
 		up := &data.Upstreams[i]
 		if up.URL != "" {
-			if baseUrl, err := url.Parse(up.URL); err == nil {
-				if strings.HasSuffix(baseUrl.Path, "/manifest.json") {
-					if baseUrl.RawPath != "" && baseUrl.RawPath != baseUrl.Path {
-						baseUrl.RawPath = strings.TrimSuffix(baseUrl.RawPath, "/manifest.json")
-						if baseUrl.Path, err = url.PathUnescape(baseUrl.RawPath); err != nil {
-							return nil, err
-						}
-					} else {
-						baseUrl.Path = strings.TrimSuffix(baseUrl.Path, "/manifest.json")
-					}
-					up.baseUrl = baseUrl
-				}
+			if baseUrl, err := stremio_addon.ExtractBaseURL(up.URL); err == nil {
+				up.baseUrl = baseUrl
 			}
 		}
 	}
