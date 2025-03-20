@@ -280,23 +280,18 @@ func handleAddons(w http.ResponseWriter, r *http.Request) {
 	td.Addons = res.Data.Addons
 
 	if IsMethod(r, http.MethodPost) {
-		manifestUrl := r.FormValue("manifest_url")
-		if strings.HasPrefix(manifestUrl, "stremio:") {
-			manifestUrl = "https:" + strings.TrimPrefix(manifestUrl, "stremio:")
-		}
-		if strings.HasSuffix(manifestUrl, "/configure") {
-			manifestUrl = strings.TrimSuffix(manifestUrl, "/configure") + "/manifest.json"
+		manifestUrl, err := stremio_addon.NormalizeManifestURL(r.FormValue("manifest_url"))
+		if err != nil {
+			td.AddonError = "invalid manifest url"
+			log.Error("failed to normalize manifest url", "error", err)
+		} else if manifestUrl == "" {
+			td.AddonError = "missing manifest url"
 		}
 
-		var baseUrl *url.URL
-		if manifestUrl == "" {
-			td.AddonError = "missing manifest url"
-		} else if !strings.HasSuffix(manifestUrl, "/manifest.json") {
+		baseUrl, err := stremio_addon.ExtractBaseURL(manifestUrl)
+		if err != nil && td.AddonError == "" {
 			td.AddonError = "invalid manifest url"
-		} else if u, err := url.Parse(manifestUrl); err != nil {
-			td.AddonError = "invalid manifest url"
-		} else {
-			baseUrl = u.JoinPath("..")
+			log.Error("failed to extract base url", "error", err)
 		}
 
 		if td.AddonError == "" {
@@ -746,15 +741,15 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 		if manifestUrl == "" {
 			manifestUrl = addon.TransportUrl
 		}
-		if strings.HasPrefix(manifestUrl, "stremio:") {
-			manifestUrl = "https:" + strings.TrimPrefix(manifestUrl, "stremio:")
-		}
-		if strings.HasSuffix(manifestUrl, "/configure") {
-			manifestUrl = strings.TrimSuffix(manifestUrl, "/configure") + "/manifest.json"
+		manifestUrl, err = stremio_addon.NormalizeManifestURL(manifestUrl)
+		if err != nil {
+			err = core.PackError(err)
+			log.Error("failed to normalize manifest url", "error", err)
+			td.AddonError = fmt.Sprintf("failed to normalize manifest url: %v", err)
 		}
 
 		oldTransportUrl, err := url.Parse(addon.TransportUrl)
-		if err != nil {
+		if err != nil && td.AddonError == "" {
 			err = core.PackError(err)
 			log.Error("failed to parse old manifest url", "error", err)
 			td.AddonError = fmt.Sprintf("failed to parse old manifest url: %v", err)
