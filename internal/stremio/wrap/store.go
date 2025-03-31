@@ -1,6 +1,7 @@
 package stremio_wrap
 
 import (
+	"errors"
 	"log/slog"
 	"strings"
 	"sync"
@@ -40,6 +41,11 @@ func (ms multiStore) GetUser() multiStoreResult[*store.User] {
 		s := &ms[i]
 		go func() {
 			defer wg.Done()
+			if s.store == nil {
+				res.Err[i] = errors.New("invalid userdata, invalid store")
+				res.HasErr = true
+				return
+			}
 			params := &store.GetUserParams{}
 			params.APIKey = s.authToken
 			res.Data[i], res.Err[i] = s.store.GetUser(params)
@@ -110,6 +116,11 @@ func (ms multiStore) CheckMagnet(params *store.CheckMagnetParams, log *slog.Logg
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			if s.store == nil {
+				res.Err[idx] = errors.New("invalid userdata, invalid store")
+				res.HasErr = true
+				return
+			}
 			cmParams := &store.CheckMagnetParams{
 				Magnets:  missingHashes,
 				ClientIP: params.ClientIP,
