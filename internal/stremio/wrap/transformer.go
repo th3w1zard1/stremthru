@@ -357,6 +357,14 @@ url
 \/stream\/(?<hash>[a-f0-9]{40})\/
 `))
 
+	extractors[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Peerflix"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
+name
+(?i)^(?:\[(?<debrid>\w+?)(?:(?<cached>\+?)|\s[^\]]+)\] )?(?<addon>\w+) \S+ (?<resolution>\d+[kp])?
+
+description
+^(?<title>.+)\n(?<filename>.+\n)?.+👤 \d+ (?:💾 (?<size>[\d.]+ \w[bB]) )?🌐 (?<site>\w+)$
+`))
+
 	extractors[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Torrentio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
 name
 (?i)^(?:\[(?<debrid>\w+?)(?<cached>\+?)\] )?(?<addon>\w+)\n?(?<resolution>[^kp]+[kp])?(?: 3D(?: SBS))?(?: (?<hdr>.+))?
