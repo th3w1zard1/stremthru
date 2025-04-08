@@ -367,7 +367,7 @@ description
 
 	extractors[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Torrentio"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
 name
-(?i)^(?:\[(?<debrid>\w+?)(?<cached>\+?)\] )?(?<addon>\w+)\n?(?<resolution>[^kp]+[kp])?(?: 3D(?: SBS))?(?: (?<hdr>.+))?
+(?i)^(?:\[(?<debrid>\w+?)(?:(?<cached>\+?)| download)\] )?(?<addon>\w+)(?:\n(?:(?<resolution>\d+[kp])? ?)?(?:(?<quality>cam|scr|dvd|vhs|r5|(?:(?:bd|blu|hd|sd)(?:rip|ray|mux|tv))|(?:(?:tele|web)[\w-][\w]+))? ?)?(?:(?:3D(?: SBS)) ?)?(?<hdr>.+)?)?
 
 description
 ^(?<title>.+)\n(?:(?<filename>[^👤].+)\n)?👤.+ 💾 (?<size>.+) ⚙️ (?<site>\w+)(?:\n(?<lang>.+))?$
