@@ -71,6 +71,11 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 					}
 					for i := range streams {
 						stream := streams[i]
+						if isImdbStremId {
+							if cData := torrent_info.ExtractCreateDataFromStream(addonHostname, stremId, &stream); cData != nil {
+								tInfoData = append(tInfoData, *cData)
+							}
+						}
 						wstream, err := transformer.Do(&stream, up.ReconfigureStore)
 						if err != nil {
 							LogError(r, "failed to transform stream", err)
@@ -79,11 +84,6 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 							wstream.noContentProxy = true
 						}
 						wstreams[i] = *wstream
-						if isImdbStremId {
-							if cData := torrent_info.ExtractCreateDataFromStream(addonHostname, stremId, wstream.Stream); cData != nil {
-								tInfoData = append(tInfoData, *cData)
-							}
-						}
 					}
 				}
 			}
