@@ -14,12 +14,19 @@ import (
 	"github.com/madflojo/tasks"
 )
 
+var pttLog = logger.Scoped("torrent_info/ptt")
+
 func parse(t *TorrentInfo) *TorrentInfo {
 	if t.ParserVersion > ptt.Version().Int() {
 		return nil
 	}
 
 	r := ptt.Parse(t.TorrentTitle).Normalize()
+
+	if err := r.Error(); err != nil {
+		pttLog.Warn("failed to parse", "error", err, "title", t.TorrentTitle)
+		return nil
+	}
 
 	t.ParsedAt = db.Timestamp{Time: time.Now()}
 	t.ParserVersion = ptt.Version().Int()
@@ -81,7 +88,6 @@ func parse(t *TorrentInfo) *TorrentInfo {
 }
 
 func InitParseTorrentTitleWorker() *tasks.Scheduler {
-	log := logger.Scoped("torrent_info/ptt")
 
 	scheduler := tasks.New()
 
@@ -114,14 +120,14 @@ func InitParseTorrentTitleWorker() *tasks.Scheduler {
 				if err := UpsertParsed(parsedTInfos); err != nil {
 					return err
 				}
-				log.Info("upserted parsed torrent info", "count", len(parsedTInfos))
+				pttLog.Info("upserted parsed torrent info", "count", len(parsedTInfos))
 				time.Sleep(1 * time.Second)
 			}
 
 			return nil
 		},
 		ErrFunc: func(err error) {
-			log.Error("Worker Failure", "error", err)
+			pttLog.Error("Worker Failure", "error", err)
 		},
 	})
 
@@ -129,7 +135,7 @@ func InitParseTorrentTitleWorker() *tasks.Scheduler {
 		panic(err)
 	}
 
-	log.Info("Started Worker", "id", id)
+	pttLog.Info("Started Worker", "id", id)
 
 	return scheduler
 }
