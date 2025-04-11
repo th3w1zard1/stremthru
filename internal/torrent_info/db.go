@@ -562,7 +562,7 @@ func Upsert(items []TorrentInfoInsertData, category TorrentInfoCategory, discard
 				})
 			}
 
-			if t.TorrentTitle == "" {
+			if t.TorrentTitle == "" || t.TorrentTitle == t.Hash || strings.HasPrefix(t.TorrentTitle, "magnet:?") {
 				count--
 				continue
 			}
