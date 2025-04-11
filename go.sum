@@ -1,5 +1,5 @@
-github.com/MunifTanjim/go-ptt v0.4.0 h1:HctE1MO8sNc9wanWjcXwU6sBYz0IJwF23AmcUEP4NX4=
-github.com/MunifTanjim/go-ptt v0.4.0/go.mod h1:AF8lQWUaOCzZdpZQvifbELTJebzw4uAghWLiceYGOns=
+github.com/MunifTanjim/go-ptt v0.4.1 h1:Tg0idpsjtSYkp/1iIFc94OycmFWOB5AhwanR7FsGfN4=
+github.com/MunifTanjim/go-ptt v0.4.1/go.mod h1:AF8lQWUaOCzZdpZQvifbELTJebzw4uAghWLiceYGOns=
 github.com/cespare/xxhash/v2 v2.1.1/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/cespare/xxhash/v2 v2.2.0 h1:DC2CZ1Ep5Y4k3ZQ899DldepgrayRUGE6BBZ/cd9Cj44=
 github.com/cespare/xxhash/v2 v2.2.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
