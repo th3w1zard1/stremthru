@@ -1,6 +1,7 @@
 package torrent_info
 
 import (
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -87,7 +88,17 @@ func InitParseTorrentTitleWorker() *tasks.Scheduler {
 	id, err := scheduler.Add(&tasks.Task{
 		Interval:          time.Duration(5 * time.Minute),
 		RunSingleInstance: true,
-		TaskFunc: func() error {
+		TaskFunc: func() (err error) {
+			defer func() {
+				if e := recover(); e != nil {
+					if pe, ok := e.(error); ok {
+						err = pe
+					} else {
+						err = errors.New("something went wrong")
+					}
+				}
+			}()
+
 			tInfos, err := GetUnparsed(5000)
 			if err != nil {
 				return err
