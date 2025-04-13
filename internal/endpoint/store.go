@@ -190,8 +190,9 @@ func listMagnets(ctx *context.StoreContext, r *http.Request) (*store.ListMagnets
 	}
 
 	params := &store.ListMagnetsParams{
-		Limit:  limit,
-		Offset: offset,
+		Limit:    limit,
+		Offset:   offset,
+		ClientIP: ctx.ClientIP,
 	}
 	params.APIKey = ctx.StoreAuthToken
 	data, err := ctx.Store.ListMagnets(params)
@@ -275,6 +276,9 @@ func getMagnet(ctx *context.StoreContext, magnetId string) (*store.GetMagnetData
 	params := &store.GetMagnetParams{}
 	params.APIKey = ctx.StoreAuthToken
 	params.Id = magnetId
+	if ctx.ClientIP != "" {
+		params.ClientIP = ctx.ClientIP
+	}
 	data, err := ctx.Store.GetMagnet(params)
 	if err == nil {
 		buddy.TrackMagnet(ctx.Store, data.Hash, data.Name, data.Size, data.Files, "", data.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)

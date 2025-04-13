@@ -63,6 +63,7 @@ type ListSeedboxTorrentsParams struct {
 	StructureType SeedboxTorrentStructureType
 	Page          int // start at 0
 	PerPage       int // min 20, max 50
+	IP            string
 }
 
 type ListSeedboxTorrentsData struct {
@@ -80,6 +81,9 @@ func (c APIClient) ListSeedboxTorrents(params *ListSeedboxTorrentsParams) (APIRe
 	}
 	if params.PerPage != 0 {
 		form.Add("perPage", strconv.Itoa(params.PerPage))
+	}
+	if params.IP != "" {
+		form.Add("ip", params.IP)
 	}
 	params.Form = form
 
@@ -106,6 +110,7 @@ type AddSeedboxTorrentParams struct {
 	Wait          bool                        `json:"wait"`  // wait before starting the torrent to select files. default: false
 	Async         bool                        `json:"async"` // If true, won't wait metadata before returning result, recommended. default: false
 	StructureType SeedboxTorrentStructureType `json:"structureType,omitempty"`
+	IP            string                      `json:"ip,omitempty"`
 }
 
 func (c APIClient) AddSeedboxTorrent(params *AddSeedboxTorrentParams) (APIResponse[AddSeedboxTorrentData], error) {

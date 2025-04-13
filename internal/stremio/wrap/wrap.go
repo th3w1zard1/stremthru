@@ -133,7 +133,10 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 func waitForMagnetStatus(ctx *context.StoreContext, m *store.GetMagnetData, status store.MagnetStatus, maxRetry int, retryInterval time.Duration) (*store.GetMagnetData, error) {
 	retry := 0
 	for m.Status != status && retry < maxRetry {
-		gmParams := &store.GetMagnetParams{Id: m.Id}
+		gmParams := &store.GetMagnetParams{
+			Id:       m.Id,
+			ClientIP: ctx.ClientIP,
+		}
 		gmParams.APIKey = ctx.StoreAuthToken
 		magnet, err := ctx.Store.GetMagnet(gmParams)
 		if err != nil {

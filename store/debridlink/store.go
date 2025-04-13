@@ -120,6 +120,7 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 		Ctx:           params.Ctx,
 		Url:           magnet.Link,
 		StructureType: SeedboxTorrentStructureTypeList,
+		IP:            params.ClientIP,
 	})
 	if err != nil {
 		return nil, err
@@ -161,6 +162,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 	res, err := c.client.ListSeedboxTorrents(&ListSeedboxTorrentsParams{
 		Ctx: params.Ctx,
 		Ids: []string{params.Id},
+		IP:  params.ClientIP,
 	})
 	if err != nil {
 		return nil, err
@@ -220,6 +222,7 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 			Ctx:     params.Ctx,
 			PerPage: limit,
 			Page:    page,
+			IP:      params.ClientIP,
 		})
 		if err != nil {
 			return nil, err

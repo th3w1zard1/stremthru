@@ -167,7 +167,8 @@ type GetMagnetData struct {
 
 type GetMagnetParams struct {
 	Ctx
-	Id string
+	Id       string
+	ClientIP string
 }
 
 type ListMagnetsDataItem struct {
@@ -186,8 +187,9 @@ type ListMagnetsData struct {
 
 type ListMagnetsParams struct {
 	Ctx
-	Limit  int // min 1, max 500, default 100
-	Offset int // default 0
+	Limit    int // min 1, max 500, default 100
+	Offset   int // default 0
+	ClientIP string
 }
 
 type RemoveMagnetData struct {

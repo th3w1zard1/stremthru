@@ -417,8 +417,9 @@ func getCatalogItems(ctx *context.StoreContext, ud *UserData) []CachedCatalogIte
 		hasMore := true
 		for hasMore && offset < 2000 {
 			params := &store.ListMagnetsParams{
-				Limit:  limit,
-				Offset: offset,
+				Limit:    limit,
+				Offset:   offset,
+				ClientIP: ctx.ClientIP,
 			}
 			params.APIKey = ctx.StoreAuthToken
 			res, err := ctx.Store.ListMagnets(params)
@@ -634,7 +635,8 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := &store.GetMagnetParams{
-		Id: strings.TrimPrefix(id, idPrefix),
+		Id:       strings.TrimPrefix(id, idPrefix),
+		ClientIP: ctx.ClientIP,
 	}
 	params.APIKey = ctx.StoreAuthToken
 	magnet, err := ctx.Store.GetMagnet(params)
@@ -876,7 +878,10 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 
 	streamBaseUrl := ExtractRequestBaseURL(r).JoinPath("/stremio/store/" + eud + "/_/strem/")
 	for _, matcher := range matchers {
-		params := &store.GetMagnetParams{Id: matcher.MagnetId}
+		params := &store.GetMagnetParams{
+			Id:       matcher.MagnetId,
+			ClientIP: ctx.ClientIP,
+		}
 		params.APIKey = ctx.StoreAuthToken
 		magnet, err := ctx.Store.GetMagnet(params)
 		if err != nil {
