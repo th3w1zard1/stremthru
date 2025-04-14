@@ -1,6 +1,7 @@
 package torrent_info
 
 import (
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -34,6 +35,7 @@ func extractInputFromTorrentioStream(data *TorrentInfoInsertData, sid string, st
 		file.Name = stream.BehaviorHints.Filename
 	} else if descriptionRest != "" && !strings.HasPrefix(descriptionRest, "👤") {
 		file.Name, _, _ = strings.Cut(descriptionRest, "\n")
+		file.Name = filepath.Base(file.Name)
 	}
 	if stream.InfoHash == "" {
 		if match := torrentioStreamHashRegex.FindStringSubmatch(stream.URL); len(match) > 0 {
