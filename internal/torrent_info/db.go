@@ -71,15 +71,16 @@ func (csi *CommaSeperatedInt) Scan(value any) error {
 type TorrentInfoSource string
 
 const (
-	TorrentInfoSourceTorrentio  TorrentInfoSource = "tio"
-	TorrentInfoSourceAllDebrid  TorrentInfoSource = "ad"
-	TorrentInfoSourceDebridLink TorrentInfoSource = "dl"
-	TorrentInfoSourceEasyDebrid TorrentInfoSource = "ed"
-	TorrentInfoSourceOffcloud   TorrentInfoSource = "oc"
-	TorrentInfoSourcePikPak     TorrentInfoSource = "pp"
-	TorrentInfoSourcePremiumize TorrentInfoSource = "pm"
-	TorrentInfoSourceRealDebrid TorrentInfoSource = "rd"
-	TorrentInfoSourceTorBox     TorrentInfoSource = "tb"
+	TorrentInfoSourceMediaFusion TorrentInfoSource = "mfn"
+	TorrentInfoSourceTorrentio   TorrentInfoSource = "tio"
+	TorrentInfoSourceAllDebrid   TorrentInfoSource = "ad"
+	TorrentInfoSourceDebridLink  TorrentInfoSource = "dl"
+	TorrentInfoSourceEasyDebrid  TorrentInfoSource = "ed"
+	TorrentInfoSourceOffcloud    TorrentInfoSource = "oc"
+	TorrentInfoSourcePikPak      TorrentInfoSource = "pp"
+	TorrentInfoSourcePremiumize  TorrentInfoSource = "pm"
+	TorrentInfoSourceRealDebrid  TorrentInfoSource = "rd"
+	TorrentInfoSourceTorBox      TorrentInfoSource = "tb"
 )
 
 type TorrentInfoCategory string

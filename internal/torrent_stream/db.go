@@ -166,10 +166,22 @@ var record_streams_query_on_conflict = fmt.Sprintf(
 	" ON CONFLICT (%s,%s) DO UPDATE SET %s, %s, %s, %s, uat = ",
 	Column.Hash,
 	Column.Name,
-	fmt.Sprintf("%s = CASE WHEN ts.%s = -1 THEN EXCLUDED.%s ELSE ts.%s END", Column.Idx, Column.Idx, Column.Idx, Column.Idx),
-	fmt.Sprintf("%s = CASE WHEN ts.%s = -1 THEN EXCLUDED.%s ELSE ts.%s END", Column.Size, Column.Size, Column.Size, Column.Size),
-	fmt.Sprintf("%s = CASE WHEN ts.%s IN ('', '*') THEN EXCLUDED.%s ELSE ts.%s END", Column.SId, Column.SId, Column.SId, Column.SId),
-	fmt.Sprintf("%s = CASE WHEN EXCLUDED.%s != '' THEN EXCLUDED.%s ELSE ts.%s END", Column.Source, Column.Source, Column.Source, Column.Source),
+	fmt.Sprintf(
+		"%s = CASE WHEN ts.%s = -1 OR ts.%s IN ('','mfn') THEN EXCLUDED.%s ELSE ts.%s END",
+		Column.Idx, Column.Idx, Column.Source, Column.Idx, Column.Idx,
+	),
+	fmt.Sprintf(
+		"%s = CASE WHEN ts.%s = -1 OR ts.%s IN ('','mfn') THEN EXCLUDED.%s ELSE ts.%s END",
+		Column.Size, Column.Size, Column.Source, Column.Size, Column.Size,
+	),
+	fmt.Sprintf(
+		"%s = CASE WHEN ts.%s IN ('', '*') THEN EXCLUDED.%s ELSE ts.%s END",
+		Column.SId, Column.SId, Column.SId, Column.SId,
+	),
+	fmt.Sprintf(
+		"%s = CASE WHEN (EXCLUDED.%s == 'mfn' AND ts.%s != 'mfn') OR EXCLUDED.%s = '' THEN ts.%s ELSE EXCLUDED.%s END",
+		Column.Source, Column.Source, Column.Source, Column.Source, Column.Source, Column.Source,
+	),
 )
 
 func Record(items []InsertData, discardIdx bool) {

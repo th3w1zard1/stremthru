@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/util"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
@@ -60,12 +61,65 @@ func extractInputFromTorrentioStream(data *TorrentInfoInsertData, sid string, st
 	return data
 }
 
+var mediafusionStreamHashRegex = regexp.MustCompile(`(?i)\/stream\/([a-f0-9]{40})(?:\/|$)`)
+var mediafusionStreamSizeRegex = regexp.MustCompile(`💾 ([\d.]+ [A-Z]B)(?: \/ 💾 ([\d.]+ [A-Z]B))?`)
+
+func extractInputFromMediaFusionStream(data *TorrentInfoInsertData, sid string, stream *stremio.Stream) *TorrentInfoInsertData {
+	data.Size = -1
+	file := TorrentInfoInsertDataFile{
+		Idx:  -1,
+		Size: -1,
+		SId:  sid,
+	}
+
+	torrentTitle, descriptionRest, _ := strings.Cut(stream.Description, "\n")
+	if strings.HasPrefix(torrentTitle, "📂 ") {
+		torrentTitle = strings.TrimPrefix(torrentTitle, "📂 ")
+		data.TorrentTitle, file.Name, _ = strings.Cut(torrentTitle, " ┈➤ ")
+	}
+
+	if stream.BehaviorHints != nil {
+		if stream.BehaviorHints.Filename != "" && stream.BehaviorHints.Filename != data.TorrentTitle {
+			file.Name = stream.BehaviorHints.Filename
+		}
+		if stream.BehaviorHints.VideoSize > 0 {
+			file.Size = stream.BehaviorHints.VideoSize
+		}
+	}
+
+	if stream.InfoHash == "" {
+		if match := mediafusionStreamHashRegex.FindStringSubmatch(stream.URL); len(match) > 0 {
+			data.Hash = match[1]
+		}
+	} else {
+		data.Hash = stream.InfoHash
+		file.Idx = stream.FileIndex
+	}
+
+	if match := mediafusionStreamSizeRegex.FindStringSubmatch(descriptionRest); len(match) > 0 {
+		if file.Size == -1 {
+			file.Size = util.ToBytes(match[1])
+		}
+		if len(match) > 2 {
+			data.Size = util.ToBytes(match[2])
+		}
+	}
+	if core.HasVideoExtension(file.Name) {
+		data.Files = append(data.Files, file)
+	}
+
+	return data
+}
+
 func ExtractCreateDataFromStream(hostname string, sid string, stream *stremio.Stream) *TorrentInfoInsertData {
 	data := &TorrentInfoInsertData{}
 	switch hostname {
 	case "torrentio.strem.fun":
 		data.Source = TorrentInfoSourceTorrentio
 		data = extractInputFromTorrentioStream(data, sid, stream)
+	case "mediafusion.elfhosted.com":
+		data.Source = TorrentInfoSourceMediaFusion
+		data = extractInputFromMediaFusionStream(data, sid, stream)
 	}
 	if data.Hash == "" {
 		return nil
