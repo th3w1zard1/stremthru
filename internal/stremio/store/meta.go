@@ -2,7 +2,9 @@ package stremio_store
 
 import (
 	"net/url"
+	"time"
 
+	"github.com/MunifTanjim/stremthru/internal/cache"
 	stremio_addon "github.com/MunifTanjim/stremthru/internal/stremio/addon"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
@@ -19,14 +21,30 @@ var cinemetaBaseUrl = func() *url.URL {
 	return url
 }()
 
+var metaCache = cache.NewCache[stremio.MetaHandlerResponse](&cache.CacheConfig{
+	Lifetime: 10 * time.Minute,
+	Name:     "stremio:store:catalog",
+})
+
 func fetchMeta(sType, imdbId, clientIp string) (stremio.MetaHandlerResponse, error) {
-	res, err := client.FetchMeta(&stremio_addon.FetchMetaParams{
-		BaseURL:  cinemetaBaseUrl,
-		Type:     sType,
-		Id:       imdbId + ".json",
-		ClientIP: clientIp,
-	})
-	return res.Data, err
+	var meta stremio.MetaHandlerResponse
+
+	cacheKey := sType + ":" + imdbId
+	if !metaCache.Get(cacheKey, &meta) {
+		res, err := client.FetchMeta(&stremio_addon.FetchMetaParams{
+			BaseURL:  cinemetaBaseUrl,
+			Type:     sType,
+			Id:       imdbId + ".json",
+			ClientIP: clientIp,
+		})
+		if err != nil {
+			return meta, err
+		}
+		meta = res.Data
+		metaCache.Add(cacheKey, meta)
+	}
+
+	return meta, nil
 }
 
 func getPosterUrl(imdbId string) string {
