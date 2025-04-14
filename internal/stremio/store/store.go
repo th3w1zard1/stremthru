@@ -701,6 +701,10 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, f := range magnet.Files {
+		if !core.HasVideoExtension(f.Name) {
+			continue
+		}
+
 		videoId := id + ":" + url.PathEscape(f.Link)
 		video := stremio.MetaVideo{
 			Id:        videoId,
