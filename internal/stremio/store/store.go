@@ -713,19 +713,25 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 			Released:  magnet.AddedAt,
 		}
 
-		if sType == "series" {
-			pttr := ptt.Parse(f.Name).Normalize()
-			if err := pttr.Error(); err == nil {
-				s, ep := -1, -1
-				if len(pttr.Seasons) > 0 {
-					s = pttr.Seasons[0]
-					video.Season = s
-				}
-				if len(pttr.Episodes) > 0 {
-					ep = pttr.Episodes[0]
-					video.Episode = ep
-				}
-				key := strconv.Itoa(s) + ":" + strconv.Itoa(ep)
+		pttr := ptt.Parse(f.Name).Normalize()
+		season, episode := -1, -1
+		pttErr := pttr.Error()
+		if pttErr != nil {
+			log.Warn("failed to parse", "error", pttErr, "title", f.Name)
+		} else {
+			if len(pttr.Seasons) > 0 {
+				season = pttr.Seasons[0]
+			}
+			if len(pttr.Episodes) > 0 {
+				episode = pttr.Episodes[0]
+			}
+		}
+		if season != -1 && episode != -1 {
+			video.Season = season
+			video.Episode = episode
+
+			if sType == "series" {
+				key := strconv.Itoa(season) + ":" + strconv.Itoa(episode)
 				if metaVideo, ok := metaVideoByKey[key]; ok {
 					video.Released = metaVideo.Released
 					video.Thumbnail = metaVideo.Thumbnail
@@ -733,8 +739,6 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 				} else {
 					video.Title = pttr.Title + "\n📄 " + f.Name
 				}
-			} else {
-				log.Warn("failed to parse", "error", err, "title", f.Name)
 			}
 		}
 
