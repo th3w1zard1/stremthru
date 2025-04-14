@@ -347,7 +347,7 @@ type CachedCatalogItem struct {
 
 var catalogCache = func() cache.Cache[[]CachedCatalogItem] {
 	c := cache.NewCache[[]CachedCatalogItem](&cache.CacheConfig{
-		Lifetime: 5 * time.Minute,
+		Lifetime: 10 * time.Minute,
 		Name:     "stremio:store:catalog",
 	})
 	return c
