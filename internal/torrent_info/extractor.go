@@ -65,7 +65,7 @@ func ExtractCreateDataFromStream(hostname string, sid string, stream *stremio.St
 		data.Source = TorrentInfoSourceTorrentio
 		data = extractInputFromTorrentioStream(data, sid, stream)
 	}
-	if data.Hash == "" || data.TorrentTitle == "" || len(data.Files) == 0 {
+	if data.Hash == "" {
 		return nil
 	}
 	return data
