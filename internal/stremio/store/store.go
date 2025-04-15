@@ -361,6 +361,22 @@ func getMetaPreviewDescription(hash, name string) string {
 	pttr := ptt.Parse(name).Normalize()
 	description := "[ 🧲 " + hash + " ]"
 	if err := pttr.Error(); err == nil {
+		if pttr.Title != "" {
+			description += " [ ✏️ " + pttr.Title + " ]"
+		}
+		if pttr.Year != "" || pttr.Date != "" {
+			description += " [ 📅 "
+			if pttr.Year != "" {
+				description += pttr.Year
+				if pttr.Date != "" {
+					description += " | "
+				}
+			}
+			if pttr.Date != "" {
+				description += pttr.Date
+			}
+			description += " ]"
+		}
 		if pttr.Resolution != "" {
 			description += " [ 🎥 " + pttr.Resolution + " ]"
 		}
