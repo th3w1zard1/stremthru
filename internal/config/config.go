@@ -230,7 +230,7 @@ var config = func() Config {
 	buddyUrl, _ := parseUri(getEnv("STREMTHRU_BUDDY_URI", ""))
 
 	defaultPeerUri := ""
-	if peerUri, err := core.Base64Decode("aHR0cHM6Ly9zdHJlbXRocnUuMTMzNzcwMDEueHl6"); err == nil {
+	if peerUri, err := core.Base64Decode("aHR0cHM6Ly9zdHJlbXRocnUuMTMzNzcwMDEueHl6"); err == nil && buddyUrl == "" {
 		defaultPeerUri = peerUri
 	}
 	peerUrl, peerAuthToken := parseUri(getEnv("STREMTHRU_PEER_URI", defaultPeerUri))
