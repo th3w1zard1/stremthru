@@ -3,6 +3,7 @@ package pikpak
 import (
 	"net/http"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -479,6 +480,10 @@ func (s *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 				break
 			}
 		}
+
+		slices.SortFunc(items, func(a, b store.ListMagnetsDataItem) int {
+			return b.AddedAt.Compare(a.AddedAt)
+		})
 
 		lm = items
 		s.listMagnetsCache.Add(s.getCacheKey(ctx, ""), items)
