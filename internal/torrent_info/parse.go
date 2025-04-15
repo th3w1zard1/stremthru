@@ -21,9 +21,9 @@ func parse(t *TorrentInfo) *TorrentInfo {
 		return nil
 	}
 
-	r := ptt.Parse(t.TorrentTitle).Normalize()
+	r, err := util.ParseTorrentTitle(t.TorrentTitle)
 
-	if err := r.Error(); err != nil {
+	if err != nil {
 		pttLog.Warn("failed to parse", "error", err, "title", t.TorrentTitle)
 		return nil
 	}

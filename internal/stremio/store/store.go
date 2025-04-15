@@ -358,62 +358,66 @@ func getCatalogCacheKey(ctx *context.StoreContext) string {
 }
 
 func getMetaPreviewDescription(hash, name string) string {
-	pttr := ptt.Parse(name).Normalize()
 	description := "[ 🧲 " + hash + " ]"
-	if err := pttr.Error(); err == nil {
-		if pttr.Title != "" {
-			description += " [ ✏️ " + pttr.Title + " ]"
-		}
-		if pttr.Year != "" || pttr.Date != "" {
-			description += " [ 📅 "
-			if pttr.Year != "" {
-				description += pttr.Year
-				if pttr.Date != "" {
-					description += " | "
-				}
+
+	r, err := util.ParseTorrentTitle(name)
+	if err != nil {
+		pttLog.Warn("failed to parse", "error", err, "title", name)
+		return description
+	}
+
+	if r.Title != "" {
+		description += " [ ✏️ " + r.Title + " ]"
+	}
+	if r.Year != "" || r.Date != "" {
+		description += " [ 📅 "
+		if r.Year != "" {
+			description += r.Year
+			if r.Date != "" {
+				description += " | "
 			}
-			if pttr.Date != "" {
-				description += pttr.Date
-			}
-			description += " ]"
 		}
-		if pttr.Resolution != "" {
-			description += " [ 🎥 " + pttr.Resolution + " ]"
+		if r.Date != "" {
+			description += r.Date
 		}
-		if pttr.Quality != "" {
-			description += " [ 💿 " + pttr.Quality + " ]"
-		}
-		if pttr.Codec != "" {
-			description += " [ 🎞️ " + pttr.Codec + " ]"
-		}
-		if len(pttr.HDR) > 0 {
-			description += " [ 📺 " + strings.Join(pttr.HDR, ",") + " ]"
-		}
-		if audioCount, channelCount := len(pttr.Audio), len(pttr.Channels); audioCount > 0 || channelCount > 0 {
-			description += " [ 🎧 "
-			if audioCount > 0 {
-				description += strings.Join(pttr.Audio, ",")
-				if channelCount > 0 {
-					description += " | "
-				}
-			}
+		description += " ]"
+	}
+	if r.Resolution != "" {
+		description += " [ 🎥 " + r.Resolution + " ]"
+	}
+	if r.Quality != "" {
+		description += " [ 💿 " + r.Quality + " ]"
+	}
+	if r.Codec != "" {
+		description += " [ 🎞️ " + r.Codec + " ]"
+	}
+	if len(r.HDR) > 0 {
+		description += " [ 📺 " + strings.Join(r.HDR, ",") + " ]"
+	}
+	if audioCount, channelCount := len(r.Audio), len(r.Channels); audioCount > 0 || channelCount > 0 {
+		description += " [ 🎧 "
+		if audioCount > 0 {
+			description += strings.Join(r.Audio, ",")
 			if channelCount > 0 {
-				description += strings.Join(pttr.Channels, ",")
+				description += " | "
 			}
-			description += " ]"
 		}
-		if pttr.ThreeD != "" {
-			description += " [ 🎲 " + pttr.ThreeD + " ]"
+		if channelCount > 0 {
+			description += strings.Join(r.Channels, ",")
 		}
-		if pttr.Network != "" {
-			description += " [ 📡 " + pttr.Network + " ]"
-		}
-		if pttr.Group != "" {
-			description += " [ ⚙️ " + pttr.Group + " ]"
-		}
-		if pttr.Site != "" {
-			description += " [ 🔗 " + pttr.Site + " ]"
-		}
+		description += " ]"
+	}
+	if r.ThreeD != "" {
+		description += " [ 🎲 " + r.ThreeD + " ]"
+	}
+	if r.Network != "" {
+		description += " [ 📡 " + r.Network + " ]"
+	}
+	if r.Group != "" {
+		description += " [ ⚙️ " + r.Group + " ]"
+	}
+	if r.Site != "" {
+		description += " [ 🔗 " + r.Site + " ]"
 	}
 	return description
 }
@@ -729,11 +733,10 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 			Released:  magnet.AddedAt,
 		}
 
-		pttr := ptt.Parse(f.Name).Normalize()
 		season, episode := -1, -1
-		pttErr := pttr.Error()
-		if pttErr != nil {
-			log.Warn("failed to parse", "error", pttErr, "title", f.Name)
+		pttr, err := util.ParseTorrentTitle(f.Name)
+		if err != nil {
+			pttLog.Warn("failed to parse", "error", err, "title", f.Name)
 		} else {
 			if len(pttr.Seasons) > 0 {
 				season = pttr.Seasons[0]
@@ -940,21 +943,21 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 				file = f
 				break
 			} else if matcher.Episode > 0 {
-				pttr = ptt.Parse(f.Name)
-				if err := pttr.Error(); err == nil {
+				if r, err := util.ParseTorrentTitle(f.Name); err == nil {
+					pttr = r
 					season, episode := -1, -1
-					if len(pttr.Seasons) > 0 {
-						season = pttr.Seasons[0]
+					if len(r.Seasons) > 0 {
+						season = r.Seasons[0]
 					}
-					if len(pttr.Episodes) > 0 {
-						episode = pttr.Episodes[0]
+					if len(r.Episodes) > 0 {
+						episode = r.Episodes[0]
 					}
 					if season == matcher.Season && episode == matcher.Episode {
 						file = f
 						break
 					}
 				} else {
-					log.Warn("failed to parse", "error", err, "title", f.Name)
+					pttLog.Warn("failed to parse", "error", err, "title", f.Name)
 				}
 			} else if matcher.UseLargestFile {
 				if file == nil || file.Size < f.Size {
@@ -973,11 +976,10 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			Name: file.Name,
 		}
 		if pttr == nil {
-			r := ptt.Parse(file.Name).Normalize()
-			if err := r.Error(); err == nil {
+			if r, err := util.ParseTorrentTitle(file.Name); err == nil {
 				pttr = r
 			} else {
-				log.Warn("failed to parse", "error", err, "title", file.Name)
+				pttLog.Warn("failed to parse", "error", err, "title", file.Name)
 			}
 		}
 		if pttr != nil {
