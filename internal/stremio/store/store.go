@@ -721,17 +721,16 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		} else {
 			if len(pttr.Seasons) > 0 {
 				season = pttr.Seasons[0]
+				video.Season = season
 			}
 			if len(pttr.Episodes) > 0 {
 				episode = pttr.Episodes[0]
+				video.Episode = episode
 			}
 		}
 		if season != -1 && episode != -1 {
-			video.Season = season
-			video.Episode = episode
-
+			key := strconv.Itoa(season) + ":" + strconv.Itoa(episode)
 			if sType == "series" {
-				key := strconv.Itoa(season) + ":" + strconv.Itoa(episode)
 				if metaVideo, ok := metaVideoByKey[key]; ok {
 					video.Released = metaVideo.Released
 					video.Thumbnail = metaVideo.Thumbnail
