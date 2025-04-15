@@ -464,7 +464,7 @@ func (s *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 					Id:      f.Id,
 					Name:    f.Name,
 					Hash:    magnet.Hash,
-					Size:    -1,
+					Size:    toSize(f.Size),
 					Status:  store.MagnetStatusDownloading,
 					AddedAt: addedAt,
 				}
