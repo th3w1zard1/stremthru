@@ -779,6 +779,13 @@ func handleAddonReload(w http.ResponseWriter, r *http.Request) {
 					Flags:         addon.Flags,
 				}
 
+				if addon.Manifest.BehaviorHints != nil && !addon.Manifest.BehaviorHints.Configurable {
+					if refreshedAddon.Manifest.BehaviorHints == nil {
+						refreshedAddon.Manifest.BehaviorHints = &stremio.BehaviorHints{}
+					}
+					refreshedAddon.Manifest.BehaviorHints.Configurable = false
+				}
+
 				td.Addons[idx] = refreshedAddon
 			}
 		}
