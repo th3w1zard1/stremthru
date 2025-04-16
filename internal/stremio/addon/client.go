@@ -290,8 +290,8 @@ func NormalizeManifestURL(manifestUrl string) (string, error) {
 	if err != nil {
 		return manifestUrl, err
 	}
-	if u.Scheme == "stremio:" {
-		u.Scheme = "https:"
+	if u.Scheme == "stremio" {
+		u.Scheme = "https"
 	}
 	if strings.HasSuffix(u.Path, "/configure") {
 		u.Path = strings.TrimSuffix(u.Path, "/configure") + "/manifest.json"
