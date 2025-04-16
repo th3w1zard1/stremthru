@@ -179,7 +179,7 @@ var record_streams_query_on_conflict = fmt.Sprintf(
 		Column.SId, Column.SId, Column.SId, Column.SId,
 	),
 	fmt.Sprintf(
-		"%s = CASE WHEN (EXCLUDED.%s == 'mfn' AND ts.%s != 'mfn') OR EXCLUDED.%s = '' THEN ts.%s ELSE EXCLUDED.%s END",
+		"%s = CASE WHEN (EXCLUDED.%s = 'mfn' AND ts.%s != 'mfn') OR EXCLUDED.%s = '' THEN ts.%s ELSE EXCLUDED.%s END",
 		Column.Source, Column.Source, Column.Source, Column.Source, Column.Source, Column.Source,
 	),
 )
