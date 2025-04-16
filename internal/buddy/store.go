@@ -82,6 +82,10 @@ func TrackMagnet(s store.Store, hash string, name string, size int64, files []st
 type TorrentInfoInput = torrent_info.TorrentInfoInsertData
 
 func BulkTrackMagnet(s store.Store, tInfos []TorrentInfoInput, tInfoCategory torrent_info.TorrentInfoCategory, storeToken string) {
+	if len(tInfos) == 0 {
+		return
+	}
+
 	storeCode := s.GetName().Code()
 	tInfoSource := torrent_info.TorrentInfoSource(storeCode)
 	filesByHash := map[string]torrent_stream.Files{}
