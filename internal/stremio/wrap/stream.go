@@ -9,11 +9,13 @@ import (
 	"sync"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/buddy"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_addon "github.com/MunifTanjim/stremthru/internal/stremio/addon"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
+	"github.com/MunifTanjim/stremthru/internal/worker"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
@@ -88,7 +90,11 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 				}
 			}
 			if isImdbStremId {
+				if len(tInfoData) > 0 {
+					worker.TorrentPusherQueue.Queue(stremId)
+				}
 				go torrent_info.Upsert(tInfoData, torrentInfoCategory, false)
+				go buddy.PullTorrentsByStremId(stremId, "")
 			}
 			chunks[i] = wstreams
 		}()

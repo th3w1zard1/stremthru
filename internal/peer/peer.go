@@ -10,6 +10,7 @@ import (
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/request"
+	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/store"
 )
@@ -70,6 +71,7 @@ func NewAPIClient(conf *APIClientConfig) *APIClient {
 
 	c.reqHeader = func(header *http.Header, params request.Context) {
 		header.Set("X-StremThru-Peer-Token", params.GetAPIKey(c.apiKey))
+		header.Set(server.HEADER_INSTANCE_ID, config.InstanceId)
 		header.Set("X-StremThru-Version", config.Version)
 		header.Add("User-Agent", c.agent)
 	}
@@ -221,5 +223,47 @@ func (c APIClient) TrackMagnet(params *TrackMagnetParams) (request.APIResponse[T
 
 	response := &Response[TrackMagnetData]{}
 	res, err := c.Request("POST", "/v0/store/magnets/check", params, response)
+	return request.NewAPIResponse(res, response.Data), err
+}
+
+type ListTorrentsByStremIdParams struct {
+	request.Ctx
+	SId              string
+	LocalOnly        bool
+	OriginInstanceId string
+}
+
+type ListTorrentsByStremIdData = torrent_info.ListTorrentsData
+
+func (c APIClient) ListTorrents(params *ListTorrentsByStremIdParams) (request.APIResponse[ListTorrentsByStremIdData], error) {
+	params.Query = &url.Values{"sid": []string{params.SId}}
+	if params.LocalOnly {
+		params.Query.Set("local_only", "1")
+	}
+	params.Headers = &http.Header{}
+	if params.OriginInstanceId != "" {
+		params.Headers.Set(server.HEADER_ORIGIN_INSTANCE_ID, params.OriginInstanceId)
+	} else {
+		params.Headers.Set(server.HEADER_ORIGIN_INSTANCE_ID, config.InstanceId)
+	}
+
+	response := &Response[ListTorrentsByStremIdData]{}
+	res, err := c.Request("GET", "/v0/torrents", params, response)
+
+	return request.NewAPIResponse(res, response.Data), err
+}
+
+type PushTorrentsParams struct {
+	request.Ctx
+	Items []torrent_info.TorrentItem `json:"items"`
+}
+
+type PushTorrentsData struct{}
+
+func (c APIClient) PushTorrents(params *PushTorrentsParams) (request.APIResponse[PushTorrentsData], error) {
+	params.JSON = params
+
+	response := &Response[PushTorrentsData]{}
+	res, err := c.Request("POST", "/v0/torrents", params, response)
 	return request.NewAPIResponse(res, response.Data), err
 }

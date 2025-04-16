@@ -917,7 +917,6 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 
 		if meta == nil {
 			stremIdByHash, err := torrent_stream.GetStremIdByHashes([]string{magnet.Hash})
-			log.Debug("strem id by hash", "hash", magnet.Hash, "stremIdByHash", stremIdByHash, "err", err)
 			if err != nil {
 				log.Error("failed to get strem id by hashes", "error", err)
 			}

@@ -9,6 +9,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/endpoint"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
+	"github.com/MunifTanjim/stremthru/internal/worker"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
@@ -32,6 +33,7 @@ func main() {
 	RunSchemaMigration(database.URI, database)
 
 	pttWorker := torrent_info.InitParseTorrentTitleWorker()
+	ptiWorker := worker.InitPushTorrentsWorker()
 
 	mux := http.NewServeMux()
 
@@ -40,6 +42,7 @@ func main() {
 	endpoint.AddProxyEndpoints(mux)
 	endpoint.AddStoreEndpoints(mux)
 	endpoint.AddStremioEndpoints(mux)
+	endpoint.AddTorrentEndpoints(mux)
 	endpoint.AddDebugEndpoints(mux)
 
 	handler := shared.RootServerContext(mux)
@@ -54,6 +57,7 @@ func main() {
 	log.Println("stremthru listening on " + addr)
 	if err := server.ListenAndServe(); err != nil {
 		pttWorker.Stop()
+		ptiWorker.Stop()
 
 		log.Fatalf("failed to start stremthru: %v", err)
 	}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/util"
+	"github.com/google/uuid"
 )
 
 func getEnv(key string, defaultValue string) string {
@@ -152,6 +153,7 @@ type Config struct {
 	PeerURL                     string
 	PeerAuthToken               string
 	HasPeer                     bool
+	PullPeerURL                 string
 	RedisURI                    string
 	DatabaseURI                 string
 	StremioAddon                StremioAddonConfig
@@ -228,6 +230,10 @@ var config = func() Config {
 	}
 
 	buddyUrl, _ := parseUri(getEnv("STREMTHRU_BUDDY_URI", ""))
+	pullPeerUrl := ""
+	if buddyUrl != "" {
+		pullPeerUrl, _ = parseUri(getEnv("STREMTHRU__PULL__PEER_URI", ""))
+	}
 
 	defaultPeerUri := ""
 	if peerUri, err := core.Base64Decode("aHR0cHM6Ly9zdHJlbXRocnUuMTMzNzcwMDEueHl6"); err == nil && buddyUrl == "" {
@@ -292,6 +298,7 @@ var config = func() Config {
 		PeerURL:                     peerUrl,
 		PeerAuthToken:               peerAuthToken,
 		HasPeer:                     len(peerUrl) > 0,
+		PullPeerURL:                 pullPeerUrl,
 		RedisURI:                    getEnv("STREMTHRU_REDIS_URI", ""),
 		DatabaseURI:                 databaseUri,
 		StremioAddon:                stremioAddon,
@@ -317,6 +324,7 @@ var HasBuddy = config.HasBuddy
 var PeerURL = config.PeerURL
 var PeerAuthToken = config.PeerAuthToken
 var HasPeer = config.HasPeer
+var PullPeerURL = config.PullPeerURL
 var RedisURI = config.RedisURI
 var DatabaseURI = config.DatabaseURI
 var StremioAddon = config.StremioAddon
@@ -325,6 +333,7 @@ var LandingPage = config.LandingPage
 var ServerStartTime = config.ServerStartTime
 var StoreContentProxy = config.StoreContentProxy
 var ContentProxyConnectionLimit = config.ContentProxyConnectionLimit
+var InstanceId = strings.ReplaceAll(uuid.NewString(), "-", "")
 var IP = config.IP
 
 var IsPublicInstance = len(ProxyAuthPassword) == 0
@@ -477,6 +486,15 @@ func PrintConfig(state *AppState) {
 		l.Println("   " + u.Redacted())
 		l.Println()
 	}
+	if PullPeerURL != "" {
+		u, err := url.Parse(PullPeerURL)
+		if err != nil {
+			l.Panicf(" Invalid (Pull) Peer URI: %v\n", err)
+		}
+		l.Println(" (Pull) Peer URI:")
+		l.Println("   " + u.Redacted())
+		l.Println()
+	}
 
 	if RedisURI != "" {
 		uri, err := getRedactedURI(RedisURI)
@@ -484,7 +502,7 @@ func PrintConfig(state *AppState) {
 			l.Panicf(" Invalid Redis URI: %v\n", err)
 		}
 		l.Println(" Redis URI:")
-		l.Println("  " + uri)
+		l.Println("   " + uri)
 		l.Println()
 	}
 
@@ -503,6 +521,10 @@ func PrintConfig(state *AppState) {
 		}
 		l.Println()
 	}
+
+	l.Println(" Instance ID:")
+	l.Println("   " + InstanceId)
+	l.Println()
 
 	l.Print("========================\n\n")
 }

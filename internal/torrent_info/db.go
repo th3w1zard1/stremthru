@@ -81,6 +81,7 @@ const (
 	TorrentInfoSourcePremiumize  TorrentInfoSource = "pm"
 	TorrentInfoSourceRealDebrid  TorrentInfoSource = "rd"
 	TorrentInfoSourceTorBox      TorrentInfoSource = "tb"
+	TorrentInfoSourceUnknown     TorrentInfoSource = ""
 )
 
 type TorrentInfoCategory string
@@ -472,14 +473,7 @@ func GetByHashes(hashes []string) (map[string]TorrentInfo, error) {
 
 type TorrentInfoInsertDataFile = ts.File
 
-type TorrentInfoInsertData struct {
-	Hash         string
-	TorrentTitle string
-	Size         int64
-	Source       TorrentInfoSource
-
-	Files []TorrentInfoInsertDataFile
-}
+type TorrentInfoInsertData = TorrentItem
 
 var insert_query_before_values = fmt.Sprintf(
 	`INSERT INTO %s AS ti (%s) VALUES `,
@@ -556,7 +550,9 @@ func Upsert(items []TorrentInfoInsertData, category TorrentInfoCategory, discard
 
 			tSource := string(t.Source)
 			for _, f := range t.Files {
-				f.Source = tSource
+				if f.Source == "" {
+					f.Source = tSource
+				}
 				streamItems = append(streamItems, ts.InsertData{
 					Hash: t.Hash,
 					File: f,
@@ -568,7 +564,12 @@ func Upsert(items []TorrentInfoInsertData, category TorrentInfoCategory, discard
 				continue
 			}
 
-			args = append(args, t.Hash, t.TorrentTitle, t.Size, t.Source, category)
+			tCategory := t.Category
+			if tCategory == "" {
+				tCategory = category
+			}
+
+			args = append(args, t.Hash, t.TorrentTitle, t.Size, t.Source, tCategory)
 		}
 
 		if count == 0 {
@@ -584,7 +585,7 @@ func Upsert(items []TorrentInfoInsertData, category TorrentInfoCategory, discard
 		}
 	}
 
-	go ts.Record(streamItems, discardFileIdx)
+	ts.Record(streamItems, discardFileIdx)
 }
 
 var get_unparsed_query = fmt.Sprintf(
@@ -775,6 +776,94 @@ func UpsertParsed(tInfos []*TorrentInfo) error {
 		}
 	}
 	return nil
+}
+
+type TorrentItem struct {
+	Hash         string              `json:"hash"`
+	TorrentTitle string              `json:"name"`
+	Size         int64               `json:"size"`
+	Source       TorrentInfoSource   `json:"src"`
+	Category     TorrentInfoCategory `json:"category"`
+
+	Files ts.Files `json:"files"`
+}
+
+type ListTorrentsData struct {
+	Items      []TorrentItem `json:"items"`
+	TotalItems int           `json:"total_items"`
+}
+
+func ListByStremId(stremId string) (*ListTorrentsData, error) {
+	query := fmt.Sprintf(
+		"SELECT %s, %s FROM %s ti LEFT JOIN %s ts ON ti.%s = ts.%s AND ts.%s != '' WHERE %s IN (SELECT DISTINCT %s FROM %s WHERE %s = ? OR %s LIKE ?) GROUP BY ti.%s",
+		strings.Join(
+			func() []string {
+				columns := []string{Column.Hash, Column.TorrentTitle, Column.Size, Column.Source, Column.Category}
+				cols := make([]string, 5)
+				for i := range columns {
+					cols[i] = `ti."` + columns[i] + `"`
+				}
+				return cols
+			}(),
+			",",
+		),
+		fmt.Sprintf(
+			"%s(%s('n',ts.%s,'i',ts.%s,'s',ts.%s,'sid',ts.%s,'src',ts.%s)) AS files",
+			db.FnJSONGroupArray,
+			db.FnJSONObject,
+			ts.Column.Name,
+			ts.Column.Idx,
+			ts.Column.Size,
+			ts.Column.SId,
+			ts.Column.Source,
+		),
+		TableName,
+		ts.TableName,
+		Column.Hash,
+		ts.Column.Hash,
+		ts.Column.Source,
+		Column.Hash,
+		ts.Column.Hash,
+		ts.TableName,
+		ts.Column.SId,
+		ts.Column.SId,
+		Column.Hash,
+	)
+
+	args := make([]any, 2)
+	if strings.Contains(stremId, ":") {
+		args[0], _, _ = strings.Cut(stremId, ":")
+		args[1] = stremId
+	} else {
+		args[0] = stremId
+		args[1] = stremId + ":"
+	}
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		log.Error("failed to list torrents by strem id", "error", err, "stremId", stremId)
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []TorrentItem{}
+	for rows.Next() {
+		var item TorrentItem
+		if err := rows.Scan(&item.Hash, &item.TorrentTitle, &item.Size, &item.Source, &item.Category, &item.Files); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	data := &ListTorrentsData{
+		Items:      items,
+		TotalItems: len(items),
+	}
+	return data, nil
 }
 
 var debug_torrents_query = fmt.Sprintf(`
