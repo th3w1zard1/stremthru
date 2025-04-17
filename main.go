@@ -8,7 +8,6 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/endpoint"
 	"github.com/MunifTanjim/stremthru/internal/shared"
-	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/worker"
 	"github.com/MunifTanjim/stremthru/store"
 )
@@ -32,7 +31,7 @@ func main() {
 	db.Ping()
 	RunSchemaMigration(database.URI, database)
 
-	pttWorker := torrent_info.InitParseTorrentTitleWorker()
+	pttWorker := worker.InitParseTorrentWorker()
 	ptiWorker := worker.InitPushTorrentsWorker()
 
 	mux := http.NewServeMux()
