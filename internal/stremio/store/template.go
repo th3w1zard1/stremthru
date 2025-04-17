@@ -5,7 +5,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
 )
 
-func getStoreNameConfig() configure.Config {
+func getStoreNameConfig(defaultValue string) configure.Config {
 	options := []configure.ConfigOption{
 		{Value: "", Label: "StremThru"},
 		{Value: "alldebrid", Label: "AllDebrid"},
@@ -24,7 +24,7 @@ func getStoreNameConfig() configure.Config {
 	config := configure.Config{
 		Key:      "store_name",
 		Type:     "select",
-		Default:  "",
+		Default:  defaultValue,
 		Title:    "Store Name",
 		Options:  options,
 		Required: config.IsPublicInstance,
@@ -32,7 +32,7 @@ func getStoreNameConfig() configure.Config {
 	return config
 }
 
-func getTemplateData() *configure.TemplateData {
+func getTemplateData(ud *UserData) *configure.TemplateData {
 	return &configure.TemplateData{
 		Base: configure.Base{
 			Title:       "StremThru Store",
@@ -40,11 +40,11 @@ func getTemplateData() *configure.TemplateData {
 			NavTitle:    "Store",
 		},
 		Configs: []configure.Config{
-			getStoreNameConfig(),
+			getStoreNameConfig(ud.StoreName),
 			{
 				Key:         "store_token",
 				Type:        "password",
-				Default:     "",
+				Default:     ud.StoreToken,
 				Title:       "Store Token",
 				Description: "",
 				Required:    true,

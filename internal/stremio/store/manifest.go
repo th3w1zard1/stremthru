@@ -4,27 +4,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
-
-func getCatalogId(storeCode string) string {
-	return "st:store:" + storeCode
-}
-
-func getIdPrefix(storeCode string) string {
-	return getCatalogId(storeCode) + ":"
-}
-
-func getStoreActionId(storeCode string) string {
-	return getIdPrefix(storeCode) + "action"
-}
-
-func getStoreActionIdPrefix(storeCode string) string {
-	return getStoreActionId(storeCode) + ":"
-}
 
 const ContentTypeOther = "other"
 
@@ -45,43 +30,73 @@ var logoByStoreCode = map[string]string{
 	"tb": "https://torbox.app/android-chrome-192x192.png",
 }
 
+func getManifestCatalog(code string) stremio.Catalog {
+	return stremio.Catalog{
+		Id:   getCatalogId(code),
+		Name: "Store " + strings.ToUpper(code),
+		Type: ContentTypeOther,
+		Extra: []stremio.CatalogExtra{
+			{
+				Name: "search",
+			},
+			{
+				Name: "skip",
+			},
+			{
+				Name:    "genre",
+				Options: []string{CatalogGenreVideo, CatalogGenreStremThru},
+			},
+		},
+	}
+}
+
 func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 	isConfigured := ud.HasRequiredValues()
 
 	id := shared.GetReversedHostname(r) + ".store"
 	name := "Store"
 	description := "Explore and Search Store Catalog"
-	storeName := ""
-	storeCode := ""
+	logo := logoByStoreCode["*"]
+	idPrefixes := []string{}
+	catalogs := []stremio.Catalog{}
 	if isConfigured {
 		switch ud.StoreName {
 		case "":
-			storeName = "StremThru"
-			storeCode = "st"
-		case "stremthru":
-			storeName = "StremThru"
-			storeCode = "st"
+			names := []string{}
+			if user, err := core.ParseBasicAuth(ud.StoreToken); err == nil {
+				if password := config.ProxyAuthPassword.GetPassword(user.Username); password != "" && password == user.Password {
+					for _, name := range config.StoreAuthToken.ListStores(user.Username) {
+						storeName := store.StoreName(name)
+						storeCode := storeName.Code()
+						names = append(names, string(storeName))
+
+						code := "st:" + string(storeCode)
+						idPrefixes = append(idPrefixes, getIdPrefix(code))
+						catalogs = append(catalogs, getManifestCatalog(code))
+					}
+				}
+			}
+
+			id += ".st"
+			name = name + " | " + "ST"
+			description = description + " - StremThru ( " + strings.Join(names, " | ") + " )"
 		default:
-			storeName = string(store.StoreName(ud.StoreName))
-			storeCode = string(store.StoreName(ud.StoreName).Code())
+			storeName := store.StoreName(ud.StoreName)
+			storeCode := string(storeName.Code())
+			id += "." + storeCode
+			name = name + " | " + strings.ToUpper(storeCode)
+			description = description + " - " + string(storeName)
+			if storeLogo, ok := logoByStoreCode[storeCode]; ok {
+				logo = storeLogo
+			}
+
+			idPrefixes = append(idPrefixes, getIdPrefix(storeCode))
+			catalogs = append(catalogs, getManifestCatalog(storeCode))
 		}
 
-		name = name + " | " + strings.ToUpper(storeCode)
-		description = description + " - " + storeName
 	} else {
 		name = "StremThru Store"
 	}
-
-	if storeCode != "" {
-		id += "." + storeCode
-	}
-
-	logo := logoByStoreCode["*"]
-	if storeLogo, ok := logoByStoreCode[storeCode]; ok {
-		logo = storeLogo
-	}
-
-	idPrefix := getIdPrefix(storeCode)
 
 	manifest := &stremio.Manifest{
 		ID:          id,
@@ -93,34 +108,16 @@ func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 			{
 				Name:       stremio.ResourceNameMeta,
 				Types:      []stremio.ContentType{ContentTypeOther},
-				IDPrefixes: []string{idPrefix},
+				IDPrefixes: idPrefixes,
 			},
 			{
 				Name:       stremio.ResourceNameStream,
 				Types:      []stremio.ContentType{ContentTypeOther, stremio.ContentTypeMovie, stremio.ContentTypeSeries},
-				IDPrefixes: []string{idPrefix, "tt"},
+				IDPrefixes: append([]string{"tt"}, idPrefixes...),
 			},
 		},
-		Types: []stremio.ContentType{},
-		Catalogs: []stremio.Catalog{
-			{
-				Id:   getCatalogId(storeCode),
-				Name: "Store",
-				Type: ContentTypeOther,
-				Extra: []stremio.CatalogExtra{
-					{
-						Name: "search",
-					},
-					{
-						Name: "skip",
-					},
-					{
-						Name:    "genre",
-						Options: []string{CatalogGenreVideo, CatalogGenreStremThru},
-					},
-				},
-			},
-		},
+		Types:    []stremio.ContentType{},
+		Catalogs: catalogs,
 		BehaviorHints: &stremio.BehaviorHints{
 			Configurable:          true,
 			ConfigurationRequired: !isConfigured,

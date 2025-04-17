@@ -50,20 +50,6 @@ type UserData struct {
 	storeCode  string `json:"-"`
 }
 
-func (ud *UserData) getStoreCode() string {
-	if ud.storeCode == "" {
-		switch ud.StoreName {
-		case "":
-			ud.storeCode = "st"
-		case "stremthru":
-			ud.storeCode = "st"
-		default:
-			ud.storeCode = string(store.StoreName(ud.StoreName).Code())
-		}
-	}
-	return ud.storeCode
-}
-
 func (ud UserData) HasRequiredValues() bool {
 	return ud.StoreToken != ""
 }
@@ -103,15 +89,14 @@ func (uderr *userDataError) Error() string {
 	return str.String()
 }
 
-func (ud UserData) GetRequestContext(r *http.Request) (*context.StoreContext, error) {
+func (ud UserData) GetRequestContext(r *http.Request, idr *ParsedId) (*context.StoreContext, error) {
 	rCtx := server.GetReqCtx(r)
 	ctx := &context.StoreContext{
 		Log: rCtx.Log,
 	}
 
-	storeName := ud.StoreName
 	storeToken := ud.StoreToken
-	if storeName == "" {
+	if idr.isST {
 		user, err := core.ParseBasicAuth(storeToken)
 		if err != nil {
 			return ctx, &userDataError{storeToken: err.Error()}
@@ -122,13 +107,15 @@ func (ud UserData) GetRequestContext(r *http.Request) (*context.StoreContext, er
 			ctx.ProxyAuthUser = user.Username
 			ctx.ProxyAuthPassword = user.Password
 
-			storeName = config.StoreAuthToken.GetPreferredStore(ctx.ProxyAuthUser)
-			storeToken = config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, storeName)
+			if idr.storeName == "" {
+				idr.storeName = store.StoreName(config.StoreAuthToken.GetPreferredStore(ctx.ProxyAuthUser))
+			}
+			storeToken = config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, string(idr.storeName))
 		}
 	}
 
 	if storeToken != "" {
-		ctx.Store = shared.GetStore(storeName)
+		ctx.Store = shared.GetStore(string(idr.storeName))
 		ctx.StoreAuthToken = storeToken
 	}
 
@@ -199,16 +186,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	td := getTemplateData()
-	for i := range td.Configs {
-		conf := &td.Configs[i]
-		switch conf.Key {
-		case "store_name":
-			conf.Default = ud.StoreName
-		case "store_token":
-			conf.Default = ud.StoreToken
-		}
-	}
+	td := getTemplateData(ud)
 
 	if IsMethod(r, http.MethodGet) {
 		if ud.HasRequiredValues() {
@@ -238,7 +216,10 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ctx, err := ud.GetRequestContext(r)
+	idr := ParsedId{isST: ud.StoreName == ""}
+	idr.storeName = store.StoreName(ud.StoreName)
+	idr.storeCode = idr.storeName.Code()
+	ctx, err := ud.GetRequestContext(r, &idr)
 	if err != nil {
 		if uderr, ok := err.(*userDataError); ok {
 			if uderr.storeName != "" {
@@ -422,13 +403,11 @@ func getMetaPreviewDescription(hash, name string) string {
 	return description
 }
 
-func getCatalogItems(ctx *context.StoreContext, ud *UserData) []CachedCatalogItem {
+func getCatalogItems(ctx *context.StoreContext, idPrefix string) []CachedCatalogItem {
 	items := []CachedCatalogItem{}
 
 	cacheKey := getCatalogCacheKey(ctx)
 	if !catalogCache.Get(cacheKey, &items) {
-		idPrefix := getIdPrefix(ud.getStoreCode())
-
 		tInfoItems := []torrent_info.TorrentInfoInsertData{}
 		tInfoSource := torrent_info.TorrentInfoSource(ctx.Store.GetName().Code())
 
@@ -502,12 +481,19 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if catalogId := getId(r); catalogId != getCatalogId(ud.getStoreCode()) {
+	catalogId := getId(r)
+	idr, err := parseId(catalogId)
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+
+	if catalogId != getCatalogId(idr.getStoreCode()) {
 		shared.ErrorBadRequest(r, "unsupported catalog id: "+catalogId).Send(w, r)
 		return
 	}
 
-	ctx, err := ud.GetRequestContext(r)
+	ctx, err := ud.GetRequestContext(r, idr)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
 			LogError(r, "failed to get request context", err)
@@ -523,12 +509,14 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if extra.Genre == CatalogGenreStremThru {
-		res.Metas = append(res.Metas, getStoreActionMetaPreview(ud.getStoreCode()))
+		res.Metas = append(res.Metas, getStoreActionMetaPreview(idr.getStoreCode()))
 		SendResponse(w, r, 200, res)
 		return
 	}
 
-	items := getCatalogItems(ctx, ud)
+	idPrefix := getIdPrefix(idr.getStoreCode())
+
+	items := getCatalogItems(ctx, idPrefix)
 
 	if extra.Search != "" {
 		query := strings.ToLower(extra.Search)
@@ -579,7 +567,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	SendResponse(w, r, 200, res)
 }
 
-func getStoreActionMeta(r *http.Request, storeCode string, encodedUserData string) stremio.Meta {
+func getStoreActionMeta(r *http.Request, storeCode string, eud string) stremio.Meta {
 	released := time.Now().UTC()
 	meta := stremio.Meta{
 		Id:          getStoreActionId(storeCode),
@@ -594,7 +582,7 @@ func getStoreActionMeta(r *http.Request, storeCode string, encodedUserData strin
 				Released: released,
 				Streams: []stremio.Stream{
 					{
-						URL:         ExtractRequestBaseURL(r).JoinPath("/stremio/store/" + encodedUserData + "/_/action/" + getStoreActionIdPrefix(storeCode) + "clear_cache").String(),
+						URL:         ExtractRequestBaseURL(r).JoinPath("/stremio/store/" + eud + "/_/action/" + getStoreActionIdPrefix(storeCode) + "clear_cache").String(),
 						Name:        "Clear Cache",
 						Description: "Clear Cached Data for StremThru Store",
 					},
@@ -622,15 +610,21 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idPrefix := getIdPrefix(ud.getStoreCode())
-
 	id := getId(r)
+	idr, err := parseId(id)
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+
+	idPrefix := getIdPrefix(idr.getStoreCode())
+
 	if !strings.HasPrefix(id, idPrefix) {
 		shared.ErrorBadRequest(r, "unsupported id: "+id).Send(w, r)
 		return
 	}
 
-	ctx, err := ud.GetRequestContext(r)
+	ctx, err := ud.GetRequestContext(r, idr)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
 			LogError(r, "failed to get request context", err)
@@ -639,7 +633,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if id == getStoreActionId(ud.getStoreCode()) {
+	if id == getStoreActionId(idr.getStoreCode()) {
 		eud, err := ud.GetEncoded()
 		if err != nil {
 			SendError(w, r, err)
@@ -647,7 +641,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		}
 
 		res := stremio.MetaHandlerResponse{
-			Meta: getStoreActionMeta(r, ud.getStoreCode(), eud),
+			Meta: getStoreActionMeta(r, idr.getStoreCode(), eud),
 		}
 
 		SendResponse(w, r, 200, res)
@@ -798,10 +792,16 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idPrefix := getIdPrefix(ud.getStoreCode())
+	videoIdWithLink := getId(r)
+	idr, err := parseId(videoIdWithLink)
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+
+	idPrefix := getIdPrefix(idr.getStoreCode())
 
 	contentType := r.PathValue("contentType")
-	videoIdWithLink := getId(r)
 	isStremThruStoreId := strings.HasPrefix(videoIdWithLink, idPrefix)
 	isImdbId := strings.HasPrefix(videoIdWithLink, "tt")
 	if isStremThruStoreId {
@@ -819,7 +819,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, err := ud.GetRequestContext(r)
+	ctx, err := ud.GetRequestContext(r, idr)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
 			LogError(r, "failed to get request context", err)
@@ -869,7 +869,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		}
 		meta = &mres.Meta
 
-		items := getCatalogItems(ctx, ud)
+		items := getCatalogItems(ctx, idPrefix)
 		if meta.Name != "" {
 			query := strings.ToLower(meta.Name)
 			filteredItems := []CachedCatalogItem{}
@@ -1014,14 +1014,19 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	storeActionIdPrefix := getStoreActionIdPrefix(ud.getStoreCode())
-
 	actionId := r.PathValue("actionId")
+	idr, err := parseId(actionId)
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+
+	storeActionIdPrefix := getStoreActionIdPrefix(idr.getStoreCode())
 	if !strings.HasPrefix(actionId, storeActionIdPrefix) {
 		shared.ErrorBadRequest(r, "unsupported id: "+actionId).Send(w, r)
 	}
 
-	ctx, err := ud.GetRequestContext(r)
+	ctx, err := ud.GetRequestContext(r, idr)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
 			LogError(r, "failed to get request context", err)
@@ -1051,15 +1056,20 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idPrefix := getIdPrefix(ud.getStoreCode())
-
 	videoIdWithLink := r.PathValue("videoId")
+	idr, err := parseId(videoIdWithLink)
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+
+	idPrefix := getIdPrefix(idr.getStoreCode())
 	if !strings.HasPrefix(videoIdWithLink, idPrefix) {
 		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithLink).Send(w, r)
 		return
 	}
 
-	ctx, err := ud.GetRequestContext(r)
+	ctx, err := ud.GetRequestContext(r, idr)
 	if err != nil || ctx.Store == nil {
 		if err != nil {
 			LogError(r, "failed to get request context", err)
