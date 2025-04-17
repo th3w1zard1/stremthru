@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -235,20 +236,21 @@ func TagStremId(hash string, filename string, sid string) {
 	}
 }
 
-func GetStremIdByHashes(hashes []string) (map[string]string, error) {
-	byHash := map[string]string{}
+func GetStremIdByHashes(hashes []string) (*url.Values, error) {
+	byHash := &url.Values{}
 	count := len(hashes)
 	if count == 0 {
 		return byHash, nil
 	}
 
 	query := fmt.Sprintf(
-		`SELECT %s, %s FROM %s WHERE %s IN (%s) AND %s like 'tt%%' GROUP BY %s`,
+		`SELECT %s, %s FROM %s WHERE %s IN (%s) AND %s like 'tt%%' GROUP BY %s, %s`,
 		Column.Hash, Column.SId,
 		TableName,
 		Column.Hash, util.RepeatJoin("?", count, ","),
 		Column.SId,
 		Column.Hash,
+		Column.SId,
 	)
 	args := make([]any, count)
 	for i, hash := range hashes {
@@ -265,7 +267,7 @@ func GetStremIdByHashes(hashes []string) (map[string]string, error) {
 		if err := rows.Scan(&hash, &sid); err != nil {
 			return byHash, err
 		}
-		byHash[hash] = sid
+		byHash.Add(hash, sid)
 	}
 
 	if err := rows.Err(); err != nil {

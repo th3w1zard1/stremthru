@@ -569,7 +569,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	}
 	for i := range items {
 		item := &items[i]
-		if stremId, found := stremIdByHash[item.hash]; found {
+		if stremId := stremIdByHash.Get(item.hash); stremId != "" {
 			stremId, _, _ = strings.Cut(stremId, ":")
 			item.Poster = getPosterUrl(stremId)
 		}
@@ -678,7 +678,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 	if stremIdByHashes, err := torrent_stream.GetStremIdByHashes([]string{magnet.Hash}); err != nil {
 		log.Error("failed to get strem id by hashes", "error", err)
 	} else {
-		if sid, found := stremIdByHashes[magnet.Hash]; found {
+		if sid := stremIdByHashes.Get(magnet.Hash); sid != "" {
 			sid, _, isSeries := strings.Cut(sid, ":")
 			sId = sid
 			if isSeries {
@@ -920,7 +920,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Error("failed to get strem id by hashes", "error", err)
 			}
-			if stremId, found := stremIdByHash[magnet.Hash]; found {
+			if stremId := stremIdByHash.Get(magnet.Hash); stremId != "" {
 				sType, sId := "", ""
 				sType, sId, season, episode = parseStremId(stremId)
 				if mRes, err := fetchMeta(sType, sId, core.GetRequestIP(r)); err == nil {
