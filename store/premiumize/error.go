@@ -19,6 +19,12 @@ func UpstreamErrorWithCause(cause error) *core.UpstreamError {
 		} else if err.Msg == "Account not premium." {
 			err.Code = core.ErrorCodePaymentRequired
 			err.StatusCode = http.StatusPaymentRequired
+		} else if err.Msg == "Fair use limit reached!" {
+			err.Code = core.ErrorCodeStoreLimitExceeded
+			err.StatusCode = http.StatusUnprocessableEntity
+		} else if err.Msg == "You already have a maximum of 25 active downloads in progress!" {
+			err.Code = core.ErrorCodeStoreLimitExceeded
+			err.StatusCode = http.StatusUnprocessableEntity
 		}
 		err.UpstreamCause = rerr
 	} else {
