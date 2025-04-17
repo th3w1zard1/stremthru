@@ -714,6 +714,11 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		Files:        []torrent_info.TorrentInfoInsertDataFile{},
 	}
 
+	tpttr, err := util.ParseTorrentTitle(magnet.Name)
+	if err != nil {
+		pttLog.Warn("failed to parse", "error", err, "title", magnet.Name)
+	}
+
 	for _, f := range magnet.Files {
 		if !core.HasVideoExtension(f.Name) {
 			continue
@@ -734,6 +739,9 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		} else {
 			if len(pttr.Seasons) > 0 {
 				season = pttr.Seasons[0]
+				video.Season = season
+			} else if len(tpttr.Seasons) == 1 {
+				season = tpttr.Seasons[0]
 				video.Season = season
 			}
 			if len(pttr.Episodes) > 0 {
@@ -900,8 +908,6 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var pttr *ptt.Result
-
 	streamBaseUrl := ExtractRequestBaseURL(r).JoinPath("/stremio/store/" + eud + "/_/strem/")
 	for _, matcher := range matchers {
 		params := &store.GetMagnetParams{
@@ -931,6 +937,16 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		tpttr, err := util.ParseTorrentTitle(magnet.Name)
+		if err != nil {
+			pttLog.Warn("failed to parse", "error", err, "title", magnet.Name)
+		}
+		tSeason := -1
+		if len(tpttr.Seasons) == 1 {
+			tSeason = tpttr.Seasons[0]
+		}
+
+		var pttr *ptt.Result
 		var file *store.MagnetFile
 
 		for i := range magnet.Files {
@@ -944,7 +960,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			} else if matcher.Episode > 0 {
 				if r, err := util.ParseTorrentTitle(f.Name); err == nil {
 					pttr = r
-					season, episode := -1, -1
+					season, episode := tSeason, -1
 					if len(r.Seasons) > 0 {
 						season = r.Seasons[0]
 					}
@@ -982,6 +998,29 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if pttr != nil {
+			if tpttr.Error() == nil {
+				if pttr.Resolution == "" {
+					pttr.Resolution = tpttr.Resolution
+				}
+				if pttr.Quality == "" {
+					pttr.Quality = tpttr.Quality
+				}
+				if pttr.Codec == "" {
+					pttr.Codec = tpttr.Codec
+				}
+				if len(pttr.HDR) == 0 {
+					pttr.HDR = tpttr.HDR
+				}
+				if len(pttr.Audio) == 0 {
+					pttr.Audio = tpttr.Audio
+				}
+				if len(pttr.Channels) == 0 {
+					pttr.Channels = tpttr.Channels
+				}
+				if pttr.Group == "" {
+					pttr.Group = tpttr.Group
+				}
+			}
 			pttr.Size = util.ToSize(file.Size)
 			if meta != nil && season != -1 && episode != -1 {
 				for i := range meta.Videos {
