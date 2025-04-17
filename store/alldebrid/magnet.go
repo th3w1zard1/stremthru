@@ -21,10 +21,10 @@ func (e *MagnetError) Error() string {
 }
 
 type ResponseMagnetFile struct {
-	Children *[]ResponseMagnetFile `json:"e"`
-	Link     string                `json:"l"`
-	Name     string                `json:"n"`
-	Size     int64                 `json:"s"`
+	Children []ResponseMagnetFile `json:"e"`
+	Link     string               `json:"l"`
+	Name     string               `json:"n"`
+	Size     int64                `json:"s"`
 }
 
 type MagnetFile struct {
@@ -36,12 +36,12 @@ type MagnetFile struct {
 	Type store.MagnetFileType
 }
 
-func getFlatFiles(files *[]ResponseMagnetFile, result []MagnetFile, parent *MagnetFile, idx int) []MagnetFile {
+func getFlatFiles(files []ResponseMagnetFile, result []MagnetFile, parent *MagnetFile, idx int) []MagnetFile {
 	if result == nil {
 		result = []MagnetFile{}
 	}
 
-	for _, f := range *files {
+	for _, f := range files {
 		file := &MagnetFile{
 			Idx:  idx,
 			Name: f.Name,
@@ -70,7 +70,7 @@ func getFlatFiles(files *[]ResponseMagnetFile, result []MagnetFile, parent *Magn
 }
 
 type MagnetFilesContainer struct {
-	Files *[]ResponseMagnetFile `json:"files,omitempty"`
+	Files []ResponseMagnetFile `json:"files,omitempty"`
 }
 
 func (m MagnetFilesContainer) GetFiles() []MagnetFile {

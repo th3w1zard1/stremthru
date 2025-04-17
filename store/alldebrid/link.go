@@ -23,7 +23,7 @@ type UnlockLinkData struct {
 	Link       string                 `json:"link"`
 	Paws       bool                   `json:"paws"`
 	Streams    []UnlockLinkDataStream `json:"streams"`
-	Path       *[]ResponseMagnetFile  `json:"path"`
+	Path       []ResponseMagnetFile   `json:"path"`
 }
 
 func (ld UnlockLinkData) GetPath() string {
