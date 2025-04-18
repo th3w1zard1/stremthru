@@ -31,6 +31,9 @@ type ParsedId struct {
 
 func (idr ParsedId) getStoreCode() string {
 	if idr.isST {
+		if idr.storeCode == "" {
+			return "st"
+		}
 		return "st:" + string(idr.storeCode)
 	}
 	return string(idr.storeCode)
@@ -47,10 +50,9 @@ func parseId(id string) (*ParsedId, error) {
 	switch parts[2] {
 	case "st":
 		r.isST = true
-		if count < 4 {
-			return nil, errors.New("invalid id")
+		if count > 3 {
+			r.storeCode = store.StoreCode(parts[3])
 		}
-		r.storeCode = store.StoreCode(parts[3])
 	default:
 		r.storeCode = store.StoreCode(parts[2])
 	}
