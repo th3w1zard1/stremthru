@@ -113,7 +113,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 		}
 	}
 
-	shouldHaveExtractor := !td.Template.IsEmpty() || td.TemplateId != ""
+	hasExtractor := false
 
 	for _, up := range ud.Upstreams {
 		extractorError := ""
@@ -133,7 +133,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 			}
 
 			if up.ExtractorId != "" || up.extractor != "" {
-				shouldHaveExtractor = true
+				hasExtractor = true
 			}
 
 			if extractorError == "" && up.extractor != "" {
@@ -156,14 +156,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 		td.Upstreams = append(td.Upstreams, UpstreamAddon{URL: ""})
 	}
 
-	if shouldHaveExtractor {
-		for i := range td.Upstreams {
-			up := &td.Upstreams[i]
-			if up.ExtractorId == "" && up.Extractor == "" {
-				up.ExtractorError = "Extractor is missing"
-			}
-		}
-
+	if hasExtractor {
 		if td.TemplateId == "" && td.Template.IsEmpty() {
 			td.TemplateError.Name = "Template is missing"
 			td.TemplateError.Description = "Template is missing"

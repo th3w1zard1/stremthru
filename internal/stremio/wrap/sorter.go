@@ -134,9 +134,16 @@ func (ss StreamSorter) Swap(i, j int) {
 }
 
 func (ss StreamSorter) Less(a, b int) bool {
+	aData, bData := ss.items[a].r, ss.items[b].r
+	if bData == nil {
+		return true
+	} else if aData == nil {
+		return false
+	}
+
 	for _, config := range ss.config {
-		va := ss.items[a].r.GetFieldRank(config.Field)
-		vb := ss.items[b].r.GetFieldRank(config.Field)
+		va := aData.GetFieldRank(config.Field)
+		vb := bData.GetFieldRank(config.Field)
 
 		if va == vb {
 			continue

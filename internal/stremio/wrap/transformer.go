@@ -142,6 +142,10 @@ type StreamTransformerResult struct {
 }
 
 func (st StreamTransformer) parse(stream *stremio.Stream) *StreamTransformerResult {
+	if len(st.Extractor) == 0 {
+		return nil
+	}
+
 	result := &StreamTransformerResult{FileIdx: -1}
 	result.Raw.Name = stream.Name
 	result.Raw.Description = stream.Description
@@ -251,6 +255,10 @@ func (st StreamTransformer) Do(stream *stremio.Stream, tryReconfigure bool) (*Wr
 	}
 
 	data := st.parse(stream)
+	if data == nil {
+		return s, nil
+	}
+
 	if stream.InfoHash != "" {
 		data.Hash = stream.InfoHash
 		data.FileIdx = stream.FileIndex
@@ -262,7 +270,7 @@ func (st StreamTransformer) Do(stream *stremio.Stream, tryReconfigure bool) (*Wr
 	}
 
 	if tryReconfigure {
-		if s.URL != "" && data != nil && data.Hash != "" {
+		if s.URL != "" && data.Hash != "" {
 			s.InfoHash = data.Hash
 			s.FileIndex = data.FileIdx
 			s.URL = ""
