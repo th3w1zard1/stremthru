@@ -10,6 +10,7 @@ import (
 
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/kv"
+	"github.com/MunifTanjim/stremthru/internal/util"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
 
@@ -267,6 +268,9 @@ func (st StreamTransformer) Do(stream *stremio.Stream, tryReconfigure bool) (*Wr
 		if stream.BehaviorHints.Filename != "" {
 			data.Filename = stream.BehaviorHints.Filename
 		}
+		if stream.BehaviorHints.VideoSize != 0 {
+			data.Size = util.ToSize(stream.BehaviorHints.VideoSize)
+		}
 	}
 
 	if tryReconfigure {
@@ -356,13 +360,13 @@ name
 (?i)^(?<addon>\w+(?: \| [^ ]+)?) (?:P2P|(?<debrid>[A-Z]{2})) (?:N\/A|(?<resolution>[^kp]+[kp])) (?<cached>⚡️)?
 
 description
-(?i)(?:📂 (?<title>.+)\n)?💾 (?<size>.+?)(?: \/ 💾 .+?)(?: 👤 \d+)?\n(?:.+\n)?🔗 (?<site>.+?)(?: 🧑‍💻 |$)
+(?i)(?:📂 (?<title>.+?)(?: ┈➤ (?<filename>.+))?\n)?(?:(?:📺 .+)?(?: 🎞️ .+)?(?: 🎵 .+)?\n)?💾 (?<size>.+?)(?: \/ 💾 .+?)?(?: 👤 \d+)?\n(?:.+\n)?🔗 (?<site>.+?)(?: 🧑‍💻 |$)
 
 bingeGroup
 (?i)-(?:🎨 (?<hdr>[^ ]+) )?📺 (?<quality>cam|scr|dvd|vhs|r5|(?:.+(?:rip|ray|mux|tv))|(?:(?:tele|web)[\w-]*?))(?: ?🎞️ (?<codec>[^- ]+))?(?: ?🎵 .+)?-(?:N\/A|(?:\d+[kp]))
 
 url
-\/stream\/(?<hash>[a-f0-9]{40})\/
+\/stream\/(?<hash>[a-f0-9]{40})\/(?:(?<season>\d+)\/(?<episode>\d+)\/)?
 `))
 
 	extractors[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Peerflix"] = StreamTransformerExtractorBlob(strings.TrimSpace(`
