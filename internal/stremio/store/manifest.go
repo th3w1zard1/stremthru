@@ -70,7 +70,7 @@ func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 						storeCode := storeName.Code()
 						names = append(names, string(storeName))
 
-						code := "st:" + string(storeCode)
+						code := "st-" + string(storeCode)
 						idPrefixes = append(idPrefixes, getIdPrefix(code))
 						catalogs = append(catalogs, getManifestCatalog(code))
 					}
