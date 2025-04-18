@@ -866,16 +866,16 @@ func ListByStremId(stremId string) (*ListTorrentsData, error) {
 	return data, nil
 }
 
-var debug_torrents_query = fmt.Sprintf(`
-select ti.%s,
+var dump_torrents_query = fmt.Sprintf(`
+SELECT ti.%s,
        ti.%s,
-       case when ti.%s > 0 then ti.%s else coalesce(sum(ts.%s), -1) end,
+       CASE WHEN ti.%s > 0 THEN ti.%s ELSE COALESCE(SUM(ts.%s), -1) END,
        (ti.%s <= 0)
-from %s ti
-         left join %s ts
-                   on ti.%s <= 0 and ts.%s = ti.%s and ts.%s >= 0
-                       and ts.%s != '' and ts.%s not like '%%:%%'
-group by ti.%s
+FROM %s ti
+         LEFT JOIN %s ts
+                   ON ti.%s <= 0 AND ts.%s = ti.%s AND ts.%s >= 0
+                       AND ts.%s != '' AND ts.%s NOT LIKE '%%:%%'
+GROUP BY ti.%s
 `,
 	Column.Hash,
 	Column.TorrentTitle,
@@ -888,23 +888,23 @@ group by ti.%s
 	Column.Hash,
 )
 
-type DebugTorrentsItem struct {
+type DumpTorrentsItem struct {
 	Hash         string `json:"hash"`
 	Name         string `json:"name"`
 	Size         int64  `json:"size"`
 	IsSizeApprox bool   `json:"_size_approx"`
 }
 
-func DebugTorrents(noApproxSize bool, noMissingSize bool) ([]DebugTorrentsItem, error) {
-	rows, err := db.Query(debug_torrents_query)
+func DumpTorrents(noApproxSize bool, noMissingSize bool) ([]DumpTorrentsItem, error) {
+	rows, err := db.Query(dump_torrents_query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	items := []DebugTorrentsItem{}
+	items := []DumpTorrentsItem{}
 	for rows.Next() {
-		var item DebugTorrentsItem
+		var item DumpTorrentsItem
 		if err := rows.Scan(&item.Hash, &item.Name, &item.Size, &item.IsSizeApprox); err != nil {
 			return nil, err
 		}

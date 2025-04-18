@@ -42,7 +42,7 @@ func main() {
 	endpoint.AddStoreEndpoints(mux)
 	endpoint.AddStremioEndpoints(mux)
 	endpoint.AddTorrentEndpoints(mux)
-	endpoint.AddDebugEndpoints(mux)
+	endpoint.AddExperimentEndpoints(mux)
 
 	handler := shared.RootServerContext(mux)
 
