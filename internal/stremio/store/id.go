@@ -52,6 +52,9 @@ func parseId(id string) (*ParsedId, error) {
 		r.isST = true
 		if count > 3 {
 			r.storeCode = store.StoreCode(parts[3])
+			if r.storeCode.Name() == "" {
+				r.storeCode = ""
+			}
 		}
 	default:
 		r.storeCode = store.StoreCode(parts[2])
