@@ -450,12 +450,12 @@ var builtInTemplates = func() map[string]StreamTransformerTemplateBlob {
 
 	templates[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Default"] = StreamTransformerTemplateBlob{
 		Name: strings.TrimSpace(`
-{{if ne .Debrid ""}}[{{if .IsCached}}⚡️{{end}}{{.Debrid}}]
+{{if ne .Debrid ""}}{{if .IsCached}}⚡️ {{end}}[{{.Debrid}}]
 {{end}}{{.Addon}}
 {{.Resolution}}
 `),
 		Description: strings.TrimSpace(`
-{{if ne .Quality ""}}🎥 {{.Quality}} {{end}}{{if ne .Codec ""}}🎞️ {{.Codec}}{{end}}
+{{if ne .Quality ""}}💿 {{.Quality}} {{end}}{{if ne .Codec ""}}🎞️ {{.Codec}}{{end}}
 {{if ne .Size ""}}📦 {{.Size}} {{end}}{{if ne .HDR ""}}📺 {{.HDR}} {{end}}{{if ne .Site ""}}🔗 {{.Site}}{{end}}{{if ne .Filename ""}}
 📄 {{.Filename}}{{else if ne .Title ""}}
 📁 {{.Title}}
