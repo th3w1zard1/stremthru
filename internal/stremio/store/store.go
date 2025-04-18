@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MunifTanjim/go-ptt"
@@ -29,7 +30,7 @@ import (
 
 var streamTemplate = func() *stremio_transformer.StreamTemplate {
 	tmplBlob := stremio_transformer.StreamTemplateBlob{
-		Name: `Store
+		Name: `Store {{.StoreCode}}
 {{ if ne .Resolution ""}}{{.Resolution}}{{end}}`,
 		Description: `✏️ {{.Title}}
 {{if ne .Quality ""}} 💿 {{.Quality}} {{end}}{{if ne .Codec ""}} 🎞️ {{.Codec}} {{end}}{{if gt (len .HDR) 0}} 📺 {{str_join .HDR ","}}{{end}}{{if gt (len .Audio) 0}} 🎧 {{str_join .Audio ","}}{{if gt (len .Channels) 0}} | {{str_join .Channels ","}}{{end}}{{end}}
@@ -47,7 +48,8 @@ type UserData struct {
 	StoreName  string `json:"store_name"`
 	StoreToken string `json:"store_token"`
 	encoded    string `json:"-"`
-	storeCode  string `json:"-"`
+
+	idPrefixes []string `json:"-"`
 }
 
 func (ud UserData) HasRequiredValues() bool {
@@ -64,6 +66,25 @@ func (ud UserData) GetEncoded() (string, error) {
 		return "", err
 	}
 	return core.Base64Encode(string(blob)), nil
+}
+
+func (ud *UserData) getIdPrefixes() []string {
+	if len(ud.idPrefixes) == 0 {
+		if ud.StoreName == "" {
+			if user, err := core.ParseBasicAuth(ud.StoreToken); err == nil {
+				if password := config.ProxyAuthPassword.GetPassword(user.Username); password != "" && password == user.Password {
+					for _, name := range config.StoreAuthToken.ListStores(user.Username) {
+						storeCode := "st-" + string(store.StoreName(name).Code())
+						ud.idPrefixes = append(ud.idPrefixes, getIdPrefix(storeCode))
+					}
+				}
+			}
+		} else {
+			storeCode := string(store.StoreName(ud.StoreName).Code())
+			ud.idPrefixes = append(ud.idPrefixes, getIdPrefix(storeCode))
+		}
+	}
+	return ud.idPrefixes
 }
 
 type userDataError struct {
@@ -334,8 +355,8 @@ var catalogCache = func() cache.Cache[[]CachedCatalogItem] {
 	return c
 }()
 
-func getCatalogCacheKey(ctx *context.StoreContext) string {
-	return string(ctx.Store.GetName().Code()) + ":" + ctx.StoreAuthToken
+func getCatalogCacheKey(idPrefix, storeToken string) string {
+	return idPrefix + storeToken
 }
 
 func getMetaPreviewDescription(hash, name string) string {
@@ -403,13 +424,13 @@ func getMetaPreviewDescription(hash, name string) string {
 	return description
 }
 
-func getCatalogItems(ctx *context.StoreContext, idPrefix string) []CachedCatalogItem {
+func getCatalogItems(s store.Store, storeToken string, clientIp string, idPrefix string) []CachedCatalogItem {
 	items := []CachedCatalogItem{}
 
-	cacheKey := getCatalogCacheKey(ctx)
+	cacheKey := getCatalogCacheKey(idPrefix, storeToken)
 	if !catalogCache.Get(cacheKey, &items) {
 		tInfoItems := []torrent_info.TorrentInfoInsertData{}
-		tInfoSource := torrent_info.TorrentInfoSource(ctx.Store.GetName().Code())
+		tInfoSource := torrent_info.TorrentInfoSource(s.GetName().Code())
 
 		limit := 500
 		offset := 0
@@ -418,10 +439,10 @@ func getCatalogItems(ctx *context.StoreContext, idPrefix string) []CachedCatalog
 			params := &store.ListMagnetsParams{
 				Limit:    limit,
 				Offset:   offset,
-				ClientIP: ctx.ClientIP,
+				ClientIP: clientIp,
 			}
-			params.APIKey = ctx.StoreAuthToken
-			res, err := ctx.Store.ListMagnets(params)
+			params.APIKey = storeToken
+			res, err := s.ListMagnets(params)
 			if err != nil {
 				break
 			}
@@ -447,7 +468,7 @@ func getCatalogItems(ctx *context.StoreContext, idPrefix string) []CachedCatalog
 			time.Sleep(1 * time.Second)
 		}
 		catalogCache.Add(cacheKey, items)
-		go torrent_info.Upsert(tInfoItems, "", ctx.Store.GetName().Code() != store.StoreCodeRealDebrid)
+		go torrent_info.Upsert(tInfoItems, "", s.GetName().Code() != store.StoreCodeRealDebrid)
 	}
 
 	return items
@@ -516,7 +537,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 
 	idPrefix := getIdPrefix(idr.getStoreCode())
 
-	items := getCatalogItems(ctx, idPrefix)
+	items := getCatalogItems(ctx.Store, ctx.StoreAuthToken, ctx.ClientIP, idPrefix)
 
 	if extra.Search != "" {
 		query := strings.ToLower(extra.Search)
@@ -786,6 +807,12 @@ type StreamFileMatcher struct {
 	UseLargestFile bool
 	Episode        int
 	Season         int
+
+	IdPrefix   string
+	Store      store.Store
+	StoreCode  string
+	StoreToken string
+	ClientIP   string
 }
 
 func handleStream(w http.ResponseWriter, r *http.Request) {
@@ -801,16 +828,8 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	videoIdWithLink := getId(r)
-	idr, err := parseId(videoIdWithLink)
-	if err != nil {
-		SendError(w, r, err)
-		return
-	}
-
-	idPrefix := getIdPrefix(idr.getStoreCode())
-
 	contentType := r.PathValue("contentType")
-	isStremThruStoreId := strings.HasPrefix(videoIdWithLink, idPrefix)
+	isStremThruStoreId := isStoreId(videoIdWithLink)
 	isImdbId := strings.HasPrefix(videoIdWithLink, "tt")
 	if isStremThruStoreId {
 		if contentType != ContentTypeOther {
@@ -824,15 +843,6 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		shared.ErrorBadRequest(r, "unsupported id: "+videoIdWithLink).Send(w, r)
-		return
-	}
-
-	ctx, err := ud.GetRequestContext(r, idr)
-	if err != nil || ctx.Store == nil {
-		if err != nil {
-			LogError(r, "failed to get request context", err)
-		}
-		shared.ErrorBadRequest(r, "").Send(w, r)
 		return
 	}
 
@@ -852,6 +862,22 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	matchers := []StreamFileMatcher{}
 
 	if isStremThruStoreId {
+		idr, err := parseId(videoIdWithLink)
+		if err != nil {
+			SendError(w, r, err)
+			return
+		}
+
+		ctx, err := ud.GetRequestContext(r, idr)
+		if err != nil || ctx.Store == nil {
+			if err != nil {
+				LogError(r, "failed to get request context", err)
+			}
+			shared.ErrorBadRequest(r, "").Send(w, r)
+			return
+		}
+
+		idPrefix := getIdPrefix(idr.getStoreCode())
 		videoId := strings.TrimPrefix(videoIdWithLink, idPrefix)
 		videoId, escapedLink, _ := strings.Cut(videoId, ":")
 		link, err := url.PathUnescape(escapedLink)
@@ -864,6 +890,12 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		matchers = append(matchers, StreamFileMatcher{
 			MagnetId: videoId,
 			FileLink: link,
+
+			IdPrefix:   idPrefix,
+			Store:      ctx.Store,
+			StoreCode:  idr.getStoreCode(),
+			StoreToken: ctx.StoreAuthToken,
+			ClientIP:   ctx.ClientIP,
 		})
 	}
 
@@ -877,34 +909,83 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		}
 		meta = &mres.Meta
 
-		items := getCatalogItems(ctx, idPrefix)
-		if meta.Name != "" {
-			query := strings.ToLower(meta.Name)
-			filteredItems := []CachedCatalogItem{}
-			for i := range items {
-				item := &items[i]
-				if fuzzy.TokenSetRatio(query, strings.ToLower(item.Name), false, true) > 90 {
-					filteredItems = append(filteredItems, *item)
-				}
-			}
-			items = filteredItems
-		}
+		var wg sync.WaitGroup
 
-		for i := range items {
-			item := &items[i]
-			id := strings.TrimPrefix(item.Id, idPrefix)
-			if sType == "series" {
-				matchers = append(matchers, StreamFileMatcher{
-					MagnetId: id,
-					Season:   season,
-					Episode:  episode,
-				})
-			} else {
-				matchers = append(matchers, StreamFileMatcher{
-					MagnetId:       id,
-					UseLargestFile: true,
-				})
+		idPrefixes := ud.getIdPrefixes()
+		errs := make([]error, len(idPrefixes))
+		matcherResults := make([][]StreamFileMatcher, len(idPrefixes))
+
+		for idx, idPrefix := range idPrefixes {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				idr, err := parseId(idPrefix)
+				if err != nil {
+					errs[idx] = err
+					return
+				}
+				ctx, err := ud.GetRequestContext(r, idr)
+				if err != nil || ctx.Store == nil {
+					if err != nil {
+						LogError(r, "failed to get request context", err)
+					}
+					errs[idx] = shared.ErrorBadRequest(r, "")
+					return
+				}
+
+				items := getCatalogItems(ctx.Store, ctx.StoreAuthToken, ctx.ClientIP, idPrefix)
+				if meta.Name != "" {
+					query := strings.ToLower(meta.Name)
+					filteredItems := []CachedCatalogItem{}
+					for i := range items {
+						item := &items[i]
+						if fuzzy.TokenSetRatio(query, strings.ToLower(item.Name), false, true) > 90 {
+							filteredItems = append(filteredItems, *item)
+						}
+					}
+					items = filteredItems
+				}
+
+				for i := range items {
+					item := &items[i]
+					id := strings.TrimPrefix(item.Id, idPrefix)
+					if sType == "series" {
+						matcherResults[idx] = append(matcherResults[idx], StreamFileMatcher{
+							MagnetId: id,
+							Season:   season,
+							Episode:  episode,
+
+							IdPrefix:   idPrefix,
+							Store:      ctx.Store,
+							StoreCode:  idr.getStoreCode(),
+							StoreToken: ctx.StoreAuthToken,
+							ClientIP:   ctx.ClientIP,
+						})
+					} else {
+						matcherResults[idx] = append(matcherResults[idx], StreamFileMatcher{
+							MagnetId:       id,
+							UseLargestFile: true,
+
+							IdPrefix:   idPrefix,
+							Store:      ctx.Store,
+							StoreCode:  idr.getStoreCode(),
+							StoreToken: ctx.StoreAuthToken,
+							ClientIP:   ctx.ClientIP,
+						})
+					}
+				}
+			}()
+		}
+		wg.Wait()
+		for _, err := range errs {
+			if err != nil {
+				SendError(w, r, err)
+				return
 			}
+		}
+		for i := range matcherResults {
+			matchers = append(matchers, matcherResults[i]...)
 		}
 	}
 
@@ -912,10 +993,10 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	for _, matcher := range matchers {
 		params := &store.GetMagnetParams{
 			Id:       matcher.MagnetId,
-			ClientIP: ctx.ClientIP,
+			ClientIP: matcher.ClientIP,
 		}
-		params.APIKey = ctx.StoreAuthToken
-		magnet, err := ctx.Store.GetMagnet(params)
+		params.APIKey = matcher.StoreToken
+		magnet, err := matcher.Store.GetMagnet(params)
 		if err != nil {
 			SendError(w, r, err)
 			return
@@ -985,7 +1066,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		streamId := idPrefix + matcher.MagnetId + ":" + file.Link
+		streamId := matcher.IdPrefix + matcher.MagnetId + ":" + file.Link
 		stream := stremio.Stream{
 			URL:  streamBaseUrl.JoinPath(url.PathEscape(streamId)).String(),
 			Name: file.Name,
@@ -1031,7 +1112,10 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
-			if _, err := streamTemplate.Execute(&stream, &stremio_transformer.StreamTemplateData{Result: pttr}); err != nil {
+			if _, err := streamTemplate.Execute(&stream, &stremio_transformer.StreamTemplateData{
+				Result:    pttr,
+				StoreCode: strings.ToUpper(matcher.StoreCode),
+			}); err != nil {
 				log.Error("failed to execute stream template", "error", err)
 			}
 		}
@@ -1074,9 +1158,10 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	idPrefix := getIdPrefix(idr.getStoreCode())
 	switch strings.TrimPrefix(actionId, storeActionIdPrefix) {
 	case "clear_cache":
-		cacheKey := getCatalogCacheKey(ctx)
+		cacheKey := getCatalogCacheKey(idPrefix, ctx.StoreAuthToken)
 		catalogCache.Remove(cacheKey)
 	}
 

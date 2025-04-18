@@ -48,7 +48,8 @@ type StreamTemplateDataRaw struct {
 
 type StreamTemplateData struct {
 	*ptt.Result
-	Raw StreamTemplateDataRaw
+	Raw       StreamTemplateDataRaw
+	StoreCode string
 }
 
 func (t StreamTemplate) Execute(stream *stremio.Stream, data *StreamTemplateData) (*stremio.Stream, error) {

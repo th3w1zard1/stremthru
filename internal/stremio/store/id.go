@@ -7,6 +7,10 @@ import (
 	"github.com/MunifTanjim/stremthru/store"
 )
 
+func isStoreId(id string) bool {
+	return strings.HasPrefix(id, "st:store:")
+}
+
 func getCatalogId(storeCode string) string {
 	return "st:store:" + storeCode
 }
@@ -28,19 +32,24 @@ type ParsedId struct {
 	storeName    store.StoreName
 	isDeprecated bool
 	isST         bool
+	code         string
 }
 
 func (idr ParsedId) getStoreCode() string {
-	if idr.isST {
-		if idr.storeCode == "" {
-			return "st"
+	if idr.code == "" {
+		if idr.isST {
+			if idr.storeCode == "" {
+				idr.code = "st"
+			} else if idr.isDeprecated {
+				idr.code = "st:" + string(idr.storeCode)
+			} else {
+				idr.code = "st-" + string(idr.storeCode)
+			}
+		} else {
+			idr.code = string(idr.storeCode)
 		}
-		if idr.isDeprecated {
-			return "st:" + string(idr.storeCode)
-		}
-		return "st-" + string(idr.storeCode)
 	}
-	return string(idr.storeCode)
+	return idr.code
 }
 
 func parseId(id string) (*ParsedId, error) {
