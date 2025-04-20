@@ -275,3 +275,38 @@ func GetStremIdByHashes(hashes []string) (*url.Values, error) {
 	}
 	return byHash, nil
 }
+
+type Stats struct {
+	TotalCount    int            `json:"total_count"`
+	CountBySource map[string]int `json:"count_by_source"`
+}
+
+var stats_query = fmt.Sprintf(
+	"SELECT %s, COUNT(%s) FROM %s WHERE %s NOT IN ('', '*') AND %s != '' GROUP BY %s",
+	Column.Source,
+	Column.Name,
+	TableName,
+	Column.SId,
+	Column.Source,
+	Column.Source,
+)
+
+func GetStats() (*Stats, error) {
+	var stats Stats
+	rows, err := db.Query(stats_query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	stats.CountBySource = make(map[string]int)
+	for rows.Next() {
+		var source string
+		var count int
+		if err := rows.Scan(&source, &count); err != nil {
+			return nil, err
+		}
+		stats.CountBySource[source] = count
+		stats.TotalCount += count
+	}
+	return &stats, nil
+}

@@ -919,3 +919,49 @@ func DumpTorrents(noApproxSize bool, noMissingSize bool) ([]DumpTorrentsItem, er
 	}
 	return items, nil
 }
+
+type Stats struct {
+	TotalCount    int            `json:"total_count"`
+	CountBySource map[string]int `json:"count_by_source"`
+	Streams       *ts.Stats      `json:"streams,omitempty"`
+}
+
+var stats_query = fmt.Sprintf(
+	"SELECT %s, COUNT(%s) FROM %s GROUP BY %s",
+	Column.Source,
+	Column.Hash,
+	TableName,
+	Column.Source,
+)
+
+func GetStats() (*Stats, error) {
+	totalCount := 0
+	rows, err := db.Query(stats_query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	countBySource := map[string]int{}
+	for rows.Next() {
+		var source string
+		var count int
+		if err := rows.Scan(&source, &count); err != nil {
+			return nil, err
+		}
+		countBySource[source] = count
+		totalCount += count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	stats := &Stats{
+		CountBySource: countBySource,
+		TotalCount:    totalCount,
+	}
+	if tsStats, err := ts.GetStats(); err != nil {
+		log.Error("failed to get torrent stream stats", "error", err)
+	} else {
+		stats.Streams = tsStats
+	}
+	return stats, nil
+}
