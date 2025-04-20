@@ -26,6 +26,17 @@ func SendHTML(w http.ResponseWriter, statusCode int, data bytes.Buffer) {
 	shared.SendHTML(w, statusCode, data)
 }
 
+func getPathParam(r *http.Request, name string) string {
+	if value := r.PathValue(name + "Json"); value != "" {
+		return strings.TrimSuffix(value, ".json")
+	}
+	return r.PathValue(name)
+}
+
+func getId(r *http.Request) string {
+	return getPathParam(r, "id")
+}
+
 func parseStremId(sid string) (sType, sId string, season, episode int) {
 	season, episode = -1, -1
 	stremId, stremSpecs, isSeries := strings.Cut(sid, ":")

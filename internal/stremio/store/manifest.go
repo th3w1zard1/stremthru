@@ -126,3 +126,20 @@ func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 
 	return manifest
 }
+
+func handleManifest(w http.ResponseWriter, r *http.Request) {
+	if !IsMethod(r, http.MethodGet) {
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
+		return
+	}
+
+	ud, err := getUserData(r)
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+
+	manifest := GetManifest(r, ud)
+
+	SendResponse(w, r, 200, manifest)
+}
