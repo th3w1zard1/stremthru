@@ -277,6 +277,18 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
+		case "copy-userdata":
+			if td.IsAuthed && udManager.IsSaved(ud) {
+				name := r.Form.Get("userdata_name")
+				ud.SetEncoded("")
+				err := udManager.Save(ud, name)
+				if err != nil {
+					LogError(r, "failed to copy userdata", err)
+				} else {
+					redirectToConfigurePage(w, r, ud, true)
+					return
+				}
+			}
 		case "delete-userdata":
 			if td.IsAuthed && udManager.IsSaved(ud) {
 				err := udManager.Delete(ud)

@@ -75,6 +75,27 @@
       >
         {{if $hasSavedUserData}}🗑️{{else}}💾{{end}}
       </button>
+      {{if $hasSavedUserData}}
+      <button
+        class="secondary"
+        style="
+          font-size: 0.75rem;
+          padding: 0.25em 0.75em;
+        "
+        type="button"
+        hx-ext="htmx-modal"
+        data-modal="#userdata_copy_modal"
+        data-modal-on-open="onOpenUserDataCopyModal"
+        hx-target="body"
+        hx-post="configure"
+        hx-include="#configuration"
+        hx-headers='{"x-addon-configure-action":"copy-userdata"}'
+        hx-trigger="confirmed"
+        data-tooltip="Copy UserData"
+      >
+        📋
+      </button>
+      {{end}}
       {{end}}
     </fieldset>
     {{end}}
@@ -473,6 +494,22 @@
     </form>
   </article>
 </dialog>
+
+<dialog id="userdata_copy_modal">
+  <article>
+    <header>
+      <button aria-label="Close" rel="prev" data-modal-close></button>
+      <h3>
+        <span>Copy UserData</span>
+      </h3>
+    </header>
+    <form>
+      <label for="userdata_copy_name">Name *</label>
+      <input id="userdata_copy_name" name="userdata_copy_name" required />
+      <button type="submit">Copy</button>
+    </form>
+  </article>
+</dialog>
 {{end}}
 {{end}}
 
@@ -529,6 +566,19 @@
     }, { once: true });
   }
 
+  function onOpenUserDataCopyModal(e, { modal, onClose, trigger }) {
+    selectElem = document.querySelector(`select[name='userdata_key']`);
+    modal.querySelector("[name='userdata_copy_name']").value = selectElem.options[selectElem.selectedIndex].label + " - Copy";
+    modal.querySelector("form").addEventListener("submit", function(e) {
+      e.preventDefault();
+      trigger.setAttribute("hx-vals", JSON.stringify({
+        userdata_name: modal.querySelector("[name='userdata_copy_name']").value,
+      }));
+      onClose();
+      htmx.trigger(trigger, "confirmed");
+    }, { once: true });
+  }
+
   function onOpenUserDataSaveModal(e, { modal, onClose, trigger }) {
     modal.querySelector("form").addEventListener("submit", function(e) {
       e.preventDefault();
@@ -537,7 +587,7 @@
       }));
       onClose();
       htmx.trigger(trigger, "confirmed");
-   s }, { once: true });
+    }, { once: true });
   }
 
   function onOpenUserDataDeleteModal(e, { modal, onClose, trigger }) {
