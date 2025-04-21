@@ -115,7 +115,7 @@ func CreateProxyLink(r *http.Request, ctx *context.StoreContext, link string, he
 
 	proxyLink = proxyLink.JoinPath(token)
 
-	if filename := filepath.Base(link); filename != "" {
+	if filename := filepath.Base(link); filename != "" && filepath.Ext(filename) != "" {
 		proxyLink = proxyLink.JoinPath(filename)
 	}
 
