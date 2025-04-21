@@ -350,6 +350,7 @@ func (c *StoreClient) GenerateLink(params *store.GenerateLinkParams) (*store.Gen
 		Ctx:       params.Ctx,
 		TorrentId: torrentId,
 		FileId:    fileId,
+		UserIP:    params.ClientIP,
 	})
 	if err != nil {
 		return nil, err

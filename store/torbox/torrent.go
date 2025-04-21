@@ -226,22 +226,28 @@ type RequestDownloadLinkData struct {
 
 type RequestDownloadLinkParams struct {
 	Ctx
-	TorrentId   int
-	FileId      int
-	ZipLink     bool
-	TorrentFile bool
+	TorrentId int
+	FileId    int
+	ZipLink   bool
+	UserIP    string
+	// Redirect  bool
 }
 
 func (c APIClient) RequestDownloadLink(params *RequestDownloadLinkParams) (APIResponse[RequestDownloadLinkData], error) {
-	form := &url.Values{}
-	form.Add("token", params.APIKey)
-	form.Add("torrent_id", strconv.Itoa(params.TorrentId))
+	query := &url.Values{}
+	query.Add("token", params.APIKey)
+	query.Add("torrent_id", strconv.Itoa(params.TorrentId))
 	if params.FileId != 0 {
-		form.Add("file_id", strconv.Itoa(params.FileId))
+		query.Add("file_id", strconv.Itoa(params.FileId))
 	}
-	form.Add("zip_link", strconv.FormatBool(params.ZipLink))
-	form.Add("torrent_file", strconv.FormatBool(params.TorrentFile))
-	params.Form = form
+	query.Add("zip_link", strconv.FormatBool(params.ZipLink))
+	if params.UserIP != "" {
+		query.Add("user_ip", params.UserIP)
+	}
+	// if params.Redirect {
+	// 	query.Add("redirect", strconv.FormatBool(params.Redirect))
+	// }
+	params.Query = query
 	response := &Response[string]{}
 	res, err := c.Request("GET", "/v1/api/torrents/requestdl", params, response)
 	return newAPIResponse(res, RequestDownloadLinkData{Link: response.Data}, response.Detail), err
