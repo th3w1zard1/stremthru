@@ -451,9 +451,15 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 		}
 		data.Items = append(data.Items, item)
 	}
+	count := len(data.Items)
 	// torbox returns 1 extra item
-	if len(data.Items) > params.Limit {
+	if count > params.Limit {
 		data.Items = data.Items[0:params.Limit]
+		count = params.Limit
+	}
+	data.TotalItems = params.Offset + count
+	if count == params.Limit {
+		data.TotalItems += 1
 	}
 	return data, nil
 }
