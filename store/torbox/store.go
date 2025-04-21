@@ -232,11 +232,11 @@ type LockedFileLink string
 
 const lockedFileLinkPrefix = "stremthru://store/torbox/"
 
-func (l LockedFileLink) encodeData(torrentId int, torrentFileId int) string {
-	return core.Base64Encode(strconv.Itoa(torrentId) + ":" + strconv.Itoa(torrentFileId))
+func (l LockedFileLink) encodeData(id int, fileId int) string {
+	return core.Base64Encode(strconv.Itoa(id) + ":" + strconv.Itoa(fileId))
 }
 
-func (l LockedFileLink) decodeData(encoded string) (torrentId, torrentFileId int, err error) {
+func (l LockedFileLink) decodeData(encoded string) (id, fileId int, err error) {
 	decoded, err := core.Base64Decode(encoded)
 	if err != nil {
 		return 0, 0, err
@@ -245,22 +245,22 @@ func (l LockedFileLink) decodeData(encoded string) (torrentId, torrentFileId int
 	if !found {
 		return 0, 0, err
 	}
-	torrentId, err = strconv.Atoi(tId)
+	id, err = strconv.Atoi(tId)
 	if err != nil {
 		return 0, 0, err
 	}
-	torrentFileId, err = strconv.Atoi(tfId)
+	fileId, err = strconv.Atoi(tfId)
 	if err != nil {
 		return 0, 0, err
 	}
-	return torrentId, torrentFileId, nil
+	return id, fileId, nil
 }
 
-func (l LockedFileLink) create(torrentId int, torrentFileId int) string {
-	return lockedFileLinkPrefix + l.encodeData(torrentId, torrentFileId)
+func (l LockedFileLink) Create(id int, fileId int) string {
+	return lockedFileLinkPrefix + l.encodeData(id, fileId)
 }
 
-func (l LockedFileLink) parse() (torrentId, torrentFileId int, err error) {
+func (l LockedFileLink) Parse() (id, fileId int, err error) {
 	encoded := strings.TrimPrefix(string(l), lockedFileLinkPrefix)
 	return l.decodeData(encoded)
 }
@@ -302,7 +302,7 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	for _, f := range t.Data.Files {
 		file := store.MagnetFile{
 			Idx:  f.Id,
-			Link: LockedFileLink("").create(res.Data.TorrentId, f.Id),
+			Link: LockedFileLink("").Create(res.Data.TorrentId, f.Id),
 			Name: f.ShortName,
 			Path: "/" + f.Name,
 			Size: f.Size,
@@ -336,7 +336,7 @@ func (c *StoreClient) setCachedGenerateLink(params *store.GenerateLinkParams, to
 }
 
 func (c *StoreClient) GenerateLink(params *store.GenerateLinkParams) (*store.GenerateLinkData, error) {
-	torrentId, fileId, err := LockedFileLink(params.Link).parse()
+	torrentId, fileId, err := LockedFileLink(params.Link).Parse()
 	if err != nil {
 		error := core.NewAPIError("invalid link")
 		error.StatusCode = http.StatusBadRequest
@@ -409,7 +409,7 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 	for _, f := range res.Data.Files {
 		file := store.MagnetFile{
 			Idx:  f.Id,
-			Link: LockedFileLink("").create(res.Data.Id, f.Id),
+			Link: LockedFileLink("").Create(res.Data.Id, f.Id),
 			Name: f.ShortName,
 			Path: "/" + f.Name,
 			Size: f.Size,
