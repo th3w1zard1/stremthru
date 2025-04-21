@@ -46,6 +46,7 @@ type StreamFileMatcher struct {
 	StoreCode  string
 	StoreToken string
 	ClientIP   string
+	IsUsenet   bool
 }
 
 func handleStream(w http.ResponseWriter, r *http.Request) {
@@ -129,6 +130,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			StoreCode:  idr.getStoreCode(),
 			StoreToken: ctx.StoreAuthToken,
 			ClientIP:   ctx.ClientIP,
+			IsUsenet:   idr.isUsenet,
 		})
 	}
 
@@ -167,7 +169,8 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
-				items := getCatalogItems(ctx.Store, ctx.StoreAuthToken, ctx.ClientIP, idPrefix)
+				isUsenet := strings.HasSuffix(idPrefix, "-usenet:")
+				items := getCatalogItems(ctx.Store, ctx.StoreAuthToken, ctx.ClientIP, idPrefix, isUsenet)
 				if meta.Name != "" {
 					query := strings.ToLower(meta.Name)
 					filteredItems := []CachedCatalogItem{}
@@ -194,6 +197,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 							StoreCode:  idr.getStoreCode(),
 							StoreToken: ctx.StoreAuthToken,
 							ClientIP:   ctx.ClientIP,
+							IsUsenet:   isUsenet,
 						})
 					} else {
 						matcherResults[idx] = append(matcherResults[idx], StreamFileMatcher{
@@ -205,6 +209,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 							StoreCode:  idr.getStoreCode(),
 							StoreToken: ctx.StoreAuthToken,
 							ClientIP:   ctx.ClientIP,
+							IsUsenet:   isUsenet,
 						})
 					}
 				}
@@ -224,23 +229,18 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 
 	streamBaseUrl := ExtractRequestBaseURL(r).JoinPath("/stremio/store/" + eud + "/_/strem/")
 	for _, matcher := range matchers {
-		params := &store.GetMagnetParams{
-			Id:       matcher.MagnetId,
-			ClientIP: matcher.ClientIP,
-		}
-		params.APIKey = matcher.StoreToken
-		magnet, err := matcher.Store.GetMagnet(params)
+		cInfo, err := getStoreContentInfo(matcher.Store, matcher.StoreToken, matcher.MagnetId, matcher.ClientIP, matcher.IsUsenet)
 		if err != nil {
 			SendError(w, r, err)
 			return
 		}
 
-		if meta == nil {
-			stremIdByHash, err := torrent_stream.GetStremIdByHashes([]string{magnet.Hash})
+		if !matcher.IsUsenet && meta == nil {
+			stremIdByHash, err := torrent_stream.GetStremIdByHashes([]string{cInfo.Hash})
 			if err != nil {
 				log.Error("failed to get strem id by hashes", "error", err)
 			}
-			if stremId := stremIdByHash.Get(magnet.Hash); stremId != "" {
+			if stremId := stremIdByHash.Get(cInfo.Hash); stremId != "" {
 				sType, sId := "", ""
 				sType, sId, season, episode = parseStremId(stremId)
 				if mRes, err := fetchMeta(sType, sId, core.GetRequestIP(r)); err == nil {
@@ -251,9 +251,9 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		tpttr, err := util.ParseTorrentTitle(magnet.Name)
+		tpttr, err := util.ParseTorrentTitle(cInfo.Name)
 		if err != nil {
-			pttLog.Warn("failed to parse", "error", err, "title", magnet.Name)
+			pttLog.Warn("failed to parse", "error", err, "title", cInfo.Name)
 		}
 		tSeason := -1
 		if len(tpttr.Seasons) == 1 {
@@ -263,8 +263,8 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		var pttr *ptt.Result
 		var file *store.MagnetFile
 
-		for i := range magnet.Files {
-			f := &magnet.Files[i]
+		for i := range cInfo.Files {
+			f := &cInfo.Files[i]
 			if matcher.FileLink != "" && matcher.FileLink == f.Link {
 				file = f
 				break

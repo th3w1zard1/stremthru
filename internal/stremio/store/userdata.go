@@ -43,14 +43,24 @@ func (ud *UserData) getIdPrefixes() []string {
 			if user, err := core.ParseBasicAuth(ud.StoreToken); err == nil {
 				if password := config.ProxyAuthPassword.GetPassword(user.Username); password != "" && password == user.Password {
 					for _, name := range config.StoreAuthToken.ListStores(user.Username) {
-						storeCode := "st-" + string(store.StoreName(name).Code())
+						storeName := store.StoreName(name)
+						storeCode := "st-" + string(storeName.Code())
 						ud.idPrefixes = append(ud.idPrefixes, getIdPrefix(storeCode))
+						if storeName == store.StoreNameTorBox {
+							code := storeCode + "-usenet"
+							ud.idPrefixes = append(ud.idPrefixes, getIdPrefix(code))
+						}
 					}
 				}
 			}
 		} else {
-			storeCode := string(store.StoreName(ud.StoreName).Code())
+			storeName := store.StoreName(ud.StoreName)
+			storeCode := string(storeName.Code())
 			ud.idPrefixes = append(ud.idPrefixes, getIdPrefix(storeCode))
+			if storeName == store.StoreNameTorBox {
+				code := storeCode + "-usenet"
+				ud.idPrefixes = append(ud.idPrefixes, getIdPrefix(code))
+			}
 		}
 	}
 	return ud.idPrefixes

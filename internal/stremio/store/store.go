@@ -5,9 +5,11 @@ import (
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	store_video "github.com/MunifTanjim/stremthru/internal/store/video"
+	stremio_usenet "github.com/MunifTanjim/stremthru/internal/stremio/usenet"
 )
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -110,14 +112,45 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stLink, err := shared.GenerateStremThruLink(r, ctx, url)
-	if err != nil {
-		LogError(r, "failed to generate stremthru link", err)
-		store_video.Redirect("500", w, r)
-		return
-	}
+	if idr.isUsenet {
+		storeName := ctx.Store.GetName()
+		rParams := &stremio_usenet.GenerateLinkParams{
+			Link:     link,
+			CLientIP: ctx.ClientIP,
+		}
+		rParams.APIKey = ctx.StoreAuthToken
+		var lerr error
+		data, err := stremio_usenet.GenerateLink(rParams, storeName)
+		if err == nil {
+			if config.StoreContentProxy.IsEnabled(string(storeName)) && ctx.StoreAuthToken == config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, string(storeName)) {
+				tunnelType := config.StoreTunnel.GetTypeForStream(string(ctx.Store.GetName()))
+				if proxyLink, err := shared.CreateProxyLink(r, ctx, data.Link, nil, tunnelType); err == nil {
+					data.Link = proxyLink
+					println(data.Link)
+				} else {
+					lerr = err
+				}
+			}
+		} else {
+			lerr = err
+		}
+		if lerr != nil {
+			LogError(r, "failed to generate stremthru link", lerr)
+			store_video.Redirect("500", w, r)
+			return
+		}
 
-	http.Redirect(w, r, stLink.Link, http.StatusFound)
+		http.Redirect(w, r, data.Link, http.StatusFound)
+	} else {
+		stLink, err := shared.GenerateStremThruLink(r, ctx, url)
+		if err != nil {
+			LogError(r, "failed to generate stremthru link", err)
+			store_video.Redirect("500", w, r)
+			return
+		}
+
+		http.Redirect(w, r, stLink.Link, http.StatusFound)
+	}
 }
 
 func commonMiddleware(next http.Handler) http.Handler {

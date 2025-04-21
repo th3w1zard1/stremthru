@@ -73,6 +73,11 @@ func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 						code := "st-" + string(storeCode)
 						idPrefixes = append(idPrefixes, getIdPrefix(code))
 						catalogs = append(catalogs, getManifestCatalog(code))
+						if storeName == store.StoreNameTorBox {
+							code += "-usenet"
+							idPrefixes = append(idPrefixes, getIdPrefix(code))
+							catalogs = append(catalogs, getManifestCatalog(code))
+						}
 					}
 				}
 			}
@@ -92,6 +97,11 @@ func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 
 			idPrefixes = append(idPrefixes, getIdPrefix(storeCode))
 			catalogs = append(catalogs, getManifestCatalog(storeCode))
+			if storeName == store.StoreNameTorBox {
+				code := storeCode + "-usenet"
+				idPrefixes = append(idPrefixes, getIdPrefix(code))
+				catalogs = append(catalogs, getManifestCatalog(code))
+			}
 		}
 
 	} else {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/shared"
+	stremio_usenet "github.com/MunifTanjim/stremthru/internal/stremio/usenet"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
 	"github.com/MunifTanjim/stremthru/store"
@@ -29,7 +30,55 @@ var catalogCache = func() cache.Cache[[]CachedCatalogItem] {
 	return c
 }()
 
-func getCatalogItems(s store.Store, storeToken string, clientIp string, idPrefix string) []CachedCatalogItem {
+const max_fetch_list_items = 2000
+const fetch_list_limit = 500
+
+func getUsenetCatalogItems(s store.Store, storeToken string, clientIp string, idPrefix string) []CachedCatalogItem {
+	items := []CachedCatalogItem{}
+
+	cacheKey := getCatalogCacheKey(idPrefix, storeToken)
+	if !catalogCache.Get(cacheKey, &items) {
+		offset := 0
+		hasMore := true
+		for hasMore && offset < max_fetch_list_items {
+			params := &stremio_usenet.ListNewsParams{
+				Limit:    fetch_list_limit,
+				Offset:   offset,
+				ClientIP: clientIp,
+			}
+			params.APIKey = storeToken
+			res, err := stremio_usenet.ListNews(params, s.GetName())
+			if err != nil {
+				log.Error("failed to list news", "error", err, "offset", offset)
+				break
+			}
+
+			for _, item := range res.Items {
+				if item.Status == store.MagnetStatusDownloaded {
+					cItem := CachedCatalogItem{stremio.MetaPreview{
+						Id:   idPrefix + item.Id,
+						Type: ContentTypeOther,
+						Name: item.GetLargestFileName(),
+					}, item.Hash}
+					cItem.Description = getMetaPreviewDescriptionForUsenet(cItem.hash, item.Name, cItem.Name)
+					items = append(items, cItem)
+				}
+			}
+			offset += fetch_list_limit
+			hasMore = len(res.Items) == fetch_list_limit && offset < res.TotalItems
+			time.Sleep(1 * time.Second)
+		}
+		catalogCache.Add(cacheKey, items)
+	}
+
+	return items
+}
+
+func getCatalogItems(s store.Store, storeToken string, clientIp string, idPrefix string, isUsenet bool) []CachedCatalogItem {
+	if isUsenet {
+		return getUsenetCatalogItems(s, storeToken, clientIp, idPrefix)
+	}
+
 	items := []CachedCatalogItem{}
 
 	cacheKey := getCatalogCacheKey(idPrefix, storeToken)
@@ -37,12 +86,11 @@ func getCatalogItems(s store.Store, storeToken string, clientIp string, idPrefix
 		tInfoItems := []torrent_info.TorrentInfoInsertData{}
 		tInfoSource := torrent_info.TorrentInfoSource(s.GetName().Code())
 
-		limit := 500
 		offset := 0
 		hasMore := true
-		for hasMore && offset < 2000 {
+		for hasMore && offset < max_fetch_list_items {
 			params := &store.ListMagnetsParams{
-				Limit:    limit,
+				Limit:    fetch_list_limit,
 				Offset:   offset,
 				ClientIP: clientIp,
 			}
@@ -58,7 +106,7 @@ func getCatalogItems(s store.Store, storeToken string, clientIp string, idPrefix
 						Id:          idPrefix + item.Id,
 						Type:        ContentTypeOther,
 						Name:        item.Name,
-						Description: getMetaPreviewDescription(item.Hash, item.Name),
+						Description: getMetaPreviewDescriptionForTorrent(item.Hash, item.Name),
 					}, item.Hash})
 				}
 				tInfoItems = append(tInfoItems, torrent_info.TorrentInfoInsertData{
@@ -68,8 +116,8 @@ func getCatalogItems(s store.Store, storeToken string, clientIp string, idPrefix
 					Source:       tInfoSource,
 				})
 			}
-			offset += limit
-			hasMore = len(res.Items) == limit && offset < res.TotalItems
+			offset += fetch_list_limit
+			hasMore = len(res.Items) == fetch_list_limit && offset < res.TotalItems
 			time.Sleep(1 * time.Second)
 		}
 		catalogCache.Add(cacheKey, items)
@@ -172,7 +220,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 
 	idPrefix := getIdPrefix(idr.getStoreCode())
 
-	items := getCatalogItems(ctx.Store, ctx.StoreAuthToken, ctx.ClientIP, idPrefix)
+	items := getCatalogItems(ctx.Store, ctx.StoreAuthToken, ctx.ClientIP, idPrefix, idr.isUsenet)
 
 	if extra.Search != "" {
 		query := strings.ToLower(extra.Search)

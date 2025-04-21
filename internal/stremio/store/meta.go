@@ -7,10 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MunifTanjim/go-ptt"
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_addon "github.com/MunifTanjim/stremthru/internal/stremio/addon"
+	stremio_usenet "github.com/MunifTanjim/stremthru/internal/stremio/usenet"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
 	"github.com/MunifTanjim/stremthru/internal/util"
@@ -60,15 +62,7 @@ func getPosterUrl(imdbId string) string {
 	return "https://images.metahub.space/poster/small/" + imdbId + "/img"
 }
 
-func getMetaPreviewDescription(hash, name string) string {
-	description := "[ 🧲 " + hash + " ]"
-
-	r, err := util.ParseTorrentTitle(name)
-	if err != nil {
-		pttLog.Warn("failed to parse", "error", err, "title", name)
-		return description
-	}
-
+func getMetaPreviewDescription(description string, r *ptt.Result) string {
 	if r.Title != "" {
 		description += " [ ✏️ " + r.Title + " ]"
 	}
@@ -123,6 +117,134 @@ func getMetaPreviewDescription(hash, name string) string {
 		description += " [ 🔗 " + r.Site + " ]"
 	}
 	return description
+}
+
+func getMetaPreviewDescriptionForTorrent(hash, name string) string {
+	description := "[ 🧲 " + hash + " ]"
+
+	r, err := util.ParseTorrentTitle(name)
+	if err != nil {
+		pttLog.Warn("failed to parse", "error", err, "title", name)
+		return description
+	}
+
+	return getMetaPreviewDescription(description, r)
+}
+
+func getMetaPreviewDescriptionForUsenet(hash, name string, largestFilename string) string {
+	description := "[ 🌐 " + hash + " ]"
+
+	r, err := util.ParseTorrentTitle(name)
+	if err != nil {
+		pttLog.Warn("failed to parse", "error", err, "title", name)
+		return description
+	}
+
+	if largestFilename != "" && largestFilename != name {
+		description += " [ 📁 " + name + " ]"
+
+		if fr, err := util.ParseTorrentTitle(largestFilename); err == nil {
+			if r.Title == "" {
+				r.Title = fr.Title
+			} else {
+				r.Title = fr.Title + " | " + r.Title
+			}
+			if r.Year == "" {
+				r.Year = fr.Year
+			}
+			if r.Date == "" {
+				r.Date = fr.Date
+			}
+			if r.Resolution == "" {
+				r.Resolution = fr.Resolution
+			}
+			if r.Quality == "" {
+				r.Quality = fr.Quality
+			}
+			if r.Codec == "" {
+				r.Codec = fr.Codec
+			}
+			if len(r.HDR) == 0 {
+				r.HDR = fr.HDR
+			}
+			if len(r.Audio) == 0 {
+				r.Audio = fr.Audio
+			}
+			if len(r.Channels) == 0 {
+				r.Channels = fr.Channels
+			}
+			if r.ThreeD == "" {
+				r.ThreeD = fr.ThreeD
+			}
+			if r.Network == "" {
+				r.Network = fr.Network
+			}
+			if r.Group == "" {
+				r.Group = fr.Group
+			} else {
+				r.Group = fr.Group + " | " + r.Group
+			}
+			if r.Site == "" {
+				r.Site = fr.Site
+			}
+		} else {
+			pttLog.Warn("failed to parse", "error", err, "title", name)
+		}
+	}
+
+	return getMetaPreviewDescription(description, r)
+}
+
+type contentInfo struct {
+	*store.GetMagnetData
+	largestFilename string
+}
+
+func getStoreContentInfo(s store.Store, storeToken string, id string, clientIp string, isUsenet bool) (*contentInfo, error) {
+	if isUsenet {
+		if s.GetName() != store.StoreNameTorBox {
+			return nil, nil
+		}
+
+		params := &stremio_usenet.GetNewsParams{
+			Id: id,
+		}
+		params.APIKey = storeToken
+		news, err := stremio_usenet.GetNews(params, s.GetName())
+		if err != nil {
+			return nil, err
+		}
+		cInfo := &store.GetMagnetData{
+			AddedAt: news.AddedAt,
+			Hash:    news.Hash,
+			Id:      news.Id,
+			Name:    news.GetLargestFileName(),
+			Size:    news.Size,
+			Status:  news.Status,
+		}
+		for _, f := range news.Files {
+			cInfo.Files = append(cInfo.Files, store.MagnetFile{
+				Idx:  f.Idx,
+				Name: f.Name,
+				Size: f.Size,
+				Link: f.Link,
+			})
+
+		}
+		return &contentInfo{cInfo, news.GetLargestFileName()}, nil
+	}
+
+	params := &store.GetMagnetParams{
+		Id:       id,
+		ClientIP: clientIp,
+	}
+	params.APIKey = storeToken
+	magnet, err := s.GetMagnet(params)
+	if err != nil {
+		return nil, err
+	}
+
+	return &contentInfo{magnet, ""}, nil
 }
 
 func getStoreActionMeta(r *http.Request, storeCode string, eud string) stremio.Meta {
@@ -206,37 +328,38 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params := &store.GetMagnetParams{
-		Id:       strings.TrimPrefix(id, idPrefix),
-		ClientIP: ctx.ClientIP,
-	}
-	params.APIKey = ctx.StoreAuthToken
-	magnet, err := ctx.Store.GetMagnet(params)
+	cInfo, err := getStoreContentInfo(ctx.Store, ctx.StoreAuthToken, strings.TrimPrefix(id, idPrefix), ctx.ClientIP, idr.isUsenet)
 	if err != nil {
 		SendError(w, r, err)
 		return
 	}
 
 	meta := stremio.Meta{
-		Id:          id,
-		Type:        ContentTypeOther,
-		Name:        magnet.Name,
-		Description: getMetaPreviewDescription(magnet.Hash, magnet.Name),
-		Released:    magnet.AddedAt,
-		Videos:      []stremio.MetaVideo{},
+		Id:       id,
+		Type:     ContentTypeOther,
+		Name:     cInfo.Name,
+		Released: cInfo.AddedAt,
+		Videos:   []stremio.MetaVideo{},
 	}
 
 	sType, sId := "", ""
-	if stremIdByHashes, err := torrent_stream.GetStremIdByHashes([]string{magnet.Hash}); err != nil {
-		log.Error("failed to get strem id by hashes", "error", err)
+
+	if idr.isUsenet {
+		meta.Description = getMetaPreviewDescriptionForUsenet(cInfo.Hash, cInfo.Name, cInfo.largestFilename)
 	} else {
-		if sid := stremIdByHashes.Get(magnet.Hash); sid != "" {
-			sid, _, isSeries := strings.Cut(sid, ":")
-			sId = sid
-			if isSeries {
-				sType = "series"
-			} else {
-				sType = "movie"
+		meta.Description = getMetaPreviewDescriptionForTorrent(cInfo.Hash, cInfo.Name)
+
+		if stremIdByHashes, err := torrent_stream.GetStremIdByHashes([]string{cInfo.Hash}); err != nil {
+			log.Error("failed to get strem id by hashes", "error", err)
+		} else {
+			if sid := stremIdByHashes.Get(cInfo.Hash); sid != "" {
+				sid, _, isSeries := strings.Cut(sid, ":")
+				sId = sid
+				if isSeries {
+					sType = "series"
+				} else {
+					sType = "movie"
+				}
 			}
 		}
 	}
@@ -265,19 +388,19 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tInfo := torrent_info.TorrentInfoInsertData{
-		Hash:         magnet.Hash,
-		TorrentTitle: magnet.Name,
-		Size:         magnet.Size,
+		Hash:         cInfo.Hash,
+		TorrentTitle: cInfo.Name,
+		Size:         cInfo.Size,
 		Source:       torrent_info.TorrentInfoSource(ctx.Store.GetName().Code()),
 		Files:        []torrent_info.TorrentInfoInsertDataFile{},
 	}
 
-	tpttr, err := util.ParseTorrentTitle(magnet.Name)
+	tpttr, err := util.ParseTorrentTitle(cInfo.Name)
 	if err != nil {
-		pttLog.Warn("failed to parse", "error", err, "title", magnet.Name)
+		pttLog.Warn("failed to parse", "error", err, "title", cInfo.Name)
 	}
 
-	for _, f := range magnet.Files {
+	for _, f := range cInfo.Files {
 		if !core.HasVideoExtension(f.Name) {
 			continue
 		}
@@ -287,7 +410,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 			Id:        videoId,
 			Title:     f.Name,
 			Available: true,
-			Released:  magnet.AddedAt,
+			Released:  cInfo.AddedAt,
 		}
 
 		season, episode := -1, -1
@@ -321,6 +444,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		}
 
 		meta.Videos = append(meta.Videos, video)
+
 		tInfo.Files = append(tInfo.Files, torrent_info.TorrentInfoInsertDataFile{
 			Name: f.Name,
 			Idx:  f.Idx,
@@ -328,7 +452,9 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	go torrent_info.Upsert([]torrent_info.TorrentInfoInsertData{tInfo}, "", ctx.Store.GetName().Code() != store.StoreCodeRealDebrid)
+	if !idr.isUsenet {
+		go torrent_info.Upsert([]torrent_info.TorrentInfoInsertData{tInfo}, "", ctx.Store.GetName().Code() != store.StoreCodeRealDebrid)
+	}
 
 	res := stremio.MetaHandlerResponse{
 		Meta: meta,
