@@ -303,6 +303,11 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		stream := stremio.Stream{
 			URL:  streamBaseUrl.JoinPath(url.PathEscape(streamId)).String(),
 			Name: file.Name,
+			BehaviorHints: &stremio.StreamBehaviorHints{
+				BingeGroup: matcher.IdPrefix + cInfo.Hash,
+				Filename:   file.Name,
+				VideoSize:  file.Size,
+			},
 		}
 		if pttr == nil {
 			if r, err := util.ParseTorrentTitle(file.Name); err == nil {
