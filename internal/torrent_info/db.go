@@ -832,11 +832,11 @@ func ListByStremId(stremId string) (*ListTorrentsData, error) {
 
 	args := make([]any, 2)
 	if strings.Contains(stremId, ":") {
-		args[0], _, _ = strings.Cut(stremId, ":")
-		args[1] = stremId
+		args[0] = stremId
+		args[1], _, _ = strings.Cut(stremId, ":")
 	} else {
 		args[0] = stremId
-		args[1] = stremId + ":"
+		args[1] = stremId + ":%"
 	}
 
 	rows, err := db.Query(query, args...)

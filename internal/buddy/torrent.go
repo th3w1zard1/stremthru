@@ -1,6 +1,7 @@
 package buddy
 
 import (
+	"strings"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
@@ -32,21 +33,22 @@ func PullTorrentsByStremId(sid string, originInstanceId string) {
 		return
 	}
 
+	cleanedSid, _, _ := strings.Cut(sid, ":")
 	start := time.Now()
 	res, err := PullPeer.ListTorrents(&peer.ListTorrentsByStremIdParams{
-		SId:              sid,
+		SId:              cleanedSid,
 		LocalOnly:        pullLocalOnly,
 		OriginInstanceId: originInstanceId,
 	})
 	duration := time.Since(start)
 
 	if err != nil {
-		pullPeerLog.Error("failed to pull torrents", "error", core.PackError(err), "duration", duration, "sid", sid)
+		pullPeerLog.Error("failed to pull torrents", "error", core.PackError(err), "duration", duration, "sid", cleanedSid)
 		return
 	}
 
 	count := len(res.Data.Items)
-	pullPeerLog.Info("pulled torrents", "duration", duration, "sid", sid, "count", count)
+	pullPeerLog.Info("pulled torrents", "duration", duration, "sid", cleanedSid, "count", count)
 
 	items := make([]ti.TorrentInfoInsertData, count)
 	for i := range res.Data.Items {
@@ -61,7 +63,7 @@ func PullTorrentsByStremId(sid string, originInstanceId string) {
 		}
 	}
 	ti.Upsert(items, "", false)
-	go tss.MarkPulled(sid)
+	go tss.MarkPulled(cleanedSid)
 }
 
 func ListTorrentsByStremId(sid string, localOnly bool, originInstanceId string) (*ti.ListTorrentsData, error) {
