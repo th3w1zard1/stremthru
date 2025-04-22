@@ -46,7 +46,7 @@ const (
 )
 
 type StremThruError interface {
-	Pack()
+	Pack(r *http.Request)
 	GetStatusCode() int
 	GetError() *Error
 	Send(w http.ResponseWriter, r *http.Request)
@@ -124,10 +124,7 @@ func (e *Error) GetError() *Error {
 }
 
 func (e *Error) Send(w http.ResponseWriter, r *http.Request) {
-	e.Pack()
-	if e.RequestId == "" {
-		e.RequestId = w.Header().Get("Request-ID")
-	}
+	e.Pack(r)
 
 	ctx := server.GetReqCtx(r)
 	ctx.Error = e
@@ -189,7 +186,7 @@ var statusCodeByErrorCode = map[ErrorCode]int{
 	ErrorCodeUnsupportedMediaType:        http.StatusUnsupportedMediaType,
 }
 
-func (e *Error) Pack() {
+func (e *Error) Pack(r *http.Request) {
 	if e.StatusCode == 0 {
 		e.StatusCode = 500
 	}
@@ -208,6 +205,11 @@ func (e *Error) Pack() {
 			e.Msg = e.UpstreamCause.Error()
 		} else {
 			e.Msg = http.StatusText(e.StatusCode)
+		}
+	}
+	if r != nil {
+		if e.RequestId == "" {
+			e.RequestId = r.Header.Get(server.HEADER_REQUEST_ID)
 		}
 	}
 }
@@ -261,7 +263,7 @@ func PackError(err error) error {
 	} else {
 		e = &Error{Cause: err}
 	}
-	e.Pack()
+	e.Pack(nil)
 	return e.GetError()
 }
 

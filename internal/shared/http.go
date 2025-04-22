@@ -75,7 +75,7 @@ func SendError(w http.ResponseWriter, r *http.Request, err error) {
 	} else {
 		e = &core.Error{Cause: err}
 	}
-	e.Pack()
+	e.Pack(r)
 
 	ctx := server.GetReqCtx(r)
 	ctx.Error = err
