@@ -50,7 +50,7 @@ func handleManifest(w http.ResponseWriter, r *http.Request) {
 
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil {
-		SendError(w, r, err)
+		shared.ErrorBadRequest(r, "failed to get request context: "+err.Error()).Send(w, r)
 		return
 	}
 
@@ -86,7 +86,7 @@ func handleResource(w http.ResponseWriter, r *http.Request) {
 
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil {
-		SendError(w, r, err)
+		shared.ErrorBadRequest(r, "failed to get request context: "+err.Error()).Send(w, r)
 		return
 	}
 
@@ -196,7 +196,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil {
 		LogError(r, "failed to get request context", err)
-		shared.ErrorBadRequest(r, "failed to get request context").Send(w, r)
+		shared.ErrorBadRequest(r, "failed to get request context: "+err.Error()).Send(w, r)
 		return
 	}
 

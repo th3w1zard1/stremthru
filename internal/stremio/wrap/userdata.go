@@ -214,7 +214,11 @@ func (ud *UserData) GetRequestContext(r *http.Request) (*context.StoreContext, e
 		return ctx, &userDataError{upstreamUrl: upstreamUrlErrors}
 	}
 
-	if len(ud.Stores) == 1 && ud.Stores[0].Code.IsStremThru() {
+	storeCount := len(ud.Stores)
+	if storeCount == 0 {
+		return ctx, &userDataError{store: []string{"Missing Store"}}
+	}
+	if storeCount == 1 && ud.Stores[0].Code.IsStremThru() {
 		token := ud.Stores[0].Token
 		auth, err := core.ParseBasicAuth(token)
 		if err != nil {
@@ -240,7 +244,7 @@ func (ud *UserData) GetRequestContext(r *http.Request) (*context.StoreContext, e
 		ud.stores = stores
 		ud.isStremThruStore = true
 	} else {
-		stores := make(multiStore, len(ud.Stores))
+		stores := make(multiStore, storeCount)
 		for i := range ud.Stores {
 			s := &ud.Stores[i]
 			stores[i] = resolvedStore{
