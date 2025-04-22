@@ -56,9 +56,10 @@ func getUsenetCatalogItems(s store.Store, storeToken string, clientIp string, id
 			for _, item := range res.Items {
 				if item.Status == store.MagnetStatusDownloaded {
 					cItem := CachedCatalogItem{stremio.MetaPreview{
-						Id:   idPrefix + item.Id,
-						Type: ContentTypeOther,
-						Name: item.GetLargestFileName(),
+						Id:          idPrefix + item.Id,
+						Type:        ContentTypeOther,
+						Name:        item.GetLargestFileName(),
+						PosterShape: stremio.MetaPosterShapePoster,
 					}, item.Hash}
 					cItem.Description = getMetaPreviewDescriptionForUsenet(cItem.hash, item.Name, cItem.Name)
 					items = append(items, cItem)
@@ -107,6 +108,7 @@ func getCatalogItems(s store.Store, storeToken string, clientIp string, idPrefix
 						Type:        ContentTypeOther,
 						Name:        item.Name,
 						Description: getMetaPreviewDescriptionForTorrent(item.Hash, item.Name),
+						PosterShape: stremio.MetaPosterShapePoster,
 					}, item.Hash})
 				}
 				tInfoItems = append(tInfoItems, torrent_info.TorrentInfoInsertData{
