@@ -169,6 +169,26 @@ var errorCodeByStatusCode = map[int]ErrorCode{
 	http.StatusUnsupportedMediaType:       ErrorCodeUnsupportedMediaType,
 }
 
+var statusCodeByErrorCode = map[ErrorCode]int{
+	ErrorCodeBadGateway:                  http.StatusBadGateway,
+	ErrorCodeBadRequest:                  http.StatusBadRequest,
+	ErrorCodeConflict:                    http.StatusConflict,
+	ErrorCodeForbidden:                   http.StatusForbidden,
+	ErrorCodeGone:                        http.StatusGone,
+	ErrorCodeInternalServerError:         http.StatusInternalServerError,
+	ErrorCodeMethodNotAllowed:            http.StatusMethodNotAllowed,
+	ErrorCodeNotFound:                    http.StatusNotFound,
+	ErrorCodeNotImplemented:              http.StatusNotImplemented,
+	ErrorCodePaymentRequired:             http.StatusPaymentRequired,
+	ErrorCodeProxyAuthenticationRequired: http.StatusProxyAuthRequired,
+	ErrorCodeServiceUnavailable:          http.StatusServiceUnavailable,
+	ErrorCodeTooManyRequests:             http.StatusTooManyRequests,
+	ErrorCodeUnauthorized:                http.StatusUnauthorized,
+	ErrorCodeUnavailableForLegalReasons:  http.StatusUnavailableForLegalReasons,
+	ErrorCodeUnprocessableEntity:         http.StatusUnprocessableEntity,
+	ErrorCodeUnsupportedMediaType:        http.StatusUnsupportedMediaType,
+}
+
 func (e *Error) Pack() {
 	if e.StatusCode == 0 {
 		e.StatusCode = 500
@@ -177,6 +197,9 @@ func (e *Error) Pack() {
 		if errorCode, found := errorCodeByStatusCode[e.StatusCode]; found {
 			e.Code = errorCode
 		}
+	}
+	if statusCode, found := statusCodeByErrorCode[e.Code]; found && statusCode != e.StatusCode {
+		e.StatusCode = statusCode
 	}
 	if e.Msg == "" {
 		if e.Cause != nil {
