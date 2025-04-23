@@ -254,7 +254,7 @@ func getStoreActionMeta(r *http.Request, storeCode string, eud string) stremio.M
 		Type:        ContentTypeOther,
 		Name:        "StremThru Store Actions",
 		Description: "Actions for StremThru Store",
-		Released:    released,
+		Released:    &released,
 		Videos: []stremio.MetaVideo{
 			{
 				Id:       getStoreActionIdPrefix(storeCode) + "clear_cache",
@@ -338,7 +338,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		Id:       id,
 		Type:     ContentTypeOther,
 		Name:     cInfo.Name,
-		Released: cInfo.AddedAt,
+		Released: &cInfo.AddedAt,
 		Videos:   []stremio.MetaVideo{},
 	}
 

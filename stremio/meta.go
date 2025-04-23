@@ -1,6 +1,9 @@
 package stremio
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type MetaPosterShape string
 
@@ -56,12 +59,13 @@ type MetaVideo struct {
 	Overview  string    `json:"overview,omitempty"`
 
 	// deprecated / undocumented
-	Name        string    `json:"name,omitempty"`
-	TVDBId      int       `json:"tvdb_id,omitempty"`
-	Rating      string    `json:"rating,omitempty"`
-	Description string    `json:"description,omitempty"`
-	Number      int       `json:"number,omitempty"`
-	FirstAired  time.Time `json:"firstAired,omitempty"`
+	Name        string      `json:"name,omitempty"`
+	MovieDBId   int         `json:"moviedb_id,omitempty"`
+	TVDBId      int         `json:"tvdb_id,omitempty"`
+	Rating      json.Number `json:"rating,omitempty"`
+	Description string      `json:"description,omitempty"`
+	Number      int         `json:"number,omitempty"` // episode
+	FirstAired  *time.Time  `json:"firstAired,omitempty"`
 }
 
 type MetaBehaviorHints struct {
@@ -110,7 +114,7 @@ type Meta struct {
 	Director      []string           `json:"director,omitempty"` // warning: this will soon be deprecated in favor of `links`
 	Cast          []string           `json:"cast,omitempty"`     // warning: this will soon be deprecated in favor of `links`
 	IMDBRating    string             `json:"imdbRating,omitempty"`
-	Released      time.Time          `json:"released,omitempty"`
+	Released      *time.Time         `json:"released,omitempty"`
 	Trailers      []MetaTrailer      `json:"trailers,omitempty"` // warning: this will soon be deprecated in favor of `trailers`
 	Links         []MetaLink         `json:"links,omitempty"`
 	Videos        []MetaVideo        `json:"videos,omitempty"`
@@ -130,7 +134,7 @@ type Meta struct {
 	Popularity     float32               `json:"popularity,omitempty"`
 	Popularities   *MetaPopularities     `json:"popularities,omitempty"`
 	Slug           string                `json:"slug,omitempty"`
-	Status         string                `json:"status,omitempty"` // 'Continuing'
+	Status         string                `json:"status,omitempty"` // 'Continuing' / 'Ended'
 	TVDBId         int                   `json:"tvdb_id,omitempty"`
 	TrailerStreams []Stream              `json:"trailerStreams,omitempty"`
 	Writer         []string              `json:"writer,omitempty"`
