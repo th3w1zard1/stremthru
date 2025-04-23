@@ -58,10 +58,9 @@ func handleListTorrents(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(server.HEADER_ORIGIN_INSTANCE_ID, originInstanceId)
 	} else {
 		w.Header().Set(server.HEADER_ORIGIN_INSTANCE_ID, config.InstanceId)
-
 	}
 
-	data, err := buddy.ListTorrentsByStremId(sid, query.Get("local_only") != "", originInstanceId)
+	data, err := buddy.ListTorrentsByStremId(sid, query.Get("local_only") != "", originInstanceId, query.Get("no_missing_size") != "")
 	SendResponse(w, r, 200, data, err)
 }
 

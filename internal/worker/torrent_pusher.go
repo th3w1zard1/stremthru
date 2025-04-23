@@ -50,7 +50,7 @@ func InitPushTorrentsWorker() *tasks.Scheduler {
 				t, tOk := v.(time.Time)
 				if sidOk && tOk && t.Before(time.Now()) {
 					if tss.ShouldPush(sid) {
-						if data, err := torrent_info.ListByStremId(sid); err == nil {
+						if data, err := torrent_info.ListByStremId(sid, false); err == nil {
 							params := &peer.PushTorrentsParams{
 								Items: data.Items,
 							}

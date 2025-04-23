@@ -66,7 +66,7 @@ func PullTorrentsByStremId(sid string, originInstanceId string) {
 	go tss.MarkPulled(cleanedSid)
 }
 
-func ListTorrentsByStremId(sid string, localOnly bool, originInstanceId string) (*ti.ListTorrentsData, error) {
+func ListTorrentsByStremId(sid string, localOnly bool, originInstanceId string, noMissingSize bool) (*ti.ListTorrentsData, error) {
 	if originInstanceId == config.InstanceId && !pullLocalOnly {
 		pullPeerLog.Info("loop detected for list torrents, self-correcting...")
 		pullLocalOnly = true
@@ -76,7 +76,7 @@ func ListTorrentsByStremId(sid string, localOnly bool, originInstanceId string) 
 		PullTorrentsByStremId(sid, originInstanceId)
 	}
 
-	data, err := ti.ListByStremId(sid)
+	data, err := ti.ListByStremId(sid, noMissingSize)
 	if err != nil {
 		return nil, err
 	}

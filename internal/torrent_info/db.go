@@ -793,43 +793,67 @@ type ListTorrentsData struct {
 	TotalItems int           `json:"total_items"`
 }
 
-func ListByStremId(stremId string) (*ListTorrentsData, error) {
-	query := fmt.Sprintf(
-		"SELECT %s, %s FROM %s ti LEFT JOIN %s ts ON ti.%s = ts.%s AND ts.%s != '' WHERE %s IN (SELECT DISTINCT %s FROM %s WHERE %s = ? OR %s LIKE ?) GROUP BY ti.%s",
-		strings.Join(
-			func() []string {
-				columns := []string{Column.Hash, Column.TorrentTitle, Column.Size, Column.Source, Column.Category}
-				cols := make([]string, 5)
-				for i := range columns {
-					cols[i] = `ti."` + columns[i] + `"`
-				}
-				return cols
-			}(),
-			",",
-		),
-		fmt.Sprintf(
-			"%s(%s('n',ts.%s,'i',ts.%s,'s',ts.%s,'sid',ts.%s,'src',ts.%s)) AS files",
-			db.FnJSONGroupArray,
-			db.FnJSONObject,
-			ts.Column.Name,
-			ts.Column.Idx,
-			ts.Column.Size,
-			ts.Column.SId,
-			ts.Column.Source,
-		),
-		TableName,
-		ts.TableName,
-		Column.Hash,
-		ts.Column.Hash,
-		ts.Column.Source,
-		Column.Hash,
-		ts.Column.Hash,
-		ts.TableName,
-		ts.Column.SId,
-		ts.Column.SId,
-		Column.Hash,
-	)
+var list_query_columns = strings.Join(
+	func() []string {
+		columns := []string{Column.Hash, Column.TorrentTitle, Column.Size, Column.Source, Column.Category}
+		cols := make([]string, 5)
+		for i := range columns {
+			cols[i] = `ti."` + columns[i] + `"`
+		}
+		return cols
+	}(),
+	",",
+)
 
+func get_list_query_select() string {
+	return fmt.Sprintf(
+		"SELECT %s, %s(%s('n',ts.%s,'i',ts.%s,'s',ts.%s,'sid',ts.%s,'src',ts.%s)) AS files",
+		list_query_columns,
+		db.FnJSONGroupArray,
+		db.FnJSONObject,
+		ts.Column.Name,
+		ts.Column.Idx,
+		ts.Column.Size,
+		ts.Column.SId,
+		ts.Column.Source,
+	)
+}
+
+var list_query_after_select = fmt.Sprintf(
+	" FROM %s ti LEFT JOIN %s ts ON ti.%s = ts.%s AND ts.%s != ''",
+	TableName,
+	ts.TableName,
+	Column.Hash,
+	ts.Column.Hash,
+	ts.Column.Source,
+)
+var list_query_cond_hashes = fmt.Sprintf(
+	"%s IN (SELECT DISTINCT %s FROM %s WHERE %s = ? OR %s LIKE ?)",
+	Column.Hash,
+	ts.Column.Hash,
+	ts.TableName,
+	ts.Column.SId,
+	ts.Column.SId,
+)
+var list_query_cond_no_missing_size = fmt.Sprintf(
+	"%s > 0",
+	Column.Size,
+)
+var list_query_after_cond = fmt.Sprintf(
+	" GROUP BY %s",
+	Column.Hash,
+)
+
+func get_list_query(excludeMissingSize bool) string {
+	query := get_list_query_select() + list_query_after_select + " WHERE " + list_query_cond_hashes
+	if excludeMissingSize {
+		query += " AND " + list_query_cond_no_missing_size
+	}
+	query += list_query_after_cond
+	return query
+}
+
+func ListByStremId(stremId string, excludeMissingSize bool) (*ListTorrentsData, error) {
 	args := make([]any, 2)
 	if strings.Contains(stremId, ":") {
 		args[0] = stremId
@@ -839,6 +863,7 @@ func ListByStremId(stremId string) (*ListTorrentsData, error) {
 		args[1] = stremId + ":%"
 	}
 
+	query := get_list_query(excludeMissingSize)
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		log.Error("failed to list torrents by strem id", "error", err, "stremId", stremId)
