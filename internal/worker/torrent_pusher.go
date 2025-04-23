@@ -2,6 +2,7 @@ package worker
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
@@ -15,6 +16,10 @@ import (
 
 var TorrentPusherQueue = IdQueue{
 	debounceTime: 5 * time.Minute,
+	transform: func(sid string) string {
+		sid, _, _ = strings.Cut(sid, ":")
+		return sid
+	},
 }
 
 var Peer = peer.NewAPIClient(&peer.APIClientConfig{
