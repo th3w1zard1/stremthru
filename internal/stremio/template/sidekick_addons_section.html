@@ -168,6 +168,7 @@
         hx-trigger="confirmed"
         data-name="{{.Manifest.Name}}"
         data-description="{{.Manifest.Description}}"
+        data-logo="{{.Manifest.Logo}}"
         data-configurable="{{if eq .Manifest.BehaviorHints nil}}false{{else}}{{.Manifest.BehaviorHints.Configurable}}{{end}}"
         data-protected="{{if eq .Flags nil}}false{{else}}{{.Flags.Protected}}{{end}}"
         data-version="{{.Manifest.Version}}"
@@ -209,6 +210,9 @@
 
       <label for="addon_modify_new_description">Description *</label>
       <textarea id="addon_modify_new_description" name="addon_modify_new_description" required></textarea>
+
+      <label for="addon_modify_new_logo">Logo</label>
+      <input type="url" id="addon_modify_new_logo" name="addon_modify_new_logo"></input>
 
       {{if .HasAuthAdmin}}
       <fieldset>
@@ -378,6 +382,7 @@ function onOpenAddonModifyModal(e, { modal, onClose, trigger }) {
   modal.querySelector("#addon_modify_version").textContent = trigger.dataset.version;
   modal.querySelector("#addon_modify_new_name").value = trigger.dataset.name;
   modal.querySelector("#addon_modify_new_description").value = trigger.dataset.description;
+  modal.querySelector("#addon_modify_new_logo").value = trigger.dataset.logo;
 
   if (isAdmin) {
     modal.querySelector("#addon_modify_new_configurable").checked = trigger.dataset.configurable == "true";
@@ -389,6 +394,7 @@ function onOpenAddonModifyModal(e, { modal, onClose, trigger }) {
     const data = {
       name: modal.querySelector("#addon_modify_new_name").value,
       description: modal.querySelector("#addon_modify_new_description").value,
+      logo: modal.querySelector("#addon_modify_new_logo").value,
     }
     if (isAdmin) {
       data.configurable = modal.querySelector("#addon_modify_new_configurable").checked

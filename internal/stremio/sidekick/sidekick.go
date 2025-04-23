@@ -945,6 +945,7 @@ func handleAddonModify(w http.ResponseWriter, r *http.Request) {
 	transportUrl := r.PathValue("transportUrl")
 	name := r.FormValue("name")
 	description := r.FormValue("description")
+	logo := r.FormValue("logo")
 
 	cookie, err := getCookieValue(w, r)
 	if err != nil {
@@ -977,6 +978,9 @@ func handleAddonModify(w http.ResponseWriter, r *http.Request) {
 		addon := &td.Addons[idx]
 		addon.Manifest.Name = name
 		addon.Manifest.Description = description
+		if logo != "" {
+			addon.Manifest.Logo = logo
+		}
 		if td.HasAuthAdmin {
 			isConfigurable := r.FormValue("configurable") == "true"
 			isProtected := r.FormValue("protected") == "true"
