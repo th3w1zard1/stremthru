@@ -132,6 +132,7 @@
             const modal = document.querySelector(modalSelector);
             modal.removeAttribute("open");
             document.querySelector("html").classList.remove("modal-is-open");
+            modal.replaceWith(modal.cloneNode(true));
           }
 
           document
