@@ -83,8 +83,11 @@ func hadleStoreMagnetsTrack(w http.ResponseWriter, r *http.Request) {
 
 	ctx := context.GetStoreContext(r)
 
+	log := server.GetReqCtx(r).Log
+
 	isValidToken, err := peer_token.IsValid(ctx.PeerToken)
 	if err != nil {
+		log.Error("failed to validate peer token", "error", err)
 		SendError(w, r, err)
 		return
 	}
