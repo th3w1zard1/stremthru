@@ -19,6 +19,7 @@ const (
 type ResponseError struct {
 	Detail string    `json:"detail"`
 	Err    ErrorCode `json:"error"`
+	Data   string    `json:"data"`
 }
 
 func (e *ResponseError) Error() string {
@@ -27,10 +28,35 @@ func (e *ResponseError) Error() string {
 }
 
 type Response[T any] struct {
+	response[T]
+	errData any `json:"-"`
+}
+
+type response[T any] struct {
 	Success bool      `json:"success"`
 	Data    T         `json:"data,omitempty"`
 	Detail  string    `json:"detail"`
 	Error   ErrorCode `json:"error,omitempty"`
+}
+
+func (r *Response[T]) UnmarshalJSON(data []byte) error {
+	resp := response[T]{}
+	respErr := json.Unmarshal(data, &resp)
+	if respErr == nil {
+		r.response = resp
+		return nil
+	}
+	fallbackResp := response[any]{}
+	if err := json.Unmarshal(data, &fallbackResp); err != nil {
+		return err
+	}
+	if fallbackResp.Success {
+		return respErr
+	}
+	r.Error = fallbackResp.Error
+	r.Detail = fallbackResp.Detail
+	r.errData = fallbackResp.Data
+	return nil
 }
 
 type ResponseEnvelop interface {
@@ -46,10 +72,14 @@ func (r Response[any]) GetError() *ResponseError {
 	if r.IsSuccess() {
 		return nil
 	}
-	return &ResponseError{
+	err := ResponseError{
 		Err:    r.Error,
 		Detail: r.Detail,
 	}
+	if data, ok := r.errData.(string); ok {
+		err.Data = data
+	}
+	return &err
 }
 
 type APIResponse[T any] struct {
