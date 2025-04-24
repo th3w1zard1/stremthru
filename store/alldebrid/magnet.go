@@ -11,8 +11,8 @@ import (
 )
 
 type MagnetError struct {
-	Code    MagnetErrorCode `json:"code"`
-	Message string          `json:"message"`
+	Code    ErrorCode `json:"code"`
+	Message string    `json:"message"`
 }
 
 func (e *MagnetError) Error() string {
