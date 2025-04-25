@@ -55,14 +55,14 @@ const (
 )
 
 const LIST_SEEDBOX_TORRENTS_PER_PAGE_MIN = 20
-const LIST_SEEDBOX_TORRENTS_PER_PAGE_MAX = 50
+const LIST_SEEDBOX_TORRENTS_PER_PAGE_MAX = 100
 
 type ListSeedboxTorrentsParams struct {
 	Ctx
 	Ids           []string
 	StructureType SeedboxTorrentStructureType
 	Page          int // start at 0
-	PerPage       int // min 20, max 50
+	PerPage       int // min 20, max 100
 	IP            string
 }
 

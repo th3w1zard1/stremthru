@@ -48,6 +48,7 @@ const (
 	ErrorCodeNotAddTorrent           ErrorCode = "notAddTorrent"
 	ErrorCodeTorrentTooBig           ErrorCode = "torrentTooBig"
 	ErrorCodeMaxTorrent              ErrorCode = "maxTorrent"
+	ErrorCodeMaxTransfer             ErrorCode = "maxTransfer"
 )
 
 var errorCodeByErrorCode = map[ErrorCode]core.ErrorCode{
@@ -91,6 +92,7 @@ var errorCodeByErrorCode = map[ErrorCode]core.ErrorCode{
 	ErrorCodeNotAddTorrent:           core.ErrorCodeBadRequest,
 	ErrorCodeTorrentTooBig:           core.ErrorCodeUnprocessableEntity,
 	ErrorCodeMaxTorrent:              core.ErrorCodeStoreLimitExceeded,
+	ErrorCodeMaxTransfer:             core.ErrorCodeStoreLimitExceeded,
 }
 
 func TranslateErrorCode(errorCode ErrorCode) core.ErrorCode {
