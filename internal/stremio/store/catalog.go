@@ -13,6 +13,7 @@ import (
 	stremio_usenet "github.com/MunifTanjim/stremthru/internal/stremio/usenet"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
+	"github.com/MunifTanjim/stremthru/internal/worker"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
@@ -89,7 +90,7 @@ func getCatalogItems(s store.Store, storeToken string, clientIp string, idPrefix
 
 		offset := 0
 		hasMore := true
-		for hasMore && offset < max_fetch_list_items {
+		for hasMore {
 			params := &store.ListMagnetsParams{
 				Limit:    fetch_list_limit,
 				Offset:   offset,
@@ -120,6 +121,15 @@ func getCatalogItems(s store.Store, storeToken string, clientIp string, idPrefix
 			}
 			offset += fetch_list_limit
 			hasMore = len(res.Items) == fetch_list_limit && offset < res.TotalItems
+
+			if hasMore && offset >= max_fetch_list_items {
+				worker.StoreCrawlerQueue.Queue(worker.StoreCrawlerQueueItem{
+					StoreCode:  string(s.GetName().Code()),
+					StoreToken: storeToken,
+				})
+				break
+			}
+
 			time.Sleep(1 * time.Second)
 		}
 		catalogCache.Add(cacheKey, items)

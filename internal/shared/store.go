@@ -71,6 +71,29 @@ func GetStore(name string) store.Store {
 	}
 }
 
+func GetStoreByCode(code string) store.Store {
+	switch store.StoreCode(code) {
+	case store.StoreCodeAllDebrid:
+		return adStore
+	case store.StoreCodeDebridLink:
+		return dlStore
+	case store.StoreCodeEasyDebrid:
+		return edStore
+	case store.StoreCodeOffcloud:
+		return ocStore
+	case store.StoreCodePikPak:
+		return ppStore
+	case store.StoreCodePremiumize:
+		return pmStore
+	case store.StoreCodeRealDebrid:
+		return rdStore
+	case store.StoreCodeTorBox:
+		return tbStore
+	default:
+		return nil
+	}
+}
+
 type proxyLinkTokenData struct {
 	EncLink    string            `json:"enc_link"`
 	EncFormat  string            `json:"enc_format"`

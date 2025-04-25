@@ -33,6 +33,7 @@ func main() {
 
 	pttWorker := worker.InitParseTorrentWorker()
 	ptiWorker := worker.InitPushTorrentsWorker()
+	cwWorker := worker.InitCrawlStoreWorker()
 
 	mux := http.NewServeMux()
 
@@ -57,6 +58,7 @@ func main() {
 	if err := server.ListenAndServe(); err != nil {
 		pttWorker.Stop()
 		ptiWorker.Stop()
+		cwWorker.Stop()
 
 		log.Fatalf("failed to start stremthru: %v", err)
 	}
