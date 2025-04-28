@@ -104,8 +104,14 @@ func SendHTML(w http.ResponseWriter, statusCode int, data bytes.Buffer) {
 	data.WriteTo(w)
 }
 
-func copyHeaders(src http.Header, dest http.Header) {
+func copyHeaders(src http.Header, dest http.Header, stripIpHeaders bool) {
 	for key, values := range src {
+		if stripIpHeaders {
+			switch strings.ToLower(key) {
+			case "x-client-ip", "x-forwarded-for", "cf-connecting-ip", "do-connecting-ip", "fastly-client-ip", "true-client-ip", "x-real-ip", "x-cluster-client-ip", "x-forwarded", "forwarded-for", "forwarded", "x-appengine-user-ip", "cf-pseudo-ipv4":
+				continue
+			}
+		}
 		for _, value := range values {
 			dest.Add(key, value)
 		}
@@ -145,7 +151,7 @@ func ProxyResponse(w http.ResponseWriter, r *http.Request, url string, tunnelTyp
 		return
 	}
 
-	copyHeaders(r.Header, request.Header)
+	copyHeaders(r.Header, request.Header, true)
 
 	proxyHttpClient := proxyHttpClientByTunnelType[tunnelType]
 
@@ -158,7 +164,7 @@ func ProxyResponse(w http.ResponseWriter, r *http.Request, url string, tunnelTyp
 	}
 	defer response.Body.Close()
 
-	copyHeaders(response.Header, w.Header())
+	copyHeaders(response.Header, w.Header(), false)
 
 	w.WriteHeader(response.StatusCode)
 
