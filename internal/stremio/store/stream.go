@@ -1,6 +1,7 @@
 package stremio_store
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -227,137 +228,157 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var wg sync.WaitGroup
 	streamBaseUrl := ExtractRequestBaseURL(r).JoinPath("/stremio/store/" + eud + "/_/strem/")
-	for _, matcher := range matchers {
-		cInfo, err := getStoreContentInfo(matcher.Store, matcher.StoreToken, matcher.MagnetId, matcher.ClientIP, matcher.IsUsenet)
-		if err != nil {
-			SendError(w, r, err)
-			return
-		}
+	errs := make([]error, len(matchers))
+	streams := make([]*stremio.Stream, len(matchers))
+	for i, matcher := range matchers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		if !matcher.IsUsenet && meta == nil {
-			stremIdByHash, err := torrent_stream.GetStremIdByHashes([]string{cInfo.Hash})
+			cInfo, err := getStoreContentInfo(matcher.Store, matcher.StoreToken, matcher.MagnetId, matcher.ClientIP, matcher.IsUsenet)
 			if err != nil {
-				log.Error("failed to get strem id by hashes", "error", err)
+				errs[i] = err
+				return
 			}
-			if stremId := stremIdByHash.Get(cInfo.Hash); stremId != "" {
-				sType, sId := "", ""
-				sType, sId, season, episode = parseStremId(stremId)
-				if mRes, err := fetchMeta(sType, sId, core.GetRequestIP(r)); err == nil {
-					meta = &mRes.Meta
-				} else {
-					log.Error("failed to fetch meta", "error", err)
+
+			if !matcher.IsUsenet && meta == nil {
+				stremIdByHash, err := torrent_stream.GetStremIdByHashes([]string{cInfo.Hash})
+				if err != nil {
+					log.Error("failed to get strem id by hashes", "error", err)
+				}
+				if stremId := stremIdByHash.Get(cInfo.Hash); stremId != "" {
+					sType, sId := "", ""
+					sType, sId, season, episode = parseStremId(stremId)
+					if mRes, err := fetchMeta(sType, sId, core.GetRequestIP(r)); err == nil {
+						meta = &mRes.Meta
+					} else {
+						log.Error("failed to fetch meta", "error", err)
+					}
 				}
 			}
-		}
 
-		tpttr, err := util.ParseTorrentTitle(cInfo.Name)
-		if err != nil {
-			pttLog.Warn("failed to parse", "error", err, "title", cInfo.Name)
-		}
-		tSeason := -1
-		if len(tpttr.Seasons) == 1 {
-			tSeason = tpttr.Seasons[0]
-		}
+			tpttr, err := util.ParseTorrentTitle(cInfo.Name)
+			if err != nil {
+				pttLog.Warn("failed to parse", "error", err, "title", cInfo.Name)
+			}
+			tSeason := -1
+			if len(tpttr.Seasons) == 1 {
+				tSeason = tpttr.Seasons[0]
+			}
 
-		var pttr *ptt.Result
-		var file *store.MagnetFile
+			var pttr *ptt.Result
+			var file *store.MagnetFile
 
-		for i := range cInfo.Files {
-			f := &cInfo.Files[i]
-			if matcher.FileLink != "" && matcher.FileLink == f.Link {
-				file = f
-				break
-			} else if matcher.FileName != "" && matcher.FileName == f.Name {
-				file = f
-				break
-			} else if matcher.Episode > 0 {
-				if r, err := util.ParseTorrentTitle(f.Name); err == nil {
-					pttr = r
-					season, episode := tSeason, -1
-					if len(r.Seasons) > 0 {
-						season = r.Seasons[0]
-					}
-					if len(r.Episodes) > 0 {
-						episode = r.Episodes[0]
-					}
-					if season == matcher.Season && episode == matcher.Episode {
-						file = f
-						break
-					}
-				} else {
-					pttLog.Warn("failed to parse", "error", err, "title", f.Name)
-				}
-			} else if matcher.UseLargestFile {
-				if file == nil || file.Size < f.Size {
+			for i := range cInfo.Files {
+				f := &cInfo.Files[i]
+				if matcher.FileLink != "" && matcher.FileLink == f.Link {
 					file = f
-				}
-			}
-		}
-
-		if file == nil {
-			continue
-		}
-
-		streamId := matcher.IdPrefix + matcher.MagnetId + ":" + file.Link
-		stream := stremio.Stream{
-			URL:  streamBaseUrl.JoinPath(url.PathEscape(streamId)).String(),
-			Name: file.Name,
-			BehaviorHints: &stremio.StreamBehaviorHints{
-				BingeGroup: matcher.IdPrefix + cInfo.Hash,
-				Filename:   file.Name,
-				VideoSize:  file.Size,
-			},
-		}
-		if pttr == nil {
-			if r, err := util.ParseTorrentTitle(file.Name); err == nil {
-				pttr = r
-			} else {
-				pttLog.Warn("failed to parse", "error", err, "title", file.Name)
-			}
-		}
-		if pttr != nil {
-			if tpttr.Error() == nil {
-				if pttr.Resolution == "" {
-					pttr.Resolution = tpttr.Resolution
-				}
-				if pttr.Quality == "" {
-					pttr.Quality = tpttr.Quality
-				}
-				if pttr.Codec == "" {
-					pttr.Codec = tpttr.Codec
-				}
-				if len(pttr.HDR) == 0 {
-					pttr.HDR = tpttr.HDR
-				}
-				if len(pttr.Audio) == 0 {
-					pttr.Audio = tpttr.Audio
-				}
-				if len(pttr.Channels) == 0 {
-					pttr.Channels = tpttr.Channels
-				}
-				if pttr.Group == "" {
-					pttr.Group = tpttr.Group
-				}
-			}
-			pttr.Size = util.ToSize(file.Size)
-			if meta != nil && season != -1 && episode != -1 {
-				for i := range meta.Videos {
-					video := &meta.Videos[i]
-					if video.Season == season && video.Episode == episode {
-						pttr.Title = video.Name
-						break
+					break
+				} else if matcher.FileName != "" && matcher.FileName == f.Name {
+					file = f
+					break
+				} else if matcher.Episode > 0 {
+					if r, err := util.ParseTorrentTitle(f.Name); err == nil {
+						pttr = r
+						season, episode := tSeason, -1
+						if len(r.Seasons) > 0 {
+							season = r.Seasons[0]
+						}
+						if len(r.Episodes) > 0 {
+							episode = r.Episodes[0]
+						}
+						if season == matcher.Season && episode == matcher.Episode {
+							file = f
+							break
+						}
+					} else {
+						pttLog.Warn("failed to parse", "error", err, "title", f.Name)
+					}
+				} else if matcher.UseLargestFile {
+					if file == nil || file.Size < f.Size {
+						file = f
 					}
 				}
 			}
-			if _, err := streamTemplate.Execute(&stream, &stremio_transformer.StreamTemplateData{
-				Result:    pttr,
-				StoreCode: strings.ToUpper(matcher.StoreCode),
-			}); err != nil {
-				log.Error("failed to execute stream template", "error", err)
+
+			if file == nil {
+				return
 			}
+
+			streamId := matcher.IdPrefix + matcher.MagnetId + ":" + file.Link
+			stream := stremio.Stream{
+				URL:  streamBaseUrl.JoinPath(url.PathEscape(streamId)).String(),
+				Name: file.Name,
+				BehaviorHints: &stremio.StreamBehaviorHints{
+					BingeGroup: matcher.IdPrefix + cInfo.Hash,
+					Filename:   file.Name,
+					VideoSize:  file.Size,
+				},
+			}
+			if pttr == nil {
+				if r, err := util.ParseTorrentTitle(file.Name); err == nil {
+					pttr = r
+				} else {
+					pttLog.Warn("failed to parse", "error", err, "title", file.Name)
+				}
+			}
+			if pttr != nil {
+				if tpttr.Error() == nil {
+					if pttr.Resolution == "" {
+						pttr.Resolution = tpttr.Resolution
+					}
+					if pttr.Quality == "" {
+						pttr.Quality = tpttr.Quality
+					}
+					if pttr.Codec == "" {
+						pttr.Codec = tpttr.Codec
+					}
+					if len(pttr.HDR) == 0 {
+						pttr.HDR = tpttr.HDR
+					}
+					if len(pttr.Audio) == 0 {
+						pttr.Audio = tpttr.Audio
+					}
+					if len(pttr.Channels) == 0 {
+						pttr.Channels = tpttr.Channels
+					}
+					if pttr.Group == "" {
+						pttr.Group = tpttr.Group
+					}
+				}
+				pttr.Size = util.ToSize(file.Size)
+				if meta != nil && season != -1 && episode != -1 {
+					for i := range meta.Videos {
+						video := &meta.Videos[i]
+						if video.Season == season && video.Episode == episode {
+							pttr.Title = video.Name
+							break
+						}
+					}
+				}
+				if _, err := streamTemplate.Execute(&stream, &stremio_transformer.StreamTemplateData{
+					Result:    pttr,
+					StoreCode: strings.ToUpper(matcher.StoreCode),
+				}); err != nil {
+					log.Error("failed to execute stream template", "error", err)
+				}
+			}
+
+			streams[i] = &stream
+		}()
+	}
+	wg.Wait()
+
+	if err := errors.Join(errs...); err != nil {
+		log.Error("failed to get stream", "error", err)
+	}
+
+	for i := range streams {
+		if streams[i] != nil {
+			res.Streams = append(res.Streams, *streams[i])
 		}
-		res.Streams = append(res.Streams, stream)
 	}
 
 	SendResponse(w, r, 200, res)
