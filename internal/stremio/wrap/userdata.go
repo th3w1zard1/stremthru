@@ -420,7 +420,6 @@ func getUserData(r *http.Request) (*UserData, error) {
 			}
 		}
 
-		hasExtractor := false
 		for i := range data.Upstreams {
 			up := &data.Upstreams[i]
 
@@ -433,12 +432,11 @@ func getUserData(r *http.Request) (*UserData, error) {
 					LogError(r, fmt.Sprintf("failed to fetch extractor(%s)", up.ExtractorId), err)
 				} else {
 					up.extractor = extractor
-					hasExtractor = true
 				}
 			}
 		}
 
-		if hasExtractor && data.TemplateId != "" {
+		if data.TemplateId != "" {
 			if config.IsPublicInstance && !strings.HasPrefix(data.TemplateId, BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX) {
 				data.TemplateId = BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX + data.TemplateId
 			}
