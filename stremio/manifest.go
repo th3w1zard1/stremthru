@@ -82,6 +82,11 @@ type BehaviorHints struct {
 	NewEpisodeNotifications bool `json:"newEpisodeNotifications,omitempty"` // undocumented
 }
 
+type StremioAddonsConfig struct {
+	Issuer    string `json:"issuer,omitempty"`
+	Signature string `json:"signature,omitempty"`
+}
+
 type Manifest struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -99,6 +104,9 @@ type Manifest struct {
 	Logo          string         `json:"logo,omitempty"`
 	ContactEmail  string         `json:"contactEmail,omitempty"`
 	BehaviorHints *BehaviorHints `json:"behaviorHints,omitempty"`
+
+	// unofficial
+	StremioAddonsConfig *StremioAddonsConfig `json:"stremioAddonsConfig,omitempty"`
 }
 
 func (m *Manifest) IsValid() bool {
