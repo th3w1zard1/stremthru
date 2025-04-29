@@ -110,6 +110,11 @@ func (t JobTracker[T]) Set(id string, status string, err string, data *T) error 
 	return terr
 }
 
+func (t JobTracker[T]) IsRunning(id string) (bool, error) {
+	j, err := t.Get(id)
+	return j.Status == "started", err
+}
+
 func NewJobTracker[T any](name string, shouldClean func(id string, j *Job[T]) bool) JobTracker[T] {
 	tracker := JobTracker[T]{
 		kv: kv.NewKVStore[Job[T]](&kv.KVStoreConfig{
