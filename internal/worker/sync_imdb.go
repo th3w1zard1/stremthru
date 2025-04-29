@@ -37,6 +37,10 @@ func isIMDBSyncedToday() bool {
 }
 
 func InitSyncIMDBWorker() *tasks.Scheduler {
+	if !config.Feature.IsEnabled("imdb_title") {
+		return nil
+	}
+
 	log := logger.Scoped("worker/sync_imdb")
 
 	syncIMDBJobTracker = NewJobTracker("sync-imdb", func(id string, job *Job[struct{}]) bool {

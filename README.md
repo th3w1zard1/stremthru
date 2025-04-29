@@ -209,6 +209,10 @@ Supports `sqlite` and `postgresql`.
 
 Comma separated list of Stremio Addon names to enable. All available addons are enabled by default.
 
+#### `STREMTHRU_FEATURE`
+
+Comma separated list of features to enable.
+
 ## Endpoints
 
 ### Authentication

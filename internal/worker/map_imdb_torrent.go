@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/imdb_title"
 	"github.com/MunifTanjim/stremthru/internal/imdb_torrent"
@@ -15,6 +16,10 @@ import (
 )
 
 func InitMapIMDBTorrentWorker() *tasks.Scheduler {
+	if !config.Feature.IsEnabled("imdb_title") {
+		return nil
+	}
+
 	log := logger.Scoped("worker/map_imdb_torrent")
 
 	scheduler := tasks.New()

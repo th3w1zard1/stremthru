@@ -37,6 +37,10 @@ type wrappedDMMHashlistItems struct {
 }
 
 func InitSyncDMMHashlistWorker() *tasks.Scheduler {
+	if !config.Feature.IsEnabled("dmm_hashlist") {
+		return nil
+	}
+
 	log := logger.Scoped("worker/sync_dmm_hashlist")
 
 	getJobId := func() string {

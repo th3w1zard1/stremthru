@@ -112,6 +112,30 @@ func (sa StremioAddonConfig) IsEnabled(name string) bool {
 	return slices.Contains(sa.enabled, name)
 }
 
+const (
+	FeatureDMMHashlist string = "dmm_hashlist"
+	FeatureIMDBTitle   string = "imdb_title"
+)
+
+var features = []string{FeatureDMMHashlist, FeatureIMDBTitle}
+
+type FeatureConfig struct {
+	enabled  []string
+	disabled []string
+}
+
+func (f FeatureConfig) IsEnabled(name string) bool {
+	if slices.Contains(f.disabled, name) {
+		return false
+	}
+
+	if len(f.enabled) == 0 {
+		return true
+	}
+
+	return slices.Contains(f.enabled, name)
+}
+
 type StoreContentProxyMap map[string]bool
 
 func (scp StoreContentProxyMap) IsEnabled(name string) bool {
@@ -158,6 +182,7 @@ type Config struct {
 	RedisURI                    string
 	DatabaseURI                 string
 	StremioAddon                StremioAddonConfig
+	Feature                     FeatureConfig
 	Version                     string
 	LandingPage                 string
 	ServerStartTime             time.Time
@@ -252,6 +277,24 @@ var config = func() Config {
 		}),
 	}
 
+	feature := FeatureConfig{}
+	for _, name := range strings.FieldsFunc(strings.TrimSpace(getEnv("STREMTHRU_FEATURE", "")), func(c rune) bool {
+		return c == ','
+	}) {
+		if strings.HasPrefix(name, "-") {
+			name = strings.TrimPrefix(name, "-")
+			if slices.Contains(feature.enabled, name) {
+				log.Fatalf("feature conflict, trying to disable already enabled feature: %v", name)
+			} else {
+				feature.disabled = append(feature.disabled, name)
+			}
+		} else if slices.Contains(feature.disabled, name) {
+			log.Fatalf("feature conflict, trying to enable already disabled feature: %v", name)
+		} else {
+			feature.enabled = append(feature.enabled, name)
+		}
+	}
+
 	storeContentProxyList := strings.FieldsFunc(getEnv("STREMTHRU_STORE_CONTENT_PROXY", "*:true"), func(c rune) bool {
 		return c == ','
 	})
@@ -314,6 +357,7 @@ var config = func() Config {
 		RedisURI:                    getEnv("STREMTHRU_REDIS_URI", ""),
 		DatabaseURI:                 databaseUri,
 		StremioAddon:                stremioAddon,
+		Feature:                     feature,
 		Version:                     "0.69.0", // x-release-please-version
 		LandingPage:                 getEnv("STREMTHRU_LANDING_PAGE", "{}"),
 		ServerStartTime:             time.Now(),
@@ -342,6 +386,7 @@ var PullPeerURL = config.PullPeerURL
 var RedisURI = config.RedisURI
 var DatabaseURI = config.DatabaseURI
 var StremioAddon = config.StremioAddon
+var Feature = config.Feature
 var Version = config.Version
 var LandingPage = config.LandingPage
 var ServerStartTime = config.ServerStartTime
@@ -537,6 +582,16 @@ func PrintConfig(state *AppState) {
 		}
 		l.Println()
 	}
+
+	l.Println(" Features:")
+	for _, feature := range features {
+		disabled := ""
+		if !Feature.IsEnabled(feature) {
+			disabled = " (disabled)"
+		}
+		l.Println("   - " + feature + disabled)
+	}
+	l.Println()
 
 	l.Println(" Instance ID:")
 	l.Println("   " + InstanceId)

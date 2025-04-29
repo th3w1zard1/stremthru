@@ -59,12 +59,24 @@ func main() {
 
 	log.Println("stremthru listening on " + addr)
 	if err := server.ListenAndServe(); err != nil {
-		pttWorker.Stop()
-		ptiWorker.Stop()
-		cwWorker.Stop()
-		sdhWorker.Stop()
-		simWorker.Stop()
-		mitWorker.Stop()
+		if pttWorker != nil {
+			pttWorker.Stop()
+		}
+		if ptiWorker != nil {
+			ptiWorker.Stop()
+		}
+		if cwWorker != nil {
+			cwWorker.Stop()
+		}
+		if sdhWorker != nil {
+			sdhWorker.Stop()
+		}
+		if simWorker != nil {
+			simWorker.Stop()
+		}
+		if mitWorker != nil {
+			mitWorker.Stop()
+		}
 
 		log.Fatalf("failed to start stremthru: %v", err)
 	}
