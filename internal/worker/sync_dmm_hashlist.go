@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/cache"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/dmm_hashlist"
 	"github.com/MunifTanjim/stremthru/internal/logger"
 	"github.com/MunifTanjim/stremthru/internal/lzstring"
@@ -50,15 +51,8 @@ func InitSyncDMMHashlistWorker() *tasks.Scheduler {
 		return date.Before(time.Now().Add(-7 * 24 * time.Hour))
 	})
 
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Error("failed to get working directory", "error", err)
-		os.Exit(1)
-		return nil
-	}
-
 	HASHLISTS_REPO := "https://github.com/debridmediamanager/hashlists.git"
-	REPO_DIR := path.Join(wd, "data", "hashlists")
+	REPO_DIR := path.Join(config.DataDir, "hashlists")
 	hashlistFilenameRegex := regexp.MustCompile(`\S{8}-\S{4}-\S{4}-\S{4}-\S{12}\.html`)
 
 	scheduler := tasks.New()

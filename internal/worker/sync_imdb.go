@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/imdb_title"
 	"github.com/MunifTanjim/stremthru/internal/logger"
@@ -48,15 +49,8 @@ func InitSyncIMDBWorker() *tasks.Scheduler {
 
 	jobTracker := syncIMDBJobTracker
 
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Error("failed to get working directory", "error", err)
-		os.Exit(1)
-		return nil
-	}
-
-	DOWNLOAD_DIR := path.Join(wd, "data", "imdb")
-	err = util.EnsureDir(DOWNLOAD_DIR)
+	DOWNLOAD_DIR := path.Join(config.DataDir, "imdb")
+	err := util.EnsureDir(DOWNLOAD_DIR)
 	if err != nil {
 		log.Error("failed to ensure directory", "error", err)
 		os.Exit(1)

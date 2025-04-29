@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -163,6 +164,8 @@ type Config struct {
 	StoreContentProxy           StoreContentProxyMap
 	ContentProxyConnectionLimit ContentProxyConnectionLimitMap
 	IP                          *IPResolver
+
+	DataDir string
 }
 
 func parseUri(uri string) (parsedUrl, parsedToken string) {
@@ -284,6 +287,15 @@ var config = func() Config {
 		}
 	}
 
+	dataDir, err := filepath.Abs(getEnv("STREMTHRU_DATA_DIR", "./data"))
+	if err != nil {
+		log.Fatalf("failed to resolve data directory: %v", err)
+	} else if exists, err := util.DirExists(dataDir); err != nil {
+		log.Fatalf("failed to check data directory: %v", err)
+	} else if !exists {
+		log.Fatalf("data directory does not exist: %v", dataDir)
+	}
+
 	return Config{
 		LogLevel:  logLevel,
 		LogFormat: logFormat,
@@ -308,6 +320,8 @@ var config = func() Config {
 		StoreContentProxy:           storeContentProxyMap,
 		ContentProxyConnectionLimit: contentProxyConnectionMap,
 		IP:                          &IPResolver{},
+
+		DataDir: dataDir,
 	}
 }()
 
@@ -335,6 +349,8 @@ var StoreContentProxy = config.StoreContentProxy
 var ContentProxyConnectionLimit = config.ContentProxyConnectionLimit
 var InstanceId = strings.ReplaceAll(uuid.NewString(), "-", "")
 var IP = config.IP
+
+var DataDir = config.DataDir
 
 var IsPublicInstance = len(ProxyAuthPassword) == 0
 
@@ -524,6 +540,10 @@ func PrintConfig(state *AppState) {
 
 	l.Println(" Instance ID:")
 	l.Println("   " + InstanceId)
+	l.Println()
+
+	l.Println(" Data Directory:")
+	l.Println("   " + DataDir)
 	l.Println()
 
 	l.Print("========================\n\n")

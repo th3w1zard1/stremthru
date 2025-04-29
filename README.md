@@ -95,6 +95,10 @@ Log format.
 | `json` _(default)_ |
 | `text`             |
 
+#### `STREMTHRU_DATA_DIR`
+
+Data directory.
+
 #### `STREMTHRU_HTTP_PROXY`
 
 HTTP Proxy URL.
