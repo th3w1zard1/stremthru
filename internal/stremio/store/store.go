@@ -3,6 +3,7 @@ package stremio_store
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
@@ -123,12 +124,14 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		data, err := stremio_usenet.GenerateLink(rParams, storeName)
 		if err == nil {
 			if config.StoreContentProxy.IsEnabled(string(storeName)) && ctx.StoreAuthToken == config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, string(storeName)) {
-				tunnelType := config.StoreTunnel.GetTypeForStream(string(ctx.Store.GetName()))
-				if proxyLink, err := shared.CreateProxyLink(r, ctx, data.Link, nil, tunnelType); err == nil {
-					data.Link = proxyLink
-					println(data.Link)
-				} else {
-					lerr = err
+				if ctx.IsProxyAuthorized {
+					tunnelType := config.StoreTunnel.GetTypeForStream(string(ctx.Store.GetName()))
+					if proxyLink, err := shared.CreateProxyLink(r, data.Link, nil, tunnelType, 12*time.Hour, ctx.ProxyAuthUser, ctx.ProxyAuthPassword); err == nil {
+						data.Link = proxyLink
+						println(data.Link)
+					} else {
+						lerr = err
+					}
 				}
 			}
 		} else {

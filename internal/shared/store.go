@@ -100,11 +100,7 @@ type proxyLinkTokenData struct {
 	TunnelType config.TunnelType `json:"tunt,omitempty"`
 }
 
-func CreateProxyLink(r *http.Request, ctx *context.StoreContext, link string, headers map[string]string, tunnelType config.TunnelType) (string, error) {
-	if !ctx.IsProxyAuthorized {
-		return link, nil
-	}
-
+func CreateProxyLink(r *http.Request, link string, headers map[string]string, tunnelType config.TunnelType, expiresIn time.Duration, user, password string) (string, error) {
 	linkBlob := link
 	if headers != nil {
 		for k, v := range headers {
@@ -112,25 +108,28 @@ func CreateProxyLink(r *http.Request, ctx *context.StoreContext, link string, he
 		}
 	}
 
-	encryptedLink, err := core.Encrypt(ctx.ProxyAuthPassword, linkBlob)
+	encryptedLink, err := core.Encrypt(password, linkBlob)
 	if err != nil {
 		return "", err
 	}
 
 	proxyLink := ExtractRequestBaseURL(r).JoinPath("/v0/store/link/access")
 
-	token, err := core.CreateJWT(ctx.ProxyAuthPassword, core.JWTClaims[proxyLinkTokenData]{
+	claims := core.JWTClaims[proxyLinkTokenData]{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    "stremthru",
-			Subject:   ctx.ProxyAuthUser,
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(12 * time.Hour)),
+			Issuer:  "stremthru",
+			Subject: user,
 		},
 		Data: &proxyLinkTokenData{
 			EncLink:    encryptedLink,
 			EncFormat:  core.EncryptionFormat,
 			TunnelType: tunnelType,
 		},
-	})
+	}
+	if expiresIn != 0 {
+		claims.RegisteredClaims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(expiresIn))
+	}
+	token, err := core.CreateJWT(password, claims)
 
 	if err != nil {
 		return "", err
@@ -160,13 +159,15 @@ func GenerateStremThruLink(r *http.Request, ctx *context.StoreContext, link stri
 
 	storeName := string(ctx.Store.GetName())
 	if config.StoreContentProxy.IsEnabled(storeName) && ctx.StoreAuthToken == config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, storeName) {
-		tunnelType := config.StoreTunnel.GetTypeForStream(string(ctx.Store.GetName()))
-		proxyLink, err := CreateProxyLink(r, ctx, data.Link, nil, tunnelType)
-		if err != nil {
-			return nil, err
-		}
+		if ctx.IsProxyAuthorized {
+			tunnelType := config.StoreTunnel.GetTypeForStream(string(ctx.Store.GetName()))
+			proxyLink, err := CreateProxyLink(r, data.Link, nil, tunnelType, 12*time.Hour, ctx.ProxyAuthUser, ctx.ProxyAuthPassword)
+			if err != nil {
+				return nil, err
+			}
 
-		data.Link = proxyLink
+			data.Link = proxyLink
+		}
 	}
 
 	return data, nil

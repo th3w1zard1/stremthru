@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/buddy"
@@ -194,9 +195,11 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 					headers = stream.BehaviorHints.ProxyHeaders.Request
 				}
 
-				if url, err := shared.CreateProxyLink(r, ctx, stream.URL, headers, config.TUNNEL_TYPE_AUTO); err == nil && url != stream.URL {
-					stream.URL = url
-					stream.Name = "✨ " + stream.Name
+				if ctx.IsProxyAuthorized {
+					if url, err := shared.CreateProxyLink(r, stream.URL, headers, config.TUNNEL_TYPE_AUTO, 12*time.Hour, ctx.ProxyAuthUser, ctx.ProxyAuthPassword); err == nil && url != stream.URL {
+						stream.URL = url
+						stream.Name = "✨ " + stream.Name
+					}
 				}
 			}
 			if stream.r == nil || stream.r.IsCached {
