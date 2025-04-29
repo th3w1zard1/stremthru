@@ -18,6 +18,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/util"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
+	"golang.org/x/sync/singleflight"
 )
 
 var client = func() *stremio_addon.Client {
@@ -33,25 +34,30 @@ var cinemetaBaseUrl = func() *url.URL {
 }()
 
 var metaCache = cache.NewCache[stremio.MetaHandlerResponse](&cache.CacheConfig{
-	Lifetime: 10 * time.Minute,
+	Lifetime: 2 * time.Hour,
 	Name:     "stremio:store:catalog",
 })
+
+var fetchMetaGroup singleflight.Group
 
 func fetchMeta(sType, imdbId, clientIp string) (stremio.MetaHandlerResponse, error) {
 	var meta stremio.MetaHandlerResponse
 
 	cacheKey := sType + ":" + imdbId
 	if !metaCache.Get(cacheKey, &meta) {
-		res, err := client.FetchMeta(&stremio_addon.FetchMetaParams{
-			BaseURL:  cinemetaBaseUrl,
-			Type:     sType,
-			Id:       imdbId + ".json",
-			ClientIP: clientIp,
+		m, err, _ := fetchMetaGroup.Do(cacheKey, func() (any, error) {
+			r, err := client.FetchMeta(&stremio_addon.FetchMetaParams{
+				BaseURL:  cinemetaBaseUrl,
+				Type:     sType,
+				Id:       imdbId + ".json",
+				ClientIP: clientIp,
+			})
+			return r.Data, err
 		})
 		if err != nil {
 			return meta, err
 		}
-		meta = res.Data
+		meta = m.(stremio.MetaHandlerResponse)
 		metaCache.Add(cacheKey, meta)
 	}
 
