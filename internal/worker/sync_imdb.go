@@ -36,7 +36,7 @@ func isIMDBSyncedToday() bool {
 	return job != nil && job.Status == "done"
 }
 
-func InitSyncIMDBWorker() *tasks.Scheduler {
+func InitSyncIMDBWorker(conf *WorkerConfig) *Worker {
 	if !config.Feature.IsEnabled("imdb_title") {
 		return nil
 	}
@@ -216,10 +216,15 @@ func InitSyncIMDBWorker() *tasks.Scheduler {
 		return nil
 	}
 
-	scheduler := tasks.New()
+	worker := &Worker{
+		scheduler:  tasks.New(),
+		shouldWait: conf.ShouldWait,
+		onStart:    conf.OnStart,
+		onEnd:      conf.OnEnd,
+	}
 
 	jobId := ""
-	id, err := scheduler.Add(&tasks.Task{
+	id, err := worker.scheduler.Add(&tasks.Task{
 		Interval:          time.Duration(24 * time.Hour),
 		RunSingleInstance: true,
 		TaskFunc: func() (err error) {
@@ -227,10 +232,21 @@ func InitSyncIMDBWorker() *tasks.Scheduler {
 				if perr, stack := util.RecoverPanic(true); perr != nil {
 					err = perr
 					log.Error("Worker Panic", "error", err, "stack", stack)
-				} else {
+				} else if err == nil {
 					jobId = ""
 				}
+				worker.onEnd()
 			}()
+
+			for {
+				wait, reason := worker.shouldWait()
+				if !wait {
+					break
+				}
+				log.Info("waiting, " + reason)
+				time.Sleep(5 * time.Minute)
+			}
+			worker.onStart()
 
 			if jobId != "" {
 				return nil
@@ -349,12 +365,12 @@ func InitSyncIMDBWorker() *tasks.Scheduler {
 
 	log.Info("Started Worker", "id", id)
 
-	if task, err := scheduler.Lookup(id); err == nil && task != nil {
+	if task, err := worker.scheduler.Lookup(id); err == nil && task != nil {
 		t := task.Clone()
 		t.Interval = 30 * time.Second
 		t.RunOnce = true
-		scheduler.Add(t)
+		worker.scheduler.Add(t)
 	}
 
-	return scheduler
+	return worker
 }

@@ -27,16 +27,21 @@ var Peer = peer.NewAPIClient(&peer.APIClientConfig{
 	APIKey:  config.PeerAuthToken,
 })
 
-func InitPushTorrentsWorker() *tasks.Scheduler {
+func InitPushTorrentsWorker(conf *WorkerConfig) *Worker {
 	if !config.HasPeer || config.PeerAuthToken == "" {
 		return nil
 	}
 
 	log := logger.Scoped("worker/torrent_pusher")
 
-	scheduler := tasks.New()
+	worker := &Worker{
+		scheduler:  tasks.New(),
+		shouldWait: conf.ShouldWait,
+		onStart:    conf.OnStart,
+		onEnd:      conf.OnEnd,
+	}
 
-	id, err := scheduler.Add(&tasks.Task{
+	id, err := worker.scheduler.Add(&tasks.Task{
 		Interval:          time.Duration(10 * time.Minute),
 		RunSingleInstance: true,
 		TaskFunc: func() (err error) {
@@ -45,7 +50,18 @@ func InitPushTorrentsWorker() *tasks.Scheduler {
 					err = perr
 					log.Error("Worker Panic", "error", err, "stack", stack)
 				}
+				worker.onEnd()
 			}()
+
+			for {
+				wait, reason := worker.shouldWait()
+				if !wait {
+					break
+				}
+				log.Info("waiting, " + reason)
+				time.Sleep(5 * time.Minute)
+			}
+			worker.onStart()
 
 			TorrentPusherQueue.m.Range(func(k, v any) bool {
 				sid, sidOk := k.(string)
@@ -87,5 +103,5 @@ func InitPushTorrentsWorker() *tasks.Scheduler {
 
 	log.Info("Started Worker", "id", id)
 
-	return scheduler
+	return worker
 }

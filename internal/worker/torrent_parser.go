@@ -14,7 +14,7 @@ import (
 	"github.com/madflojo/tasks"
 )
 
-func InitParseTorrentWorker() *tasks.Scheduler {
+func InitParseTorrentWorker(conf *WorkerConfig) *Worker {
 	log := logger.Scoped("worker/torrent_parser")
 
 	var parseTorrentInfo = func(t *ti.TorrentInfo) *ti.TorrentInfo {
@@ -88,9 +88,14 @@ func InitParseTorrentWorker() *tasks.Scheduler {
 		return t
 	}
 
-	scheduler := tasks.New()
+	worker := &Worker{
+		scheduler:  tasks.New(),
+		shouldWait: conf.ShouldWait,
+		onStart:    conf.OnStart,
+		onEnd:      conf.OnEnd,
+	}
 
-	id, err := scheduler.Add(&tasks.Task{
+	id, err := worker.scheduler.Add(&tasks.Task{
 		Interval:          time.Duration(5 * time.Minute),
 		RunSingleInstance: true,
 		TaskFunc: func() (err error) {
@@ -99,7 +104,18 @@ func InitParseTorrentWorker() *tasks.Scheduler {
 					err = perr
 					log.Error("Worker Panic", "error", err, "stack", stack)
 				}
+				worker.onEnd()
 			}()
+
+			for {
+				wait, reason := worker.shouldWait()
+				if !wait {
+					break
+				}
+				log.Info("waiting, " + reason)
+				time.Sleep(5 * time.Minute)
+			}
+			worker.onStart()
 
 			if dmmHashlistSyncing, err := isDMMHashlistSyncing(); err != nil {
 				return err
@@ -148,5 +164,5 @@ func InitParseTorrentWorker() *tasks.Scheduler {
 
 	log.Info("Started Worker", "id", id)
 
-	return scheduler
+	return worker
 }

@@ -26,12 +26,17 @@ var StoreCrawlerQueue = WorkerQueue[StoreCrawlerQueueItem]{
 	},
 }
 
-func InitCrawlStoreWorker() *tasks.Scheduler {
+func InitCrawlStoreWorker(conf *WorkerConfig) *Worker {
 	log := logger.Scoped("worker/store_crawler")
 
-	scheduler := tasks.New()
+	worker := &Worker{
+		scheduler:  tasks.New(),
+		shouldWait: conf.ShouldWait,
+		onStart:    conf.OnStart,
+		onEnd:      conf.OnEnd,
+	}
 
-	id, err := scheduler.Add(&tasks.Task{
+	id, err := worker.scheduler.Add(&tasks.Task{
 		Interval:          time.Duration(30 * time.Minute),
 		RunSingleInstance: true,
 		TaskFunc: func() (err error) {
@@ -40,7 +45,18 @@ func InitCrawlStoreWorker() *tasks.Scheduler {
 					err = perr
 					log.Error("Worker Panic", "error", err, "stack", stack)
 				}
+				worker.onEnd()
 			}()
+
+			for {
+				wait, reason := worker.shouldWait()
+				if !wait {
+					break
+				}
+				log.Info("waiting, " + reason)
+				time.Sleep(5 * time.Minute)
+			}
+			worker.onStart()
 
 			StoreCrawlerQueue.process(func(item StoreCrawlerQueueItem) {
 				s := shared.GetStoreByCode(item.StoreCode)
@@ -107,5 +123,5 @@ func InitCrawlStoreWorker() *tasks.Scheduler {
 
 	log.Info("Started Worker", "id", id)
 
-	return scheduler
+	return worker
 }

@@ -31,12 +31,8 @@ func main() {
 	db.Ping()
 	RunSchemaMigration(database.URI, database)
 
-	pttWorker := worker.InitParseTorrentWorker()
-	ptiWorker := worker.InitPushTorrentsWorker()
-	cwWorker := worker.InitCrawlStoreWorker()
-	sdhWorker := worker.InitSyncDMMHashlistWorker()
-	simWorker := worker.InitSyncIMDBWorker()
-	mitWorker := worker.InitMapIMDBTorrentWorker()
+	stopWorkers := worker.InitWorkers()
+	defer stopWorkers()
 
 	mux := http.NewServeMux()
 
@@ -59,25 +55,6 @@ func main() {
 
 	log.Println("stremthru listening on " + addr)
 	if err := server.ListenAndServe(); err != nil {
-		if pttWorker != nil {
-			pttWorker.Stop()
-		}
-		if ptiWorker != nil {
-			ptiWorker.Stop()
-		}
-		if cwWorker != nil {
-			cwWorker.Stop()
-		}
-		if sdhWorker != nil {
-			sdhWorker.Stop()
-		}
-		if simWorker != nil {
-			simWorker.Stop()
-		}
-		if mitWorker != nil {
-			mitWorker.Stop()
-		}
-
 		log.Fatalf("failed to start stremthru: %v", err)
 	}
 }

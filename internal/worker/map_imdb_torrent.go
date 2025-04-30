@@ -15,17 +15,22 @@ import (
 	"github.com/madflojo/tasks"
 )
 
-func InitMapIMDBTorrentWorker() *tasks.Scheduler {
+func InitMapIMDBTorrentWorker(conf *WorkerConfig) *Worker {
 	if !config.Feature.IsEnabled("imdb_title") {
 		return nil
 	}
 
 	log := logger.Scoped("worker/map_imdb_torrent")
 
-	scheduler := tasks.New()
+	worker := &Worker{
+		scheduler:  tasks.New(),
+		shouldWait: conf.ShouldWait,
+		onStart:    conf.OnStart,
+		onEnd:      conf.OnEnd,
+	}
 
 	isRunning := false
-	id, err := scheduler.Add(&tasks.Task{
+	id, err := worker.scheduler.Add(&tasks.Task{
 		Interval:          time.Duration(30 * time.Minute),
 		RunSingleInstance: true,
 		TaskFunc: func() (err error) {
@@ -36,7 +41,18 @@ func InitMapIMDBTorrentWorker() *tasks.Scheduler {
 				} else {
 					isRunning = false
 				}
+				worker.onEnd()
 			}()
+
+			for {
+				wait, reason := worker.shouldWait()
+				if !wait {
+					break
+				}
+				log.Info("waiting, " + reason)
+				time.Sleep(5 * time.Minute)
+			}
+			worker.onStart()
 
 			if isRunning {
 				return nil
@@ -155,12 +171,12 @@ func InitMapIMDBTorrentWorker() *tasks.Scheduler {
 
 	log.Info("Started Worker", "id", id)
 
-	if task, err := scheduler.Lookup(id); err == nil && task != nil {
+	if task, err := worker.scheduler.Lookup(id); err == nil && task != nil {
 		t := task.Clone()
 		t.Interval = 30 * time.Second
 		t.RunOnce = true
-		scheduler.Add(t)
+		worker.scheduler.Add(t)
 	}
 
-	return scheduler
+	return worker
 }
