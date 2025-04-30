@@ -7,38 +7,44 @@ import (
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
+	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
-func withRequestContext(next http.HandlerFunc) http.HandlerFunc {
+func withStoreContext(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, context.SetStoreContext(r))
 	})
 }
 
-func Middleware(middlewares ...shared.MiddlewareFunc) shared.MiddlewareFunc {
-	return shared.Middleware(append([]shared.MiddlewareFunc{withRequestContext}, middlewares...)...)
+func StoreMiddleware(middlewares ...shared.MiddlewareFunc) shared.MiddlewareFunc {
+	return shared.Middleware(append([]shared.MiddlewareFunc{withStoreContext}, middlewares...)...)
 }
 
-func extractProxyAuthToken(r *http.Request) (token string, hasToken bool) {
-	token = r.Header.Get("Proxy-Authorization")
-	r.Header.Del("Proxy-Authorization")
+func extractProxyAuthToken(r *http.Request, readQuery bool) (token string, hasToken bool) {
+	token = r.Header.Get(server.HEADER_PROXY_AUTHORIZATION)
+	if token == "" && readQuery {
+		token = r.URL.Query().Get("token")
+	}
+	r.Header.Del(server.HEADER_PROXY_AUTHORIZATION)
 	token = strings.TrimPrefix(token, "Basic ")
 	return token, token != ""
+}
+
+func getProxyAuthorization(r *http.Request, readQuery bool) (isAuthorized bool, user, pass string) {
+	token, hasToken := extractProxyAuthToken(r, readQuery)
+	auth, err := core.ParseBasicAuth(token)
+	isAuthorized = hasToken && err == nil && config.ProxyAuthPassword.GetPassword(auth.Username) == auth.Password
+	user = auth.Username
+	pass = auth.Password
+	return isAuthorized, user, pass
 }
 
 func ProxyAuthContext(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.GetStoreContext(r)
-
-		token, hasToken := extractProxyAuthToken(r)
-		auth, err := core.ParseBasicAuth(token)
-
-		ctx.IsProxyAuthorized = hasToken && err == nil && config.ProxyAuthPassword.GetPassword(auth.Username) == auth.Password
-		ctx.ProxyAuthUser = auth.Username
-		ctx.ProxyAuthPassword = auth.Password
-
+		ctx.IsProxyAuthorized, ctx.ProxyAuthUser, ctx.ProxyAuthPassword = getProxyAuthorization(r, false)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -48,7 +54,7 @@ func ProxyAuthRequired(next http.HandlerFunc) http.HandlerFunc {
 		ctx := context.GetStoreContext(r)
 
 		if !ctx.IsProxyAuthorized {
-			w.Header().Add("Proxy-Authenticate", "Basic")
+			w.Header().Add(server.HEADER_PROXY_AUTHENTICATE, "Basic")
 			shared.ErrorProxyAuthRequired(r).Send(w, r)
 			return
 		}

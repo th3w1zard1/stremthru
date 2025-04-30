@@ -69,5 +69,5 @@ func handleHealthDebug(w http.ResponseWriter, r *http.Request) {
 
 func AddHealthEndpoints(mux *http.ServeMux) {
 	mux.HandleFunc("/v0/health", handleHealth)
-	mux.HandleFunc("/v0/health/__debug__", Middleware(ProxyAuthContext, StoreContext)(handleHealthDebug))
+	mux.HandleFunc("/v0/health/__debug__", StoreMiddleware(ProxyAuthContext, StoreContext)(handleHealthDebug))
 }

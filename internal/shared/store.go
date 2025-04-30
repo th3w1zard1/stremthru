@@ -113,7 +113,7 @@ func CreateProxyLink(r *http.Request, link string, headers map[string]string, tu
 		return "", err
 	}
 
-	proxyLink := ExtractRequestBaseURL(r).JoinPath("/v0/store/link/access")
+	proxyLink := ExtractRequestBaseURL(r).JoinPath("/v0/proxy")
 
 	claims := core.JWTClaims[proxyLinkTokenData]{
 		RegisteredClaims: jwt.RegisteredClaims{

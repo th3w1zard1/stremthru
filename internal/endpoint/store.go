@@ -5,9 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/buddy"
-	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
 	"github.com/MunifTanjim/stremthru/internal/kv"
 	"github.com/MunifTanjim/stremthru/internal/peer_token"
@@ -16,7 +14,6 @@ import (
 	store_util "github.com/MunifTanjim/stremthru/internal/store/util"
 	store_video "github.com/MunifTanjim/stremthru/internal/store/video"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
-	"github.com/MunifTanjim/stremthru/internal/util"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
@@ -378,57 +375,6 @@ var contentProxyConnectionStore = kv.NewKVStore[contentProxyConnection](&kv.KVSt
 	Type: "cproxyconn",
 })
 
-func handleStoreLinkAccess(w http.ResponseWriter, r *http.Request) {
-	ctx := server.GetReqCtx(r)
-	ctx.RedactURLPathValues(r, "token")
-
-	isGetReq := shared.IsMethod(r, http.MethodGet)
-	if !isGetReq && !shared.IsMethod(r, http.MethodHead) {
-		shared.ErrorMethodNotAllowed(r).Send(w, r)
-		return
-	}
-
-	encodedToken := r.PathValue("token")
-	if encodedToken == "" {
-		shared.ErrorBadRequest(r, "missing token").Send(w, r)
-		return
-	}
-
-	user, link, headers, tunnelType, err := shared.UnwrapProxyLinkToken(encodedToken)
-	if err != nil {
-		SendError(w, r, err)
-		return
-	}
-
-	if headers != nil {
-		for k, v := range headers {
-			r.Header.Set(k, v)
-		}
-	}
-
-	if isGetReq && user != "" {
-		cpStore := contentProxyConnectionStore.WithScope(user)
-
-		if limit := config.ContentProxyConnectionLimit.Get(user); limit > 0 {
-			activeConnectionCount, err := cpStore.Count()
-			if err != nil {
-				ctx.Log.Error("[proxy] failed to count connections", "error", err)
-			} else if activeConnectionCount >= limit {
-				store_video.Redirect(store_video.StoreVideoNameContentProxyLimitReached, w, r)
-				return
-			}
-		}
-
-		if err := cpStore.Set(ctx.RequestId, contentProxyConnection{IP: core.GetRequestIP(r), Link: link}); err != nil {
-			ctx.Log.Error("[proxy] failed to record connection", "error", err)
-		} else {
-			defer cpStore.Del(ctx.RequestId)
-		}
-	}
-	bytesWritten, err := shared.ProxyResponse(w, r, link, tunnelType)
-	ctx.Log.Info("[proxy] connection closed", "user", user, "size", util.ToSize(bytesWritten), "error", err)
-}
-
 func handleStatic(w http.ResponseWriter, r *http.Request) {
 	if !shared.IsMethod(r, http.MethodGet) && !shared.IsMethod(r, http.MethodHead) {
 		shared.ErrorMethodNotAllowed(r).Send(w, r)
@@ -443,18 +389,14 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddStoreEndpoints(mux *http.ServeMux) {
-	withCors := Middleware(shared.EnableCORS)
-	withContextAndCors := Middleware(ProxyAuthContext, shared.EnableCORS)
-	withStore := Middleware(ProxyAuthContext, StoreContext, StoreRequired)
+	withCors := shared.Middleware(shared.EnableCORS)
+	withStore := StoreMiddleware(ProxyAuthContext, StoreContext, StoreRequired)
 
 	mux.HandleFunc("/v0/store/user", withStore(handleStoreUser))
 	mux.HandleFunc("/v0/store/magnets", withStore(handleStoreMagnets))
 	mux.HandleFunc("/v0/store/magnets/check", withStore(handleStoreMagnetsCheck))
 	mux.HandleFunc("/v0/store/magnets/{magnetId}", withStore(handleStoreMagnet))
 	mux.HandleFunc("/v0/store/link/generate", withStore(handleStoreLinkGenerate))
-
-	mux.HandleFunc("/v0/store/link/access/{token}", withContextAndCors(handleStoreLinkAccess))
-	mux.HandleFunc("/v0/store/link/access/{token}/{filename}", withContextAndCors(handleStoreLinkAccess))
 
 	mux.HandleFunc("/v0/store/_/static/{video}", withCors(handleStatic))
 }
