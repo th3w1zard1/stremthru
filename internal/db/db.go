@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"log"
 	"net/url"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 )
 
 type DB struct {
@@ -54,9 +55,26 @@ var connUri, dsnModifiers = func() (ConnectionURI, []DSNModifier) {
 	return uri, dsnModifiers
 }()
 
-func Exec(query string, args ...any) (sql.Result, error) {
-	return db.Exec(adaptQuery(query), args...)
-}
+var Exec = func() func(query string, args ...any) (sql.Result, error) {
+	if Dialect == DBDialectPostgres {
+		return func(query string, args ...any) (sql.Result, error) {
+			return db.Exec(adaptQuery(query), args...)
+		}
+	}
+
+	return func(query string, args ...any) (sql.Result, error) {
+		retryLeft := 2
+		r, err := db.Exec(query, args...)
+		for err != nil && retryLeft > 0 {
+			if e, ok := err.(sqlite3.Error); ok && e.Code == sqlite3.ErrBusy {
+				time.Sleep(2 * time.Second)
+				r, err = db.Exec(query, args...)
+				retryLeft--
+			}
+		}
+		return r, err
+	}
+}()
 
 func Query(query string, args ...any) (*sql.Rows, error) {
 	return db.Query(adaptQuery(query), args...)
