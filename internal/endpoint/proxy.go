@@ -2,6 +2,8 @@ package endpoint
 
 import (
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
@@ -62,9 +64,102 @@ func handleProxyLinkAccess(w http.ResponseWriter, r *http.Request) {
 	ctx.Log.Info("[proxy] connection closed", "user", user, "size", util.ToSize(bytesWritten), "error", err)
 }
 
+type proxifyLinksData struct {
+	Items      []string `json:"items"`
+	TotalItems int      `json:"total_items"`
+}
+
+func handleProxifyLinks(w http.ResponseWriter, r *http.Request) {
+	isGetReq := shared.IsMethod(r, http.MethodGet)
+	if !isGetReq && !shared.IsMethod(r, http.MethodPost) {
+		shared.ErrorMethodNotAllowed(r).Send(w, r)
+		return
+	}
+
+	isAuthorized, user, password := getProxyAuthorization(r, true)
+	if !isAuthorized {
+		w.Header().Add(server.HEADER_PROXY_AUTHENTICATE, "Basic")
+		shared.ErrorProxyAuthRequired(r).Send(w, r)
+		return
+	}
+
+	err := r.ParseForm()
+	if err != nil {
+		shared.ErrorBadRequest(r, "failed to parse data").Send(w, r)
+		return
+	}
+
+	var links []string
+	if isGetReq {
+		links = r.Form["url"]
+	} else {
+		links = r.PostForm["url"]
+	}
+	count := len(links)
+	if count == 0 {
+		shared.ErrorBadRequest(r, "missing url").Send(w, r)
+		return
+	}
+
+	shouldRedirect := isGetReq && r.Form.Get("redirect") != ""
+
+	if shouldRedirect && count > 1 {
+		shared.ErrorBadRequest(r, "can not redirect for multiple urls").Send(w, r)
+		return
+	}
+
+	var reqHeaders map[string]string
+	if blob := r.Form.Get("req_headers"); blob != "" {
+		reqHeaders = map[string]string{}
+		for header := range strings.SplitSeq(blob, "\n") {
+			if k, v, ok := strings.Cut(header, ": "); ok {
+				reqHeaders[k] = v
+			}
+		}
+	}
+
+	expiresIn := 0 * time.Second
+	if exp := r.Form.Get("exp"); exp != "" {
+		if c := rune(exp[len(exp)-1]); '0' <= c && c <= '9' {
+			exp += "s"
+		}
+		exp, err := time.ParseDuration(exp)
+		if err != nil {
+			shared.ErrorBadRequest(r, "invalid expiration").Send(w, r)
+			return
+		}
+		expiresIn = exp
+	}
+
+	shouldEncrypt := r.URL.Query().Get("token") == ""
+
+	proxyLinks := make([]string, count)
+	for i, link := range links {
+		proxyLink, err := shared.CreateProxyLink(r, link, reqHeaders, config.TUNNEL_TYPE_AUTO, expiresIn, user, password, shouldEncrypt)
+		if err != nil {
+			SendError(w, r, err)
+			return
+		}
+		proxyLinks[i] = proxyLink
+	}
+
+	if shouldRedirect {
+		http.Redirect(w, r, proxyLinks[0], http.StatusFound)
+		return
+	}
+
+	data := proxifyLinksData{
+		Items:      proxyLinks,
+		TotalItems: count,
+	}
+
+	SendResponse(w, r, 200, data, nil)
+}
+
 func AddProxyEndpoints(mux *http.ServeMux) {
 	withCors := shared.Middleware(shared.EnableCORS)
 
+	mux.HandleFunc("/v0/proxy", withCors(handleProxifyLinks))
 	mux.HandleFunc("/v0/proxy/{token}", withCors(handleProxyLinkAccess))
 	mux.HandleFunc("/v0/proxy/{token}/{filename}", withCors(handleProxyLinkAccess))
 }

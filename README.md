@@ -223,6 +223,48 @@ Basic auth header, e.g. `Basic dXNlcm5hbWU6cGFzc3dvcmQ=`
 
 `Proxy-Authorization` header is checked against `STREMTHRU_PROXY_AUTH` config.
 
+### Proxy
+
+#### Proxify Links
+
+Authorization is checked against `STREMTHRU_PROXY_AUTH` config.
+
+If `token` query parameter is present, the proxified link will not be encrypted.
+e.g. `dXNlcm5hbWU6cGFzc3dvcmQ=`
+
+Otherwise, if `Proxy-Authorization` header is present, the proxified link will be encrypted.
+e.g. `Basic dXNlcm5hbWU6cGFzc3dvcmQ=`
+
+**`GET /v0/proxy`**
+
+**Query Parameters**:
+
+- `url`: URL to proxify _(multiple)_
+- `exp`: Expiration time duration _(optional)_
+- `req_headers`: Headers to add to the request _(optional)_
+- `token`: Token to use for authorization _(optional)_
+- `redirect`: Redirect to proxified url, valid for single `url` _(optional)_
+
+**`POST /v0/proxy`**
+
+**Request**:
+
+`x-www-form-urlencoded` body with the following fields:
+
+- `url`: URL to proxify _(multiple)_
+- `exp`: Expiration time duration _(optional)_
+- `req_headers`: Headers to add to the request _(optional)_
+- `token`: Token to use for authorization _(optional)_
+
+**Response**:
+
+```json
+{
+    "items": ["string"],
+    "total_items": "int"
+}
+```
+
 ### Store
 
 This is a common interface for interacting with external stores.
