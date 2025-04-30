@@ -100,7 +100,7 @@ type proxyLinkTokenData struct {
 	TunnelType config.TunnelType `json:"tunt,omitempty"`
 }
 
-func CreateProxyLink(r *http.Request, link string, headers map[string]string, tunnelType config.TunnelType, expiresIn time.Duration, user, password string) (string, error) {
+func CreateProxyLink(r *http.Request, link string, headers map[string]string, tunnelType config.TunnelType, expiresIn time.Duration, user, password string, shouldEncrypt bool) (string, error) {
 	linkBlob := link
 	if headers != nil {
 		for k, v := range headers {
@@ -108,9 +108,18 @@ func CreateProxyLink(r *http.Request, link string, headers map[string]string, tu
 		}
 	}
 
-	encryptedLink, err := core.Encrypt(password, linkBlob)
-	if err != nil {
-		return "", err
+	var encLink string
+	var encFormat string
+	if shouldEncrypt {
+		encryptedLink, err := core.Encrypt(password, linkBlob)
+		if err != nil {
+			return "", err
+		}
+		encLink = encryptedLink
+		encFormat = core.EncryptionFormat
+	} else {
+		encLink = core.Base64Encode(linkBlob)
+		encFormat = "base64"
 	}
 
 	proxyLink := ExtractRequestBaseURL(r).JoinPath("/v0/proxy")
@@ -121,8 +130,8 @@ func CreateProxyLink(r *http.Request, link string, headers map[string]string, tu
 			Subject: user,
 		},
 		Data: &proxyLinkTokenData{
-			EncLink:    encryptedLink,
-			EncFormat:  core.EncryptionFormat,
+			EncLink:    encLink,
+			EncFormat:  encFormat,
 			TunnelType: tunnelType,
 		},
 	}
@@ -161,7 +170,7 @@ func GenerateStremThruLink(r *http.Request, ctx *context.StoreContext, link stri
 	if config.StoreContentProxy.IsEnabled(storeName) && ctx.StoreAuthToken == config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, storeName) {
 		if ctx.IsProxyAuthorized {
 			tunnelType := config.StoreTunnel.GetTypeForStream(string(ctx.Store.GetName()))
-			proxyLink, err := CreateProxyLink(r, data.Link, nil, tunnelType, 12*time.Hour, ctx.ProxyAuthUser, ctx.ProxyAuthPassword)
+			proxyLink, err := CreateProxyLink(r, data.Link, nil, tunnelType, 12*time.Hour, ctx.ProxyAuthUser, ctx.ProxyAuthPassword, true)
 			if err != nil {
 				return nil, err
 			}
@@ -213,9 +222,19 @@ func UnwrapProxyLinkToken(encodedToken string) (user string, link string, header
 		return "", "", nil, "", err
 	}
 
-	linkBlob, err := core.Decrypt(password, claims.Data.EncLink)
-	if err != nil {
-		return "", "", nil, "", err
+	var linkBlob string
+	if claims.Data.EncFormat == "base64" {
+		blob, err := core.Base64Decode(claims.Data.EncLink)
+		if err != nil {
+			return "", "", nil, "", err
+		}
+		linkBlob = blob
+	} else {
+		blob, err := core.Decrypt(password, claims.Data.EncLink)
+		if err != nil {
+			return "", "", nil, "", err
+		}
+		linkBlob = blob
 	}
 
 	link, headersBlob, hasHeaders := strings.Cut(linkBlob, "\n")
