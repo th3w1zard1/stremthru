@@ -77,11 +77,8 @@ type JobTracker[T any] struct {
 }
 
 func (t JobTracker[T]) Get(id string) (*Job[T], error) {
-	var j Job[T]
+	j := Job[T]{}
 	err := t.kv.Get(id, &j)
-	if err != nil || j.Status == "" {
-		return nil, err
-	}
 	return &j, err
 }
 
