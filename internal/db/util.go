@@ -104,3 +104,7 @@ func adaptQuery(query string) string {
 func JoinColumnNames(columns ...string) string {
 	return `"` + strings.Join(columns, `","`) + `"`
 }
+
+func JoinPrefixedColumnNames(prefix string, columns ...string) string {
+	return prefix + `"` + strings.Join(columns, `",`+prefix+`"`) + `"`
+}

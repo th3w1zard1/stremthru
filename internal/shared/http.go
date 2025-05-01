@@ -3,6 +3,7 @@ package shared
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"io"
 	"net/http"
@@ -102,6 +103,17 @@ func SendHTML(w http.ResponseWriter, statusCode int, data bytes.Buffer) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(statusCode)
 	data.WriteTo(w)
+}
+
+func SendXML(w http.ResponseWriter, r *http.Request, statusCode int, v any) {
+	w.Header().Set("Content-Type", "application/xml")
+	w.WriteHeader(statusCode)
+	encoder := xml.NewEncoder(w)
+	encoder.Indent("", " ")
+	w.Write([]byte(xml.Header))
+	if err := encoder.Encode(v); err != nil {
+		core.LogError(r, "failed to encode xml", err)
+	}
 }
 
 func copyHeaders(src http.Header, dest http.Header, stripIpHeaders bool) {
