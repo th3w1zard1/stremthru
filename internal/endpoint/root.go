@@ -57,19 +57,19 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 		Addons:      []rootTemplateDataAddon{},
 		Sections:    rootTemplateData.Sections,
 	}
-	if config.StremioAddon.IsEnabled("wrap") {
+	if config.Feature.IsEnabled(config.FeatureStremioWrap) {
 		td.Addons = append(td.Addons, rootTemplateDataAddon{
 			Name: "Wrap",
 			URL:  "/stremio/wrap",
 		})
 	}
-	if config.StremioAddon.IsEnabled("store") {
+	if config.Feature.IsEnabled(config.FeatureStremioStore) {
 		td.Addons = append(td.Addons, rootTemplateDataAddon{
 			Name: "Store",
 			URL:  "/stremio/store",
 		})
 	}
-	if config.StremioAddon.IsEnabled("sidekick") {
+	if config.Feature.IsEnabled(config.FeatureStremioSidekick) {
 		td.Addons = append(td.Addons, rootTemplateDataAddon{
 			Name: "Sidekick",
 			URL:  "/stremio/sidekick",

@@ -205,13 +205,9 @@ URI for Database, in format `<scheme>://<user>:<pass>@<host>[:<port>][/<db>]`.
 
 Supports `sqlite` and `postgresql`.
 
-#### `STREMTHRU_STREMIO_ADDON`
-
-Comma separated list of Stremio Addon names to enable. All available addons are enabled by default.
-
 #### `STREMTHRU_FEATURE`
 
-Comma separated list of features to enable.
+Comma separated list of features to enable/disable.
 
 ## Endpoints
 

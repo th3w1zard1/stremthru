@@ -14,21 +14,21 @@ import (
 func getAddonCatalog(r *http.Request) *stremio.AddonCatalogHandlerResponse {
 	addons := []stremio.Addon{}
 
-	if config.StremioAddon.IsEnabled("wrap") {
+	if config.Feature.IsEnabled(config.FeatureStremioWrap) {
 		addons = append(addons, stremio.Addon{
 			Manifest:      *stremio_wrap.GetManifest(r, []stremio.Manifest{}, &stremio_wrap.UserData{}),
 			TransportName: "http",
 			TransportUrl:  shared.ExtractRequestBaseURL(r).JoinPath("stremio/wrap/manifest.json").String(),
 		})
 	}
-	if config.StremioAddon.IsEnabled("store") {
+	if config.Feature.IsEnabled(config.FeatureStremioStore) {
 		addons = append(addons, stremio.Addon{
 			Manifest:      *stremio_store.GetManifest(r, &stremio_store.UserData{}),
 			TransportName: "http",
 			TransportUrl:  shared.ExtractRequestBaseURL(r).JoinPath("stremio/store/manifest.json").String(),
 		})
 	}
-	if config.StremioAddon.IsEnabled("sidekick") {
+	if config.Feature.IsEnabled(config.FeatureStremioSidekick) {
 		addons = append(addons, stremio.Addon{
 			Manifest:      *stremio_sidekick.GetManifest(r),
 			TransportName: "http",

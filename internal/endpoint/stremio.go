@@ -14,13 +14,13 @@ import (
 func AddStremioEndpoints(mux *http.ServeMux) {
 	stremio_root.AddStremioEndpoints(mux)
 
-	if config.StremioAddon.IsEnabled("store") {
+	if config.Feature.IsEnabled(config.FeatureStremioStore) {
 		stremio_store.AddStremioStoreEndpoints(mux)
 	}
-	if config.StremioAddon.IsEnabled("wrap") {
+	if config.Feature.IsEnabled(config.FeatureStremioWrap) {
 		stremio_wrap.AddStremioWrapEndpoints(mux)
 	}
-	if config.StremioAddon.IsEnabled("sidekick") {
+	if config.Feature.IsEnabled(config.FeatureStremioSidekick) {
 		stremio_sidekick.AddStremioSidekickEndpoints(mux)
 		stremio_disabled.AddStremioDisabledEndpoints(mux)
 	}

@@ -53,7 +53,6 @@ var defaultValueByEnv = map[string]map[string]string{
 		"STREMTHRU_PORT":                           "8080",
 		"STREMTHRU_STORE_CONTENT_PROXY":            "*:true",
 		"STREMTHRU_STORE_TUNNEL":                   "*:true",
-		"STREMTHRU_STREMIO_ADDON":                  strings.Join(stremioAddons, ","),
 	},
 }
 
@@ -147,26 +146,21 @@ const (
 	StremioAddonWrap     string = "wrap"
 )
 
-var stremioAddons = []string{StremioAddonSidekick, StremioAddonStore, StremioAddonWrap}
-
-type StremioAddonConfig struct {
-	enabled []string
-}
-
-func (sa StremioAddonConfig) IsEnabled(name string) bool {
-	if len(sa.enabled) == 0 {
-		return true
-	}
-
-	return slices.Contains(sa.enabled, name)
-}
-
 const (
-	FeatureDMMHashlist string = "dmm_hashlist"
-	FeatureIMDBTitle   string = "imdb_title"
+	FeatureDMMHashlist     string = "dmm_hashlist"
+	FeatureIMDBTitle       string = "imdb_title"
+	FeatureStremioSidekick string = "stremio_sidekick"
+	FeatureStremioStore    string = "stremio_store"
+	FeatureStremioWrap     string = "stremio_wrap"
 )
 
-var features = []string{FeatureDMMHashlist, FeatureIMDBTitle}
+var features = []string{
+	FeatureDMMHashlist,
+	FeatureIMDBTitle,
+	FeatureStremioSidekick,
+	FeatureStremioStore,
+	FeatureStremioWrap,
+}
 
 type FeatureConfig struct {
 	enabled  []string
@@ -230,7 +224,6 @@ type Config struct {
 	PullPeerURL                 string
 	RedisURI                    string
 	DatabaseURI                 string
-	StremioAddon                StremioAddonConfig
 	Feature                     FeatureConfig
 	Version                     string
 	LandingPage                 string
@@ -324,12 +317,6 @@ var config = func() Config {
 
 	databaseUri := getEnv("STREMTHRU_DATABASE_URI")
 
-	stremioAddon := StremioAddonConfig{
-		enabled: strings.FieldsFunc(strings.TrimSpace(getEnv("STREMTHRU_STREMIO_ADDON")), func(c rune) bool {
-			return c == ','
-		}),
-	}
-
 	feature := FeatureConfig{}
 	for _, name := range strings.FieldsFunc(strings.TrimSpace(getEnv("STREMTHRU_FEATURE")), func(c rune) bool {
 		return c == ','
@@ -409,7 +396,6 @@ var config = func() Config {
 		PullPeerURL:                 pullPeerUrl,
 		RedisURI:                    getEnv("STREMTHRU_REDIS_URI"),
 		DatabaseURI:                 databaseUri,
-		StremioAddon:                stremioAddon,
 		Feature:                     feature,
 		Version:                     "0.69.0", // x-release-please-version
 		LandingPage:                 getEnv("STREMTHRU_LANDING_PAGE"),
@@ -438,7 +424,6 @@ var HasPeer = config.HasPeer
 var PullPeerURL = config.PullPeerURL
 var RedisURI = config.RedisURI
 var DatabaseURI = config.DatabaseURI
-var StremioAddon = config.StremioAddon
 var Feature = config.Feature
 var Version = config.Version
 var LandingPage = config.LandingPage
@@ -627,14 +612,6 @@ func PrintConfig(state *AppState) {
 	l.Println(" Database URI:")
 	l.Println("   " + uri)
 	l.Println()
-
-	if len(StremioAddon.enabled) > 0 {
-		l.Println(" Stremio Addons:")
-		for _, addon := range StremioAddon.enabled {
-			l.Println("   - " + addon)
-		}
-		l.Println()
-	}
 
 	l.Println(" Features:")
 	for _, feature := range features {
