@@ -139,10 +139,13 @@ func parseTunnel(httpProxy, httpsProxy, tunnel string) TunnelMap {
 }
 
 var Tunnel = func() TunnelMap {
-	httpProxy := getEnv("STREMTHRU_HTTP_PROXY", "")
+	httpProxy := getEnv("STREMTHRU_HTTP_PROXY")
 	// deprecated
-	httpsProxy := getEnv("STREMTHRU_HTTPS_PROXY", httpProxy)
-	tunnel := getEnv("STREMTHRU_TUNNEL", "")
+	httpsProxy := getEnv("STREMTHRU_HTTPS_PROXY")
+	if httpsProxy == "" {
+		httpsProxy = httpProxy
+	}
+	tunnel := getEnv("STREMTHRU_TUNNEL")
 	return parseTunnel(httpProxy, httpsProxy, tunnel)
 }()
 
@@ -237,7 +240,7 @@ func parseStoreTunnel(storeTunnel string, tunnelMap TunnelMap) StoreTunnelConfig
 }
 
 var StoreTunnel = func() StoreTunnelConfigMap {
-	return parseStoreTunnel(getEnv("STREMTHRU_STORE_TUNNEL", "*:true"), Tunnel)
+	return parseStoreTunnel(getEnv("STREMTHRU_STORE_TUNNEL"), Tunnel)
 }()
 
 // has auto proxy

@@ -47,6 +47,9 @@ func main() {
 	handler := shared.RootServerContext(mux)
 
 	addr := ":" + config.Port
+	if config.Environment == config.EnvDev {
+		addr = "localhost" + addr
+	}
 	server := &http.Server{Addr: addr, Handler: handler}
 
 	if len(config.ProxyAuthPassword) == 0 {

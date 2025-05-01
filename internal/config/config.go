@@ -16,11 +16,60 @@ import (
 	"github.com/google/uuid"
 )
 
-func getEnv(key string, defaultValue string) string {
+const (
+	EnvDev  string = "dev"
+	EnvProd string = "prod"
+	EnvTest string = "test"
+)
+
+var Environment = func() string {
+	value, _ := os.LookupEnv("STREMTHRU_ENV")
+	switch value {
+	case "dev", "development":
+		return EnvDev
+	case "prod", "production":
+		return EnvProd
+	case "test":
+		return EnvTest
+	default:
+		return ""
+	}
+}()
+
+var defaultValueByEnv = map[string]map[string]string{
+	EnvDev: {
+		"STREMTHRU_LOG_FORMAT": "text",
+		"STREMTHRU_LOG_LEVEL":  "DEBUG",
+	},
+	EnvProd: {},
+	EnvTest: {},
+	"": {
+		"STREMTHRU_CONTENT_PROXY_CONNECTION_LIMIT": "*:0",
+		"STREMTHRU_DATABASE_URI":                   "sqlite://./data/stremthru.db",
+		"STREMTHRU_DATA_DIR":                       "./data",
+		"STREMTHRU_LANDING_PAGE":                   "{}",
+		"STREMTHRU_LOG_FORMAT":                     "json",
+		"STREMTHRU_LOG_LEVEL":                      "INFO",
+		"STREMTHRU_PORT":                           "8080",
+		"STREMTHRU_STORE_CONTENT_PROXY":            "*:true",
+		"STREMTHRU_STORE_TUNNEL":                   "*:true",
+		"STREMTHRU_STREMIO_ADDON":                  strings.Join(stremioAddons, ","),
+	},
+}
+
+func getEnv(key string) string {
 	if value, exists := os.LookupEnv(key); exists && len(value) > 0 {
 		return value
 	}
-	return defaultValue
+	if val, found := defaultValueByEnv[Environment][key]; found && len(val) > 0 {
+		return val
+	}
+	if Environment != "" {
+		if val, found := defaultValueByEnv[""][key]; found && len(val) > 0 {
+			return val
+		}
+	}
+	return ""
 }
 
 type StoreAuthTokenMap map[string]map[string]string
@@ -209,7 +258,7 @@ func parseUri(uri string) (parsedUrl, parsedToken string) {
 }
 
 var config = func() Config {
-	proxyAuthCredList := strings.FieldsFunc(getEnv("STREMTHRU_PROXY_AUTH", ""), func(c rune) bool {
+	proxyAuthCredList := strings.FieldsFunc(getEnv("STREMTHRU_PROXY_AUTH"), func(c rune) bool {
 		return c == ','
 	})
 	proxyAuthPasswordMap := make(UserPasswordMap)
@@ -221,7 +270,7 @@ var config = func() Config {
 	}
 
 	authAdminMap := AuthAdminMap{}
-	authAdminList := strings.FieldsFunc(getEnv("STREMTHRU_AUTH_ADMIN", ""), func(c rune) bool {
+	authAdminList := strings.FieldsFunc(getEnv("STREMTHRU_AUTH_ADMIN"), func(c rune) bool {
 		return c == ','
 	})
 	adminPasswordMap := UserPasswordMap{}
@@ -244,7 +293,7 @@ var config = func() Config {
 		adminPasswordMap[username] = password
 	}
 
-	storeAlldebridTokenList := strings.FieldsFunc(getEnv("STREMTHRU_STORE_AUTH", ""), func(c rune) bool {
+	storeAlldebridTokenList := strings.FieldsFunc(getEnv("STREMTHRU_STORE_AUTH"), func(c rune) bool {
 		return c == ','
 	})
 	storeAuthTokenMap := make(StoreAuthTokenMap)
@@ -257,28 +306,32 @@ var config = func() Config {
 		}
 	}
 
-	buddyUrl, _ := parseUri(getEnv("STREMTHRU_BUDDY_URI", ""))
+	buddyUrl, _ := parseUri(getEnv("STREMTHRU_BUDDY_URI"))
 	pullPeerUrl := ""
 	if buddyUrl != "" {
-		pullPeerUrl, _ = parseUri(getEnv("STREMTHRU__PULL__PEER_URI", ""))
+		pullPeerUrl, _ = parseUri(getEnv("STREMTHRU__PULL__PEER_URI"))
 	}
 
 	defaultPeerUri := ""
 	if peerUri, err := core.Base64Decode("aHR0cHM6Ly9zdHJlbXRocnUuMTMzNzcwMDEueHl6"); err == nil && buddyUrl == "" {
 		defaultPeerUri = peerUri
 	}
-	peerUrl, peerAuthToken := parseUri(getEnv("STREMTHRU_PEER_URI", defaultPeerUri))
+	peerUri := getEnv("STREMTHRU_PEER_URI")
+	if peerUri == "" {
+		peerUri = defaultPeerUri
+	}
+	peerUrl, peerAuthToken := parseUri(peerUri)
 
-	databaseUri := getEnv("STREMTHRU_DATABASE_URI", "sqlite://./data/stremthru.db")
+	databaseUri := getEnv("STREMTHRU_DATABASE_URI")
 
 	stremioAddon := StremioAddonConfig{
-		enabled: strings.FieldsFunc(strings.TrimSpace(getEnv("STREMTHRU_STREMIO_ADDON", strings.Join(stremioAddons, ","))), func(c rune) bool {
+		enabled: strings.FieldsFunc(strings.TrimSpace(getEnv("STREMTHRU_STREMIO_ADDON")), func(c rune) bool {
 			return c == ','
 		}),
 	}
 
 	feature := FeatureConfig{}
-	for _, name := range strings.FieldsFunc(strings.TrimSpace(getEnv("STREMTHRU_FEATURE", "")), func(c rune) bool {
+	for _, name := range strings.FieldsFunc(strings.TrimSpace(getEnv("STREMTHRU_FEATURE")), func(c rune) bool {
 		return c == ','
 	}) {
 		if strings.HasPrefix(name, "-") {
@@ -295,7 +348,7 @@ var config = func() Config {
 		}
 	}
 
-	storeContentProxyList := strings.FieldsFunc(getEnv("STREMTHRU_STORE_CONTENT_PROXY", "*:true"), func(c rune) bool {
+	storeContentProxyList := strings.FieldsFunc(getEnv("STREMTHRU_STORE_CONTENT_PROXY"), func(c rune) bool {
 		return c == ','
 	})
 
@@ -307,17 +360,17 @@ var config = func() Config {
 	}
 
 	var logLevel slog.Level
-	if err := logLevel.UnmarshalText([]byte(getEnv("STREMTHRU_LOG_LEVEL", "INFO"))); err != nil {
+	if err := logLevel.UnmarshalText([]byte(getEnv("STREMTHRU_LOG_LEVEL"))); err != nil {
 		log.Fatalf("Invalid log level: %v", err)
 	}
 
-	logFormat := getEnv("STREMTHRU_LOG_FORMAT", "json")
+	logFormat := getEnv("STREMTHRU_LOG_FORMAT")
 	if logFormat != "json" && logFormat != "text" {
 		log.Fatalf("Invalid log format: %s, expected: json / text", logFormat)
 	}
 
 	contentProxyConnectionMap := make(ContentProxyConnectionLimitMap)
-	contentProxyConnectionList := strings.FieldsFunc(getEnv("STREMTHRU_CONTENT_PROXY_CONNECTION_LIMIT", "*:0"), func(c rune) bool {
+	contentProxyConnectionList := strings.FieldsFunc(getEnv("STREMTHRU_CONTENT_PROXY_CONNECTION_LIMIT"), func(c rune) bool {
 		return c == ','
 	})
 	for _, contentProxyConnection := range contentProxyConnectionList {
@@ -330,7 +383,7 @@ var config = func() Config {
 		}
 	}
 
-	dataDir, err := filepath.Abs(getEnv("STREMTHRU_DATA_DIR", "./data"))
+	dataDir, err := filepath.Abs(getEnv("STREMTHRU_DATA_DIR"))
 	if err != nil {
 		log.Fatalf("failed to resolve data directory: %v", err)
 	} else if exists, err := util.DirExists(dataDir); err != nil {
@@ -343,7 +396,7 @@ var config = func() Config {
 		LogLevel:  logLevel,
 		LogFormat: logFormat,
 
-		Port:                        getEnv("STREMTHRU_PORT", "8080"),
+		Port:                        getEnv("STREMTHRU_PORT"),
 		ProxyAuthPassword:           proxyAuthPasswordMap,
 		AuthAdmin:                   authAdminMap,
 		AdminPassword:               adminPasswordMap,
@@ -354,12 +407,12 @@ var config = func() Config {
 		PeerAuthToken:               peerAuthToken,
 		HasPeer:                     len(peerUrl) > 0,
 		PullPeerURL:                 pullPeerUrl,
-		RedisURI:                    getEnv("STREMTHRU_REDIS_URI", ""),
+		RedisURI:                    getEnv("STREMTHRU_REDIS_URI"),
 		DatabaseURI:                 databaseUri,
 		StremioAddon:                stremioAddon,
 		Feature:                     feature,
 		Version:                     "0.69.0", // x-release-please-version
-		LandingPage:                 getEnv("STREMTHRU_LANDING_PAGE", "{}"),
+		LandingPage:                 getEnv("STREMTHRU_LANDING_PAGE"),
 		ServerStartTime:             time.Now(),
 		StoreContentProxy:           storeContentProxyMap,
 		ContentProxyConnectionLimit: contentProxyConnectionMap,
@@ -443,7 +496,7 @@ func PrintConfig(state *AppState) {
 		l.Println(" Tunnel:")
 		if defaultProxy := Tunnel.getProxy("*"); defaultProxy != nil {
 			defaultProxyConfig := ""
-			if noProxy := getEnv("NO_PROXY", ""); noProxy == "*" {
+			if noProxy := getEnv("NO_PROXY"); noProxy == "*" {
 				defaultProxyConfig = " (disabled)"
 			}
 			l.Println("   Default: " + defaultProxy.Redacted() + defaultProxyConfig)
