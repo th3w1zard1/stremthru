@@ -812,7 +812,7 @@ var list_query_columns = strings.Join(
 	",",
 )
 
-var query_list_select = fmt.Sprintf(
+var query_list_by_stremid_select = fmt.Sprintf(
 	"SELECT %s, %s(%s('n',ts.%s,'i',ts.%s,'s',ts.%s,'sid',ts.%s,'src',ts.%s)) AS files",
 	list_query_columns,
 	db.FnJSONGroupArray,
@@ -824,7 +824,7 @@ var query_list_select = fmt.Sprintf(
 	ts.Column.Source,
 )
 
-var query_list_after_select = fmt.Sprintf(
+var query_list_by_stremid_after_select = fmt.Sprintf(
 	" FROM %s ti LEFT JOIN %s ts ON ti.%s = ts.%s AND ts.%s != ''",
 	TableName,
 	ts.TableName,
@@ -832,45 +832,59 @@ var query_list_after_select = fmt.Sprintf(
 	ts.Column.Hash,
 	ts.Column.Source,
 )
-var query_list_cond_hashes = fmt.Sprintf(
-	"%s IN (SELECT DISTINCT %s FROM %s WHERE %s = ? OR %s LIKE ? UNION SELECT %s FROM %s WHERE %s = ?)",
-	Column.Hash,
-
+var query_list_by_stremid_subquery_from_torrent_stream = fmt.Sprintf(
+	"SELECT DISTINCT %s FROM %s WHERE %s = ? OR %s LIKE ?",
 	ts.Column.Hash,
 	ts.TableName,
 	ts.Column.SId,
 	ts.Column.SId,
-
+)
+var query_list_by_stremid_subquery_from_imdb_torrent = fmt.Sprintf(
+	"SELECT %s FROM %s WHERE %s = ?",
 	imdb_torrent.Column.Hash,
 	imdb_torrent.TableName,
 	imdb_torrent.Column.TId,
 )
-var query_list_cond_no_missing_size = fmt.Sprintf(
+var query_list_by_stremid_cond_hashes_from_ts = fmt.Sprintf(
+	"%s IN (%s)",
+	Column.Hash,
+	query_list_by_stremid_subquery_from_torrent_stream,
+)
+var query_list_by_stremid_cond_hashes_from_ts_union_ito = fmt.Sprintf(
+	"%s IN (%s UNION %s)",
+	Column.Hash,
+	query_list_by_stremid_subquery_from_torrent_stream,
+	query_list_by_stremid_subquery_from_imdb_torrent,
+)
+var query_list_by_stremid_cond_no_missing_size = fmt.Sprintf(
 	"%s > 0",
 	Column.Size,
 )
-var query_list_after_cond = fmt.Sprintf(
+var query_list_by_stremid_after_cond = fmt.Sprintf(
 	" GROUP BY %s",
 	Column.Hash,
 )
 
 func ListByStremId(stremId string, excludeMissingSize bool) (*ListTorrentsData, error) {
+	query := query_list_by_stremid_select + query_list_by_stremid_after_select + " WHERE "
 	args := make([]any, 3)
+
 	if strings.Contains(stremId, ":") {
+		query += query_list_by_stremid_cond_hashes_from_ts
 		args[0] = stremId
 		args[1], _, _ = strings.Cut(stremId, ":")
-		args[2] = args[1]
+		args = args[0:2]
 	} else {
+		query += query_list_by_stremid_cond_hashes_from_ts_union_ito
 		args[0] = stremId
 		args[1] = stremId + ":%"
 		args[2] = stremId
 	}
 
-	query := query_list_select + query_list_after_select + " WHERE " + query_list_cond_hashes
 	if excludeMissingSize {
-		query += " AND " + query_list_cond_no_missing_size
+		query += " AND " + query_list_by_stremid_cond_no_missing_size
 	}
-	query += query_list_after_cond
+	query += query_list_by_stremid_after_cond
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
