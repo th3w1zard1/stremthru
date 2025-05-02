@@ -1,6 +1,7 @@
 package stremio_userdata
 
 import (
+	"database/sql"
 	"encoding/json"
 	"strings"
 	"time"
@@ -64,6 +65,12 @@ func (m iManager[T]) Load(id string, ud UserData[T]) (err error) {
 	if !m.cache.Get(id, sud) {
 		sud, err = Get[T](m.addon, id)
 		if err != nil {
+			if err == sql.ErrNoRows {
+				e := core.NewAPIError("invalid userdata id")
+				e.Code = core.ErrorCodeBadRequest
+				e.Cause = err
+				return e
+			}
 			return err
 		}
 	}
