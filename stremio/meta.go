@@ -46,6 +46,21 @@ type MetaLink struct {
 	URL      string           `json:"url"`
 }
 
+type Number json.Number
+
+func (rn *Number) UnmarshalJSON(data []byte) error {
+	if string(data) == `""` || string(data) == `null` {
+		*rn = "0"
+		return nil
+	}
+	var n json.Number
+	if err := json.Unmarshal(data, &n); err != nil {
+		return err
+	}
+	*rn = Number(n)
+	return nil
+}
+
 type MetaVideo struct {
 	Id        string    `json:"id"`
 	Title     string    `json:"title"`
@@ -59,13 +74,13 @@ type MetaVideo struct {
 	Overview  string    `json:"overview,omitempty"`
 
 	// deprecated / undocumented
-	Name        string      `json:"name,omitempty"`
-	MovieDBId   int         `json:"moviedb_id,omitempty"`
-	TVDBId      int         `json:"tvdb_id,omitempty"`
-	Rating      json.Number `json:"rating,omitempty"`
-	Description string      `json:"description,omitempty"`
-	Number      int         `json:"number,omitempty"` // episode
-	FirstAired  *time.Time  `json:"firstAired,omitempty"`
+	Name        string     `json:"name,omitempty"`
+	MovieDBId   int        `json:"moviedb_id,omitempty"`
+	TVDBId      int        `json:"tvdb_id,omitempty"`
+	Rating      Number     `json:"rating,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Number      int        `json:"number,omitempty"` // episode
+	FirstAired  *time.Time `json:"firstAired,omitempty"`
 }
 
 type MetaBehaviorHints struct {
@@ -135,7 +150,7 @@ type Meta struct {
 	Popularities   *MetaPopularities     `json:"popularities,omitempty"`
 	Slug           string                `json:"slug,omitempty"`
 	Status         string                `json:"status,omitempty"` // 'Continuing' / 'Ended'
-	TVDBId         int                   `json:"tvdb_id,omitempty"`
+	TVDBId         Number                `json:"tvdb_id,omitempty"`
 	TrailerStreams []Stream              `json:"trailerStreams,omitempty"`
 	Writer         []string              `json:"writer,omitempty"`
 	Year           string                `json:"year,omitempty"`
