@@ -1123,3 +1123,53 @@ func SetMissingCategory(hashesByCategory map[TorrentInfoCategory][]string) {
 	}
 	wg.Wait()
 }
+
+var query_get_basic_info_by_hash = fmt.Sprintf(
+	"SELECT %s, %s, %s FROM %s WHERE %s IN ",
+	Column.Hash,
+	Column.TorrentTitle,
+	Column.Size,
+	TableName,
+	Column.Hash,
+)
+
+type BasicInfo struct {
+	TorrentTitle string
+	Size         int64
+}
+
+func GetBasicInfoByHash(hashes []string) (map[string]BasicInfo, error) {
+	count := len(hashes)
+
+	basicInfos := make(map[string]BasicInfo, count)
+
+	if count == 0 {
+		return basicInfos, nil
+	}
+
+	query := query_get_basic_info_by_hash + "(" + util.RepeatJoin("?", count, ",") + ")"
+	args := make([]any, count)
+	for i := range hashes {
+		args[i] = hashes[i]
+	}
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var hash string
+		basicInfo := BasicInfo{}
+		if err := rows.Scan(&hash, &basicInfo.TorrentTitle, &basicInfo.Size); err != nil {
+			return nil, err
+		}
+		basicInfos[hash] = basicInfo
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return basicInfos, nil
+}

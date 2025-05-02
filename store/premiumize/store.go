@@ -12,6 +12,7 @@ import (
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/request"
+	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
@@ -356,11 +357,18 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 			return nil, err
 		}
 
+		name := magnet.Name
+		if len(cm.Files) > 0 {
+			parts := strings.SplitN(cm.Files[0].Path, "/", 3)
+			if len(parts) > 1 {
+				name = parts[1]
+			}
+		}
 		data := &store.AddMagnetData{
 			Id:      id,
 			Hash:    magnet.Hash,
 			Magnet:  magnet.Link,
-			Name:    magnet.Name,
+			Name:    name,
 			Status:  store.MagnetStatusDownloaded,
 			Size:    0,
 			Files:   cm.Files,
@@ -455,17 +463,29 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 		if err != nil {
 			return nil, err
 		}
+		name := magnet.Name
+		size := int64(-1)
+		if infoByHash, err := torrent_info.GetBasicInfoByHash([]string{magnet.Hash}); err == nil {
+			if info, ok := infoByHash[magnet.Hash]; ok {
+				name = info.TorrentTitle
+				size = info.Size
+			}
+		} else {
+			log.Warn("failed to get basic info by hash", "error", err, "hash", magnet.Hash)
+		}
+		if size <= 0 {
+			for i := range files {
+				size += files[i].Size
+			}
+		}
 		data := &store.GetMagnetData{
 			Id:      params.Id,
 			Hash:    magnet.Hash,
-			Name:    "",
-			Size:    0,
+			Name:    name,
+			Size:    size,
 			Status:  store.MagnetStatusDownloaded,
 			Files:   files,
 			AddedAt: time.Unix(0, 0).UTC(),
-		}
-		for i := range files {
-			data.Size += files[i].Size
 		}
 
 		return data, nil
@@ -486,15 +506,23 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 	if err != nil {
 		return nil, err
 	}
+	name := transfer.Name
+	size := int64(-1)
+	if infoByHash, err := torrent_info.GetBasicInfoByHash([]string{magnet.Hash}); err == nil {
+		if info, ok := infoByHash[magnet.Hash]; ok {
+			size = info.Size
+		}
+	} else {
+		log.Warn("failed to get basic info by hash", "error", err, "hash", magnet.Hash)
+	}
 	data := &store.GetMagnetData{
 		Id:      transfer.Id,
 		Hash:    magnet.Hash,
-		Name:    transfer.Name,
-		Size:    -1,
+		Name:    name,
+		Size:    size,
 		Status:  getMagnetStatsForTransfer(transfer),
 		AddedAt: transfer.GetAddedAt(),
 	}
-
 	if transfer.Status == TransferStatusFinished {
 		files, err := listFolderFlat(c, params.APIKey, transfer.FolderId, nil, &store.MagnetFile{
 			Path: "/" + transfer.Name,
@@ -503,9 +531,11 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 			return nil, err
 		}
 		data.Files = files
-		data.Size = 0
-		for i := range files {
-			data.Size += files[i].Size
+		if data.Size <= 0 {
+			data.Size = 0
+			for i := range files {
+				data.Size += files[i].Size
+			}
 		}
 	}
 
@@ -532,10 +562,13 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 
 		items := []store.ListMagnetsDataItem{}
 
-		for _, m := range sf_res.Data.Content {
+		hashes := make([]string, len(sf_res.Data.Content))
+		for i, m := range sf_res.Data.Content {
+			hash := CachedMagnetId(m.Name).toHash()
+			hashes[i] = hash
 			item := &store.ListMagnetsDataItem{
 				Id:      m.Name,
-				Hash:    CachedMagnetId(m.Name).toHash(),
+				Hash:    hash,
 				Name:    "",
 				Size:    -1,
 				Status:  store.MagnetStatusDownloaded,
@@ -543,6 +576,20 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 			}
 
 			items = append(items, *item)
+		}
+
+		if infoByHash, err := torrent_info.GetBasicInfoByHash(hashes); err == nil {
+			for i, hash := range hashes {
+				if info, ok := infoByHash[hash]; ok {
+					item := &items[i]
+					if item.Hash == hash && item.Name == "" {
+						item.Name = info.TorrentTitle
+						item.Size = info.Size
+					}
+				}
+			}
+		} else {
+			log.Warn("failed to get basic info by hash", "error", err, "count", len(hashes))
 		}
 
 		for _, t := range lt_res.Data.Transfers {
