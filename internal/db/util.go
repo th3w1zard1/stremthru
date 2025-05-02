@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -107,4 +108,16 @@ func JoinColumnNames(columns ...string) string {
 
 func JoinPrefixedColumnNames(prefix string, columns ...string) string {
 	return prefix + `"` + strings.Join(columns, `",`+prefix+`"`) + `"`
+}
+
+var nonAlphaNumericRegex = regexp.MustCompile(`[^a-z0-9]`)
+var whitespacesRegex = regexp.MustCompile(`\s{2,}`)
+var fts5SymbolRegex = regexp.MustCompile(`[-+*:^]`)
+
+func PrepareFTS5Query(query string) string {
+	query = whitespacesRegex.ReplaceAllLiteralString(fts5SymbolRegex.ReplaceAllLiteralString(query, " "), " ")
+	if strings.TrimSpace(query) == "" {
+		return ""
+	}
+	return `"` + strings.Join(strings.Split(query, " "), `" "`) + `"`
 }

@@ -3,7 +3,6 @@ package imdb_title
 import (
 	"database/sql"
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -111,13 +110,13 @@ var query_by_ids_prefix = fmt.Sprintf(
 		Column.IsAdult,
 	}, ","),
 	TableName,
-	Column.Id,
+	Column.TId,
 )
 
-func ListByIds(ids []int) ([]IMDBTitle, error) {
-	query := fmt.Sprintf("%s (%s)", query_by_ids_prefix, strings.Repeat("?,", len(ids)-1)+"?")
-	args := make([]any, len(ids))
-	for i, id := range ids {
+func ListByIds(tids []string) ([]IMDBTitle, error) {
+	query := fmt.Sprintf("%s (%s)", query_by_ids_prefix, strings.Repeat("?,", len(tids)-1)+"?")
+	args := make([]any, len(tids))
+	for i, id := range tids {
 		args[i] = id
 	}
 
@@ -249,13 +248,17 @@ var query_search_type_movie = " AND " + __query_search_type_movie
 var query_search_type_show = " AND " + __query_search_type_show
 var query_search_year_eq = " AND " + __query_search_year_eq
 var query_search_year_between = " AND " + __query_search_year_between
-var query_search = fmt.Sprintf(
-	`SELECT rowid, CASE WHEN lower(%s) = ? OR lower(%s) = ? THEN 0 ELSE 1 END AS priority FROM %s_fts(?) WHERE rank = 'bm25(10,10)'`,
-	Column.Title,
-	Column.OrigTitle,
+var query_search_ids_select = fmt.Sprintf(
+	"SELECT it.%s FROM %s_fts(?) itf JOIN %s it ON it.rowid = itf.rowid WHERE rank = 'bm25(10,10)'",
+	Column.TId,
+	TableName,
 	TableName,
 )
-var query_search_order_by_limit = ` ORDER BY priority, rank LIMIT ?`
+var query_search_ids_order_by_limit = fmt.Sprintf(
+	" ORDER BY CASE WHEN lower(itf.%s) = ? OR lower(itf.%s) = ? THEN 0 ELSE 1 END, rank LIMIT ?",
+	Column.Title,
+	Column.OrigTitle,
+)
 
 type SearchTitleType string
 
@@ -265,32 +268,22 @@ const (
 	SearchTitleTypeUnknown SearchTitleType = ""
 )
 
-var nonAlphaNumericRegex = regexp.MustCompile(`[^a-z0-9]`)
-var whitespacesRegex = regexp.MustCompile(`\s{2,}`)
-var fts5SymbolRegex = regexp.MustCompile(`[-+*:^]`)
-
-func fts5Query(query string) string {
-	query = whitespacesRegex.ReplaceAllLiteralString(fts5SymbolRegex.ReplaceAllLiteralString(query, " "), " ")
-	if strings.TrimSpace(query) == "" {
-		return ""
-	}
-	return `"` + strings.Join(strings.Split(query, " "), `" "`) + `"`
-}
-
-func searchIds(title string, titleType SearchTitleType, year int, extendYear bool) ([]int, error) {
+func sqliteSearchIds(title string, titleType SearchTitleType, year int, extendYear bool, limit int) ([]string, error) {
 	title = strings.ToLower(title)
 
-	fts_query := fts5Query(title)
+	fts_query := title
+	if year != 0 && extendYear {
+		fts_query += " " + strconv.Itoa(year)
+	}
+	fts_query = db.PrepareFTS5Query(fts_query)
 	if fts_query == "" {
-		return []int{}, nil
+		return []string{}, nil
 	}
 
 	var query strings.Builder
 	var args []any
 
-	query.WriteString(query_search)
-
-	args = append(args, title, title)
+	query.WriteString(query_search_ids_select)
 	args = append(args, fts_query)
 
 	switch titleType {
@@ -310,14 +303,18 @@ func searchIds(title string, titleType SearchTitleType, year int, extendYear boo
 		}
 	}
 
-	query.WriteString(query_search_order_by_limit)
-	if year != 0 && titleType != "" {
-		args = append(args, 1)
-	} else if year != 0 || titleType != "" {
-		args = append(args, 3)
-	} else {
-		args = append(args, 5)
+	query.WriteString(query_search_ids_order_by_limit)
+	args = append(args, title, title)
+	if limit == 0 {
+		if year != 0 && titleType != "" {
+			limit = 1
+		} else if year != 0 || titleType != "" {
+			limit = 3
+		} else {
+			limit = 5
+		}
 	}
+	args = append(args, limit)
 
 	rows, err := db.Query(query.String(), args...)
 	if err != nil {
@@ -325,11 +322,10 @@ func searchIds(title string, titleType SearchTitleType, year int, extendYear boo
 	}
 	defer rows.Close()
 
-	ids := []int{}
+	ids := []string{}
 	if rows.Next() {
-		var id int
-		var priority int
-		if err := rows.Scan(&id, &priority); err != nil {
+		var id string
+		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
 		ids = append(ids, id)
@@ -340,14 +336,106 @@ func searchIds(title string, titleType SearchTitleType, year int, extendYear boo
 	}
 
 	if len(ids) == 0 && titleType != "" {
-		return searchIds(title, "", year, extendYear)
+		return sqliteSearchIds(title, "", year, extendYear, 0)
 	}
 
 	return ids, nil
 }
 
+var pg_query_search_ids_select = fmt.Sprintf(
+	"SELECT %s FROM %s WHERE search_vector @@ plainto_tsquery(?) ",
+	Column.TId,
+	TableName,
+)
+var pg_query_search_ids_order_by_limit = fmt.Sprintf(
+	" ORDER BY CASE WHEN lower(%s) = ? OR lower(%s) = ? THEN 0 ELSE 1 END, -ts_rank(search_vector, plainto_tsquery(?)) LIMIT ?",
+	Column.Title,
+	Column.OrigTitle,
+)
+
+func postgresSearchIds(title string, titleType SearchTitleType, year int, extendYear bool, limit int) ([]string, error) {
+	title = strings.ToLower(title)
+
+	fts_query := title
+	if year != 0 && extendYear {
+		fts_query += " " + strconv.Itoa(year)
+	}
+	if fts_query == "" {
+		return []string{}, nil
+	}
+
+	var query strings.Builder
+	var args []any
+
+	query.WriteString(pg_query_search_ids_select)
+	args = append(args, fts_query)
+
+	switch titleType {
+	case SearchTitleTypeMovie:
+		query.WriteString(query_search_type_movie)
+	case SearchTitleTypeShow:
+		query.WriteString(query_search_type_show)
+	}
+
+	if year != 0 {
+		if extendYear {
+			query.WriteString(query_search_year_between)
+			args = append(args, year-1, year+1)
+		} else {
+			query.WriteString(query_search_year_eq)
+			args = append(args, year)
+		}
+	}
+
+	query.WriteString(pg_query_search_ids_order_by_limit)
+	args = append(args, title, title, fts_query)
+
+	if limit == 0 {
+		if year != 0 && titleType != "" {
+			limit = 1
+		} else if year != 0 || titleType != "" {
+			limit = 3
+		} else {
+			limit = 5
+		}
+	}
+	args = append(args, limit)
+
+	rows, err := db.Query(query.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ids := []string{}
+	for rows.Next() {
+		var tid string
+		if err := rows.Scan(&tid); err != nil {
+			return nil, err
+		}
+		ids = append(ids, tid)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if len(ids) == 0 && titleType != "" {
+		return postgresSearchIds(title, "", year, extendYear, 0)
+	}
+
+	return ids, nil
+}
+
+var SearchIds = func() func(title string, titleType SearchTitleType, year int, extendYear bool, limit int) ([]string, error) {
+	if db.Dialect == db.DBDialectSQLite {
+		return sqliteSearchIds
+	}
+	return postgresSearchIds
+}()
+
 func sqliteSearchOne(title string, titleType SearchTitleType, year int, extendYear bool) (*IMDBTitle, error) {
-	ids, err := searchIds(title, titleType, year, extendYear)
+	ids, err := sqliteSearchIds(title, titleType, year, extendYear, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -382,8 +470,8 @@ func sqliteSearchOne(title string, titleType SearchTitleType, year int, extendYe
 	return nil, nil
 }
 
-var pg_query_search_select = fmt.Sprintf(
-	`SELECT %s, CASE WHEN lower(%s) = ? OR lower(%s) = ? THEN 0 ELSE 1 END AS priority, -ts_rank(search_vector, plainto_tsquery(?)) AS rank FROM %s WHERE search_vector @@ plainto_tsquery(?) `,
+var pg_query_search_one_select = fmt.Sprintf(
+	`SELECT %s FROM %s WHERE search_vector @@ plainto_tsquery(?)`,
 	strings.Join([]string{
 		Column.Id,
 		Column.TId,
@@ -393,8 +481,6 @@ var pg_query_search_select = fmt.Sprintf(
 		Column.Type,
 		Column.IsAdult,
 	}, ","),
-	Column.Title,
-	Column.OrigTitle,
 	TableName,
 )
 
@@ -404,14 +490,10 @@ func postgresSearchOne(title string, titleType SearchTitleType, year int, extend
 	var query strings.Builder
 	var args []any
 
-	query.WriteString(pg_query_search_select)
+	query.WriteString(pg_query_search_one_select)
 
-	args = append(args, title, title)
-	if year != 0 && extendYear {
-		args = append(args, title+" "+strconv.Itoa(year), title+" "+strconv.Itoa(year))
-	} else {
-		args = append(args, title, title)
-	}
+	fts_query := title
+	args = append(args, fts_query)
 
 	switch titleType {
 	case SearchTitleTypeMovie:
@@ -430,7 +512,9 @@ func postgresSearchOne(title string, titleType SearchTitleType, year int, extend
 		}
 	}
 
-	query.WriteString(query_search_order_by_limit)
+	query.WriteString(pg_query_search_ids_order_by_limit)
+	args = append(args, title, title, fts_query)
+
 	if year != 0 && titleType != "" {
 		args = append(args, 1)
 	} else if year != 0 || titleType != "" {
@@ -448,8 +532,6 @@ func postgresSearchOne(title string, titleType SearchTitleType, year int, extend
 	var titles []IMDBTitle
 	for rows.Next() {
 		var title IMDBTitle
-		var priority int
-		var rank float32
 		if err := rows.Scan(
 			&title.Id,
 			&title.TId,
@@ -458,8 +540,6 @@ func postgresSearchOne(title string, titleType SearchTitleType, year int, extend
 			&title.Year,
 			&title.Type,
 			&title.IsAdult,
-			&priority,
-			&rank,
 		); err != nil {
 			return nil, err
 		}
