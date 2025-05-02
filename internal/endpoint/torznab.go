@@ -18,14 +18,10 @@ func handleTorznab(w http.ResponseWriter, r *http.Request) {
 	switch t {
 	case "caps":
 		shared.SendXML(w, r, 200, torznab.StremThruIndexer.Capabilities())
-	case "tvsearch", "movie":
+	case "search", "tvsearch", "movie":
 		query, err := torznab.ParseQuery(r.URL.Query())
 		if err != nil {
 			shared.SendXML(w, r, 200, torznab.ErrorIncorrectParameter(err.Error()))
-			return
-		}
-		if query.IMDBId == "" {
-			shared.SendXML(w, r, 200, torznab.ErrorMissingParameter("imdbid"))
 			return
 		}
 		items, err := torznab.StremThruIndexer.Search(query)

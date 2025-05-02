@@ -5,9 +5,15 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/buddy"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/db"
+	"github.com/MunifTanjim/stremthru/internal/util"
+
+	"github.com/MunifTanjim/stremthru/internal/imdb_title"
 	"github.com/MunifTanjim/stremthru/internal/imdb_torrent"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 )
@@ -37,14 +43,59 @@ func (sti stremThruIndexer) Info() Info {
 	return sti.info
 }
 
+var lastMappedIMDBIdCached struct {
+	imdbId  string
+	staleAt time.Time
+}
+
 func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
-	buddy.PullTorrentsByStremId(q.IMDBId, "")
+	imdbIds := []string{}
+
+	if q.IMDBId == "" && q.Q == "" {
+		if lastMappedIMDBIdCached.staleAt.Before(time.Now()) {
+			imdbId, err := imdb_torrent.GetLastMappedIMDBId()
+			if err != nil {
+				return nil, err
+			}
+			lastMappedIMDBIdCached.imdbId = imdbId
+			lastMappedIMDBIdCached.staleAt = time.Now().Add(30 * time.Minute)
+		}
+		imdbIds = append(imdbIds, lastMappedIMDBIdCached.imdbId)
+	} else if q.IMDBId == "" && q.Q != "" {
+		category := imdb_title.SearchTitleTypeUnknown
+		hasMovieCat, hasTvCat := q.HasMovies(), q.HasTVShows()
+		if hasMovieCat && !hasTvCat {
+			category = imdb_title.SearchTitleTypeMovie
+		} else if !hasMovieCat && hasTvCat {
+			category = imdb_title.SearchTitleTypeShow
+		}
+		ids, err := imdb_title.SearchIds(q.Q, category, q.Year, false, 5)
+		if err != nil {
+			return nil, err
+		}
+		if len(ids) == 0 {
+			return nil, fmt.Errorf("no results found for %q", q.Q)
+		}
+		imdbIds = append(imdbIds, ids...)
+	} else {
+		imdbIds = append(imdbIds, q.IMDBId)
+	}
+
+	var wg sync.WaitGroup
+	for _, imdbId := range imdbIds {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			buddy.PullTorrentsByStremId(imdbId, "")
+		}()
+	}
+	wg.Wait()
 
 	args := []any{}
 	var query strings.Builder
 	query.WriteString(
 		fmt.Sprintf(
-			"SELECT %s FROM %s ito INNER JOIN %s ti ON ti.%s = ito.%s WHERE ito.%s = ?",
+			"SELECT %s FROM %s ito INNER JOIN %s ti ON ti.%s = ito.%s WHERE ito.%s ",
 			db.JoinPrefixedColumnNames("ti.", torrent_info.Columns...),
 			imdb_torrent.TableName,
 			torrent_info.TableName,
@@ -53,7 +104,14 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 			imdb_torrent.Column.TId,
 		),
 	)
-	args = append(args, q.IMDBId)
+	if len(imdbIds) == 1 {
+		query.WriteString("= ?")
+	} else {
+		query.WriteString("IN (" + util.RepeatJoin("?", len(imdbIds), ",") + ")")
+	}
+	for _, imdbId := range imdbIds {
+		args = append(args, imdbId)
+	}
 	if q.Season != "" {
 		query.WriteString(
 			fmt.Sprintf(
@@ -174,6 +232,7 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 		items = append(items, ResultItem{
 			Audio:       audio,
 			Category:    category,
+			Codec:       tInfo.Codec,
 			IMDB:        q.IMDBId,
 			InfoHash:    tInfo.Hash,
 			Language:    strings.Join(tInfo.Languages, ", "),
@@ -198,17 +257,32 @@ func (sti stremThruIndexer) Capabilities() Caps {
 }
 
 var StremThruIndexer = stremThruIndexer{
+	info: Info{
+		Title:       "StremThru",
+		Description: "StremThru Torznab",
+	},
 	caps: Caps{
+		Server: &CapsServer{
+			Title:     "StremThru",
+			Strapline: "StremThru Torznab",
+			Image:     "https://emojiapi.dev/api/v1/sparkles/256.png",
+			Version:   config.Version,
+		},
 		Searching: []CapsSearchingItem{
+			{
+				Name:            "search",
+				Available:       true,
+				SupportedParams: []string{"q"},
+			},
 			{
 				Name:            "tv-search",
 				Available:       true,
-				SupportedParams: []string{"imdbid,season,ep"},
+				SupportedParams: []string{"q,imdbid,season,ep"},
 			},
 			{
 				Name:            "movie-search",
 				Available:       true,
-				SupportedParams: []string{"imdbid"},
+				SupportedParams: []string{"q,imdbid"},
 			},
 		},
 		Categories: []CapsCategory{

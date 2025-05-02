@@ -26,6 +26,24 @@ type Query struct {
 	TraktId  string
 }
 
+func (query Query) HasTVShows() bool {
+	for _, cat := range query.Categories {
+		if 5000 <= cat && cat < 6000 {
+			return true
+		}
+	}
+	return false
+}
+
+func (query Query) HasMovies() bool {
+	for _, cat := range query.Categories {
+		if 2000 <= cat && cat < 3000 {
+			return true
+		}
+	}
+	return false
+}
+
 func (query Query) Encode() string {
 	v := url.Values{}
 

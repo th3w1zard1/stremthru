@@ -3,8 +3,6 @@ package torznab
 import (
 	"encoding/xml"
 	"strings"
-
-	"github.com/MunifTanjim/stremthru/internal/config"
 )
 
 type CapsServer struct {
@@ -84,9 +82,7 @@ type Caps struct {
 
 func (c Caps) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	cx := xmlCaps{
-		Server: &CapsServer{
-			Version: config.Version,
-		},
+		Server: c.Server,
 		Limits: c.Limits,
 		Categories: xmlCapsCategories{
 			Children: c.Categories,

@@ -13,7 +13,7 @@ const rfc822 = "Mon, 02 Jan 2006 15:04:05 -0700"
 type ChannelItemEnclosure struct {
 	XMLName xml.Name `xml:"enclosure"`
 	URL     string   `xml:"url,attr,omitempty"`
-	Length  uint64   `xml:"length,attr,omitempty"`
+	Length  int64    `xml:"length,attr,omitempty"`
 	Type    string   `xml:"type,attr,omitempty"`
 }
 
@@ -27,14 +27,14 @@ type ChannelItem struct {
 	XMLName xml.Name `xml:"item"`
 
 	// standard rss elements
-	Category    string `xml:"category,omitempty"`
-	Description string `xml:"description,omitempty"`
-	Enclosure   any    `xml:"enclosure,omitempty"`
-	Files       int    `xml:"files,omitempty"`
-	GUID        string `xml:"guid,omitempty"`
-	Link        string `xml:"link,omitempty"`
-	PublishDate string `xml:"pubDate,omitempty"`
-	Title       string `xml:"title,omitempty"`
+	Category    string               `xml:"category,omitempty"`
+	Description string               `xml:"description,omitempty"`
+	Enclosure   ChannelItemEnclosure `xml:"enclosure,omitempty"`
+	Files       int                  `xml:"files,omitempty"`
+	GUID        string               `xml:"guid,omitempty"`
+	Link        string               `xml:"link,omitempty"`
+	PublishDate string               `xml:"pubDate,omitempty"`
+	Title       string               `xml:"title,omitempty"`
 
 	Attributes []ChannelItemAttribute
 }
@@ -67,6 +67,7 @@ type ResultItem struct {
 	Title       string
 
 	Audio      string
+	Codec      string
 	IMDB       string
 	InfoHash   string
 	Language   string
@@ -109,7 +110,12 @@ func (ri ResultItem) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	if ri.Site != "" {
 		attrs = append(attrs, ChannelItemAttribute{Name: "site", Value: ri.Site})
 	}
-	attrs = append(attrs, ChannelItemAttribute{Name: "size", Value: strconv.FormatInt(ri.Size, 10)})
+	if ri.Size > 0 {
+		attrs = append(attrs, ChannelItemAttribute{Name: "size", Value: strconv.FormatInt(ri.Size, 10)})
+	}
+	if ri.Codec != "" {
+		attrs = append(attrs, ChannelItemAttribute{Name: "video", Value: ri.Codec})
+	}
 	if ri.Year != 0 {
 		attrs = append(attrs, ChannelItemAttribute{Name: "year", Value: strconv.Itoa(ri.Year)})
 	}
@@ -122,6 +128,11 @@ func (ri ResultItem) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 		Link:        ri.Link,
 		PublishDate: ri.PublishDate.Format(rfc822),
 		Title:       ri.Title,
+		Enclosure: ChannelItemEnclosure{
+			URL:    ri.Link,
+			Length: ri.Size,
+			Type:   "application/x-bittorrent",
+		},
 	})
 }
 

@@ -68,3 +68,18 @@ func Insert(items []IMDBTorrent) error {
 
 	return nil
 }
+
+var query_get_last_mapped_imdb_id = fmt.Sprintf(
+	"SELECT %s FROM %s WHERE %s != '' ORDER BY %s DESC LIMIT 1;",
+	Column.TId,
+	TableName,
+	Column.TId,
+	Column.UAt,
+)
+
+func GetLastMappedIMDBId() (string, error) {
+	var lastIMDBId string
+	row := db.QueryRow(query_get_last_mapped_imdb_id)
+	err := row.Scan(&lastIMDBId)
+	return lastIMDBId, err
+}
