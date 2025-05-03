@@ -60,7 +60,9 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 			lastMappedIMDBIdCached.imdbId = imdbId
 			lastMappedIMDBIdCached.staleAt = time.Now().Add(30 * time.Minute)
 		}
-		imdbIds = append(imdbIds, lastMappedIMDBIdCached.imdbId)
+		if lastMappedIMDBIdCached.imdbId != "" {
+			imdbIds = append(imdbIds, lastMappedIMDBIdCached.imdbId)
+		}
 	} else if q.IMDBId == "" && q.Q != "" {
 		category := imdb_title.SearchTitleTypeUnknown
 		hasMovieCat, hasTvCat := q.HasMovies(), q.HasTVShows()
@@ -74,11 +76,15 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 			return nil, err
 		}
 		if len(ids) == 0 {
-			return nil, fmt.Errorf("no results found for %q", q.Q)
+			log.Debug("no imdb ids found for query", "q", q.Q)
 		}
 		imdbIds = append(imdbIds, ids...)
 	} else {
 		imdbIds = append(imdbIds, q.IMDBId)
+	}
+
+	if len(imdbIds) == 0 {
+		return []ResultItem{}, nil
 	}
 
 	var wg sync.WaitGroup
