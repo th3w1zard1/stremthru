@@ -221,14 +221,14 @@ var RebuildFTS = func() func() error {
 	return postgresRebuildFTS
 }()
 
-var __query_search_type_movie = fmt.Sprintf(
-	`%s IN ('%s', '%s')`,
+var __sl_query_search_type_movie = fmt.Sprintf(
+	`itf.%s IN ('%s', '%s')`,
 	Column.Type,
 	IMDBTitleTypeMovie,
 	IMDBTitleTypeTvMovie,
 )
-var __query_search_type_show = fmt.Sprintf(
-	`%s IN ('%s', '%s', '%s', '%s', '%s')`,
+var __sl_query_search_type_show = fmt.Sprintf(
+	`itf.%s IN ('%s', '%s', '%s', '%s', '%s')`,
 	Column.Type,
 	IMDBTitleTypeShort,
 	IMDBTitleTypeTvMiniSeries,
@@ -236,25 +236,26 @@ var __query_search_type_show = fmt.Sprintf(
 	IMDBTitleTypeTvShort,
 	IMDBTitleTypeTvSpecial,
 )
-var __query_search_year_eq = fmt.Sprintf(
-	`%s = ?`,
+var __sl_query_search_year_eq = fmt.Sprintf(
+	`itf.%s = ?`,
 	Column.Year,
 )
-var __query_search_year_between = fmt.Sprintf(
-	`%s BETWEEN ? AND ?`,
+var __sl_query_search_year_between = fmt.Sprintf(
+	`itf.%s BETWEEN ? AND ?`,
 	Column.Year,
 )
-var query_search_type_movie = " AND " + __query_search_type_movie
-var query_search_type_show = " AND " + __query_search_type_show
-var query_search_year_eq = " AND " + __query_search_year_eq
-var query_search_year_between = " AND " + __query_search_year_between
-var query_search_ids_select = fmt.Sprintf(
+var sl_query_search_type_movie = " AND " + __sl_query_search_type_movie
+var sl_query_search_type_show = " AND " + __sl_query_search_type_show
+var sl_query_search_year_eq = " AND " + __sl_query_search_year_eq
+var sl_query_search_year_between = " AND " + __sl_query_search_year_between
+
+var sl_query_search_ids_select = fmt.Sprintf(
 	"SELECT it.%s FROM %s_fts(?) itf JOIN %s it ON it.rowid = itf.rowid WHERE rank = 'bm25(10,10)'",
 	Column.TId,
 	TableName,
 	TableName,
 )
-var query_search_ids_order_by_limit = fmt.Sprintf(
+var sl_query_search_ids_order_by_limit = fmt.Sprintf(
 	" ORDER BY CASE WHEN lower(itf.%s) = ? OR lower(itf.%s) = ? THEN 0 ELSE 1 END, rank LIMIT ?",
 	Column.Title,
 	Column.OrigTitle,
@@ -283,27 +284,27 @@ func sqliteSearchIds(title string, titleType SearchTitleType, year int, extendYe
 	var query strings.Builder
 	var args []any
 
-	query.WriteString(query_search_ids_select)
+	query.WriteString(sl_query_search_ids_select)
 	args = append(args, fts_query)
 
 	switch titleType {
 	case SearchTitleTypeMovie:
-		query.WriteString(query_search_type_movie)
+		query.WriteString(sl_query_search_type_movie)
 	case SearchTitleTypeShow:
-		query.WriteString(query_search_type_show)
+		query.WriteString(sl_query_search_type_show)
 	}
 
 	if year != 0 {
 		if extendYear {
-			query.WriteString(query_search_year_between)
+			query.WriteString(sl_query_search_year_between)
 			args = append(args, year-1, year+1)
 		} else {
-			query.WriteString(query_search_year_eq)
+			query.WriteString(sl_query_search_year_eq)
 			args = append(args, year)
 		}
 	}
 
-	query.WriteString(query_search_ids_order_by_limit)
+	query.WriteString(sl_query_search_ids_order_by_limit)
 	args = append(args, title, title)
 	if limit == 0 {
 		if year != 0 && titleType != "" {
@@ -342,11 +343,38 @@ func sqliteSearchIds(title string, titleType SearchTitleType, year int, extendYe
 	return ids, nil
 }
 
+var __pg_query_search_type_movie = fmt.Sprintf(
+	`%s IN ('%s', '%s')`,
+	Column.Type,
+	IMDBTitleTypeMovie,
+	IMDBTitleTypeTvMovie,
+)
+var __pg_query_search_type_show = fmt.Sprintf(
+	`%s IN ('%s', '%s', '%s', '%s', '%s')`,
+	Column.Type,
+	IMDBTitleTypeShort,
+	IMDBTitleTypeTvMiniSeries,
+	IMDBTitleTypeTvSeries,
+	IMDBTitleTypeTvShort,
+	IMDBTitleTypeTvSpecial,
+)
+var __pg_query_search_year_eq = fmt.Sprintf(
+	`%s = ?`,
+	Column.Year,
+)
+var __pg_query_search_year_between = fmt.Sprintf(
+	`%s BETWEEN ? AND ?`,
+	Column.Year,
+)
 var pg_query_search_ids_select = fmt.Sprintf(
 	"SELECT %s FROM %s WHERE search_vector @@ plainto_tsquery(?) ",
 	Column.TId,
 	TableName,
 )
+var pg_query_search_type_movie = " AND " + __pg_query_search_type_movie
+var pg_query_search_type_show = " AND " + __pg_query_search_type_show
+var pg_query_search_year_eq = " AND " + __pg_query_search_year_eq
+var pg_query_search_year_between = " AND " + __pg_query_search_year_between
 var pg_query_search_ids_order_by_limit = fmt.Sprintf(
 	" ORDER BY CASE WHEN lower(%s) = ? OR lower(%s) = ? THEN 0 ELSE 1 END, -ts_rank(search_vector, plainto_tsquery(?)) LIMIT ?",
 	Column.Title,
@@ -372,17 +400,17 @@ func postgresSearchIds(title string, titleType SearchTitleType, year int, extend
 
 	switch titleType {
 	case SearchTitleTypeMovie:
-		query.WriteString(query_search_type_movie)
+		query.WriteString(pg_query_search_type_movie)
 	case SearchTitleTypeShow:
-		query.WriteString(query_search_type_show)
+		query.WriteString(pg_query_search_type_show)
 	}
 
 	if year != 0 {
 		if extendYear {
-			query.WriteString(query_search_year_between)
+			query.WriteString(pg_query_search_year_between)
 			args = append(args, year-1, year+1)
 		} else {
-			query.WriteString(query_search_year_eq)
+			query.WriteString(pg_query_search_year_eq)
 			args = append(args, year)
 		}
 	}
@@ -497,17 +525,17 @@ func postgresSearchOne(title string, titleType SearchTitleType, year int, extend
 
 	switch titleType {
 	case SearchTitleTypeMovie:
-		query.WriteString(query_search_type_movie)
+		query.WriteString(pg_query_search_type_movie)
 	case SearchTitleTypeShow:
-		query.WriteString(query_search_type_show)
+		query.WriteString(pg_query_search_type_show)
 	}
 
 	if year != 0 {
 		if extendYear {
-			query.WriteString(query_search_year_between)
+			query.WriteString(pg_query_search_year_between)
 			args = append(args, year-1, year+1)
 		} else {
-			query.WriteString(query_search_year_eq)
+			query.WriteString(pg_query_search_year_eq)
 			args = append(args, year)
 		}
 	}
