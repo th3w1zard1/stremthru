@@ -25,14 +25,8 @@ import (
 	"github.com/madflojo/tasks"
 )
 
-var syncDMMHashlistJobTracker JobTracker[struct{}]
-
 func getSyncDMMHashlistJobId() string {
 	return time.Now().Format(time.DateOnly + " 15")
-}
-
-func isDMMHashlistSyncing() (bool, error) {
-	return syncDMMHashlistJobTracker.IsRunning(getSyncDMMHashlistJobId())
 }
 
 type DMMHashlistItem struct {
@@ -53,14 +47,13 @@ func InitSyncDMMHashlistWorker(conf *WorkerConfig) *Worker {
 
 	log := logger.Scoped("worker/sync_dmm_hashlist")
 
-	syncDMMHashlistJobTracker = NewJobTracker("sync-dmm-hashlist", func(id string, job *Job[struct{}]) bool {
+	jobTracker := NewJobTracker("sync-dmm-hashlist", func(id string, job *Job[struct{}]) bool {
 		date, err := time.Parse(time.DateOnly+" 15", id)
 		if err != nil {
 			return true
 		}
 		return date.Before(time.Now().Add(-7 * 24 * time.Hour))
 	})
-	jobTracker := syncDMMHashlistJobTracker
 
 	HASHLISTS_REPO := "https://github.com/debridmediamanager/hashlists.git"
 	REPO_DIR := path.Join(config.DataDir, "hashlists")

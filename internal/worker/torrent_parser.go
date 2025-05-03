@@ -117,13 +117,6 @@ func InitParseTorrentWorker(conf *WorkerConfig) *Worker {
 			}
 			worker.onStart()
 
-			if dmmHashlistSyncing, err := isDMMHashlistSyncing(); err != nil {
-				return err
-			} else if dmmHashlistSyncing {
-				log.Info("DMM Hashlist syncing, skipping")
-				return nil
-			}
-
 			for {
 				tInfos, err := ti.GetUnparsed(5000)
 				if err != nil {
