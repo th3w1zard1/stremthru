@@ -1069,12 +1069,14 @@ func ExistsByHash(hashes []string) (map[string]bool, error) {
 }
 
 var query_get_unmapped_hashes = fmt.Sprintf(
-	"SELECT ti.%s FROM %s ti LEFT JOIN %s ito ON ti.%s = ito.%s WHERE ito.%s IS NULL LIMIT ?",
+	"SELECT ti.%s FROM %s ti LEFT JOIN %s ito ON ti.%s = ito.%s WHERE ti.%s = ti.%s AND ito.%s IS NULL LIMIT ?",
 	Column.Hash,
 	TableName,
 	imdb_torrent.TableName,
 	Column.Hash,
 	imdb_torrent.Column.Hash,
+	Column.TorrentTitle,
+	Column.ParserInput,
 	imdb_torrent.Column.TId,
 )
 
