@@ -115,7 +115,7 @@ var whitespacesRegex = regexp.MustCompile(`\s{2,}`)
 var fts5SymbolRegex = regexp.MustCompile(`[-+*:^]`)
 
 func PrepareFTS5Query(query string) string {
-	query = whitespacesRegex.ReplaceAllLiteralString(fts5SymbolRegex.ReplaceAllLiteralString(query, " "), " ")
+	query = whitespacesRegex.ReplaceAllLiteralString(fts5SymbolRegex.ReplaceAllLiteralString(strings.ReplaceAll(query, `"`, `""`), " "), " ")
 	if strings.TrimSpace(query) == "" {
 		return ""
 	}
