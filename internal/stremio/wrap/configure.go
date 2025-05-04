@@ -81,7 +81,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			}
 			td.Upstreams = slices.Clone(td.Upstreams[0:end])
 		case "add-store":
-			if td.IsAuthed || len(td.Upstreams) < MaxPublicInstanceStoreCount {
+			if td.IsAuthed || len(td.Stores) < MaxPublicInstanceStoreCount {
 				td.Stores = append(td.Stores, StoreConfig{})
 			}
 		case "remove-store":
