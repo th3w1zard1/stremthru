@@ -2,6 +2,7 @@ package endpoint
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -110,15 +111,8 @@ func handleProxifyLinks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var reqHeaders map[string]string
-	if blob := r.Form.Get("req_headers"); blob != "" {
-		reqHeaders = map[string]string{}
-		for header := range strings.SplitSeq(blob, "\n") {
-			if k, v, ok := strings.Cut(header, ": "); ok {
-				reqHeaders[k] = v
-			}
-		}
-	}
+	reqHeadersByBlob := map[string]map[string]string{}
+	fallbackReqHeaders := r.Form.Get("req_headers")
 
 	expiresIn := 0 * time.Second
 	if exp := r.Form.Get("exp"); exp != "" {
@@ -140,6 +134,22 @@ func handleProxifyLinks(w http.ResponseWriter, r *http.Request) {
 
 	proxyLinks := make([]string, count)
 	for i, link := range links {
+		var reqHeaders map[string]string
+		reqHeadersBlob := r.Form.Get("req_headers[" + strconv.Itoa(i) + "]")
+		if reqHeadersBlob == "" {
+			reqHeadersBlob = fallbackReqHeaders
+		}
+		if headers, ok := reqHeadersByBlob[reqHeadersBlob]; ok {
+			reqHeaders = headers
+		} else {
+			reqHeaders = map[string]string{}
+			for header := range strings.SplitSeq(reqHeadersBlob, "\n") {
+				if k, v, ok := strings.Cut(header, ": "); ok {
+					reqHeaders[k] = v
+				}
+			}
+			reqHeadersByBlob[reqHeadersBlob] = reqHeaders
+		}
 		proxyLink, err := shared.CreateProxyLink(r, link, reqHeaders, config.TUNNEL_TYPE_AUTO, expiresIn, user, password, shouldEncrypt)
 		if err != nil {
 			SendError(w, r, err)

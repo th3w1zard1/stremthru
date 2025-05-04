@@ -237,7 +237,8 @@ e.g. `Basic dXNlcm5hbWU6cGFzc3dvcmQ=`
 
 - `url`: URL to proxify _(multiple)_
 - `exp`: Expiration time duration _(optional)_
-- `req_headers`: Headers to add to the request _(optional)_
+- `req_headers[i]`: Headers to add to the request for `url` at position `i` _(optional)_
+- `req_headers`: Fallback headers if `req_headers[i]` is missing _(optional)_
 - `token`: Token to use for authorization _(optional)_
 - `redirect`: Redirect to proxified url, valid for single `url` _(optional)_
 
@@ -249,7 +250,8 @@ e.g. `Basic dXNlcm5hbWU6cGFzc3dvcmQ=`
 
 - `url`: URL to proxify _(multiple)_
 - `exp`: Expiration time duration _(optional)_
-- `req_headers`: Headers to add to the request _(optional)_
+- `req_headers[i]`: Headers to add to the request for `url` at position `i` _(optional)_
+- `req_headers`: Fallback headers if `req_headers[i]` is missing _(optional)_
 - `token`: Token to use for authorization _(optional)_
 
 **Response**:
