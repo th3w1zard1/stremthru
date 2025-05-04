@@ -70,6 +70,8 @@ type proxifyLinksData struct {
 }
 
 func handleProxifyLinks(w http.ResponseWriter, r *http.Request) {
+	ctx := server.GetReqCtx(r)
+
 	isGetReq := shared.IsMethod(r, http.MethodGet)
 	if !isGetReq && !shared.IsMethod(r, http.MethodPost) {
 		shared.ErrorMethodNotAllowed(r).Send(w, r)
@@ -132,6 +134,9 @@ func handleProxifyLinks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	shouldEncrypt := r.URL.Query().Get("token") == ""
+	if !shouldEncrypt {
+		ctx.RedactURLQueryParams(r, "token")
+	}
 
 	proxyLinks := make([]string, count)
 	for i, link := range links {

@@ -28,6 +28,14 @@ func (ctx *ReqCtx) RedactURLPathValues(r *http.Request, names ...string) {
 	}
 }
 
+func (ctx *ReqCtx) RedactURLQueryParams(r *http.Request, names ...string) {
+	for _, name := range names {
+		if _, ok := ctx.ReqQuery[name]; ok {
+			ctx.ReqQuery.Set(name, "...redacted...")
+		}
+	}
+}
+
 func SetReqCtx(r *http.Request, reqCtx *ReqCtx) *http.Request {
 	ctx := context.WithValue(r.Context(), reqCtxKey{}, reqCtx)
 	return r.WithContext(ctx)
