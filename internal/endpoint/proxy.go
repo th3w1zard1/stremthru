@@ -81,8 +81,8 @@ func handleProxifyLinks(w http.ResponseWriter, r *http.Request) {
 
 	isAuthorized, user, password := getProxyAuthorization(r, true)
 	if !isAuthorized {
-		w.Header().Add(server.HEADER_PROXY_AUTHENTICATE, "Basic")
-		shared.ErrorProxyAuthRequired(r).Send(w, r)
+		w.Header().Add(server.HEADER_STREMTHRU_AUTHENTICATE, "Basic")
+		shared.ErrorForbidden(r).Send(w, r)
 		return
 	}
 

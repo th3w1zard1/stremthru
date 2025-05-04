@@ -23,11 +23,16 @@ func StoreMiddleware(middlewares ...shared.MiddlewareFunc) shared.MiddlewareFunc
 }
 
 func extractProxyAuthToken(r *http.Request, readQuery bool) (token string, hasToken bool) {
-	token = r.Header.Get(server.HEADER_PROXY_AUTHORIZATION)
+	token = r.Header.Get(server.HEADER_STREMTHRU_AUTHORIZATION)
+	if token == "" {
+		token = r.Header.Get(server.HEADER_PROXY_AUTHORIZATION)
+		if token != "" {
+			r.Header.Del(server.HEADER_PROXY_AUTHORIZATION)
+		}
+	}
 	if token == "" && readQuery {
 		token = r.URL.Query().Get("token")
 	}
-	r.Header.Del(server.HEADER_PROXY_AUTHORIZATION)
 	token = strings.TrimPrefix(token, "Basic ")
 	return token, token != ""
 }
@@ -45,20 +50,6 @@ func ProxyAuthContext(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.GetStoreContext(r)
 		ctx.IsProxyAuthorized, ctx.ProxyAuthUser, ctx.ProxyAuthPassword = getProxyAuthorization(r, false)
-		next.ServeHTTP(w, r)
-	})
-}
-
-func ProxyAuthRequired(next http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.GetStoreContext(r)
-
-		if !ctx.IsProxyAuthorized {
-			w.Header().Add(server.HEADER_PROXY_AUTHENTICATE, "Basic")
-			shared.ErrorProxyAuthRequired(r).Send(w, r)
-			return
-		}
-
 		next.ServeHTTP(w, r)
 	})
 }

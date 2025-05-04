@@ -213,11 +213,11 @@ Comma separated list of features to enable/disable.
 
 ### Authentication
 
-**`Proxy-Authorization` Header**
+**`X-StremThru-Authorization` Header**
 
 Basic auth header, e.g. `Basic dXNlcm5hbWU6cGFzc3dvcmQ=`
 
-`Proxy-Authorization` header is checked against `STREMTHRU_PROXY_AUTH` config.
+`X-StremThru-Authorization` header is checked against `STREMTHRU_PROXY_AUTH` config.
 
 ### Proxy
 
@@ -228,7 +228,7 @@ Authorization is checked against `STREMTHRU_PROXY_AUTH` config.
 If `token` query parameter is present, the proxified link will not be encrypted.
 e.g. `dXNlcm5hbWU6cGFzc3dvcmQ=`
 
-Otherwise, if `Proxy-Authorization` header is present, the proxified link will be encrypted.
+Otherwise, if `X-StremThru-Authorization` header is present, the proxified link will be encrypted.
 e.g. `Basic dXNlcm5hbWU6cGFzc3dvcmQ=`
 
 **`GET /v0/proxy`**
