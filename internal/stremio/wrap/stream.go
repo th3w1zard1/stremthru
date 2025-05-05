@@ -179,6 +179,9 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 				for i := range ud.stores {
 					s := &ud.stores[i]
 					storeCode := strings.ToUpper(string(s.store.GetName().Code()))
+					if storeCode == "ED" {
+						continue
+					}
 
 					stream := *stream.Stream
 					surl.RawQuery = surlRawQuery + "&s=" + storeCode
