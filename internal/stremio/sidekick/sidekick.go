@@ -863,7 +863,7 @@ func handleAddonToggle(w http.ResponseWriter, r *http.Request) {
 				transportUrl.Path = strings.TrimSuffix(transportUrl.Path, "/manifest.json")
 				transportUrl.Path = strings.TrimPrefix(transportUrl.Path, "/stremio/disabled/")
 				if transportUrl, err = url.Parse(transportUrl.Path); err == nil {
-					transportUrl.Path = strings.TrimSuffix(transportUrl.Path, "/manifest.json")
+					transportUrl = transportUrl.JoinPath("..")
 
 					manifest, err := addon_client.GetManifest(&stremio_addon.GetManifestParams{
 						BaseURL: transportUrl,
