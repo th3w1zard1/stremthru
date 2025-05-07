@@ -172,6 +172,7 @@
         data-configurable="{{if eq .Manifest.BehaviorHints nil}}false{{else}}{{.Manifest.BehaviorHints.Configurable}}{{end}}"
         data-protected="{{if eq .Flags nil}}false{{else}}{{.Flags.Protected}}{{end}}"
         data-version="{{.Manifest.Version}}"
+        data-catalog-names="{{range .Manifest.Catalogs}}{{.Type}}{{"\n"}}{{.Id}}{{"\n"}}{{.Name}}{{"\n\n"}}{{end}}"
       >
         Modify
       </button>
@@ -227,6 +228,15 @@
         </label>
       </fieldset>
       {{end}}
+
+      <fieldset id="addon_modify_new_catalogs">
+        <legend>Catalogs:</legend>
+
+        <div data-type="catalog_item_template" style="display: none;">
+          <label><small><span data-type="catalog_item_type"></span> [<span data-type="catalog_item_id"></span>]</small></label>
+          <input type="hidden" />
+        </div>
+      </fieldset>
 
       <button type="submit">Modify</button>
     </form>
@@ -383,6 +393,36 @@ function onOpenAddonModifyModal(e, { modal, onClose, trigger }) {
   modal.querySelector("#addon_modify_new_name").value = trigger.dataset.name;
   modal.querySelector("#addon_modify_new_description").value = trigger.dataset.description;
   modal.querySelector("#addon_modify_new_logo").value = trigger.dataset.logo;
+  modal.querySelector("#addon_modify_new_logo").value = trigger.dataset.logo;
+  const catalogs = trigger.dataset.catalogNames.trim().split("\n\n").filter(Boolean).map((line) => {
+    const [cType, cId, cName] = line.split("\n");
+    return { type: cType, id: cId, name: cName };
+  });
+
+  const catalogsFieldset = modal.querySelector("#addon_modify_new_catalogs");
+  catalogsFieldset.querySelectorAll(`[data-type="catalog_item"]`).forEach((node) => {
+    node.parentNode.removeChild(node);
+  });
+
+  catalogsFieldset.style.display = catalogs.length ? "block" : "none";
+
+  if (catalogs.length) {
+    const itemTemplate = modal.querySelector("[data-type='catalog_item_template']");
+    catalogs.forEach((catalog, i) => {
+      const item = itemTemplate.cloneNode(true);
+      item.style.display = "block";
+      item.dataset.type = "catalog_item";
+      const label = item.querySelector("label");
+      label.querySelector(`[data-type="catalog_item_type"]`).innerText = catalog.type;
+      label.querySelector(`[data-type="catalog_item_id"]`).innerText = catalog.id;
+      const input = item.querySelector("input");
+      input.type = "text";
+      input.id = `catalog_name[${i}]`;
+      input.name = `catalog_name[${i}]`;
+      input.value = catalog.name;
+      catalogsFieldset.appendChild(item);
+    });
+  }
 
   if (isAdmin) {
     modal.querySelector("#addon_modify_new_configurable").checked = trigger.dataset.configurable == "true";
@@ -396,9 +436,13 @@ function onOpenAddonModifyModal(e, { modal, onClose, trigger }) {
       description: modal.querySelector("#addon_modify_new_description").value,
       logo: modal.querySelector("#addon_modify_new_logo").value,
     }
+    modal.querySelectorAll(`[data-type="catalog_item"]`).forEach((node) => {
+      const input = node.querySelector("input");
+      data[input.id] = input.value;
+    });
     if (isAdmin) {
-      data.configurable = modal.querySelector("#addon_modify_new_configurable").checked
-      data.protected = modal.querySelector("#addon_modify_new_protected").checked
+      data.configurable = modal.querySelector("#addon_modify_new_configurable").checked;
+      data.protected = modal.querySelector("#addon_modify_new_protected").checked;
     }
     trigger.setAttribute("hx-vals", JSON.stringify(data));
     onClose();

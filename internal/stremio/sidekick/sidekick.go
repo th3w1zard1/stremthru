@@ -981,6 +981,12 @@ func handleAddonModify(w http.ResponseWriter, r *http.Request) {
 		if logo != "" {
 			addon.Manifest.Logo = logo
 		}
+		for i := range addon.Manifest.Catalogs {
+			catalog := &addon.Manifest.Catalogs[i]
+			if name := r.FormValue("catalog_name[" + strconv.Itoa(i) + "]"); name != "" {
+				catalog.Name = name
+			}
+		}
 		if td.HasAuthAdmin {
 			isConfigurable := r.FormValue("configurable") == "true"
 			isProtected := r.FormValue("protected") == "true"
