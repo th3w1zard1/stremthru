@@ -83,7 +83,7 @@ Log level.
 | ------------------ |
 | `DEBUG`            |
 | `INFO` _(default)_ |
-| `WARNING`          |
+| `WARN`             |
 | `ERROR`            |
 
 #### `STREMTHRU_LOG_FORMAT`
@@ -258,8 +258,8 @@ e.g. `Basic dXNlcm5hbWU6cGFzc3dvcmQ=`
 
 ```json
 {
-    "items": ["string"],
-    "total_items": "int"
+  "items": ["string"],
+  "total_items": "int"
 }
 ```
 
