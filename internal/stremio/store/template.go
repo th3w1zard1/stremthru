@@ -33,6 +33,14 @@ func getStoreNameConfig(defaultValue string) configure.Config {
 }
 
 func getTemplateData(ud *UserData) *configure.TemplateData {
+	hideStreamConfig := configure.Config{
+		Key:   "hide_stream",
+		Type:  configure.ConfigTypeCheckbox,
+		Title: "Hide Streams",
+	}
+	if ud.HideStream {
+		hideStreamConfig.Default = "checked"
+	}
 	return &configure.TemplateData{
 		Base: configure.Base{
 			Title:       "StremThru Store",
@@ -49,6 +57,7 @@ func getTemplateData(ud *UserData) *configure.TemplateData {
 				Description: "",
 				Required:    true,
 			},
+			hideStreamConfig,
 		},
 		Script: configure.GetScriptStoreTokenDescription("'#store_name'", "'#store_token'"),
 	}
