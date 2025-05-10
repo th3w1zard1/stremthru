@@ -11,12 +11,12 @@ import (
 )
 
 func getResolutionRank(input string) int {
-	if strings.HasSuffix(input, "P") {
+	if strings.HasSuffix(input, "p") {
 		if resolution, err := strconv.Atoi(input[:len(input)-1]); err == nil {
 			return resolution
 		}
 	}
-	if strings.HasSuffix(input, "K") {
+	if strings.HasSuffix(input, "k") {
 		if resolution, err := strconv.Atoi(input[:len(input)-1]); err == nil {
 			return resolution * 1000
 		}
