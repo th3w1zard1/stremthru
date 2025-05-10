@@ -173,9 +173,11 @@ func (ss StreamSorter) Less(a, b int) bool {
 	return false
 }
 
+const defaultSortConfig = "-resolution,-quality,-size"
+
 func SortWrappedStreams(items []WrappedStream, config string) {
 	if config == "" {
-		config = "-resolution,-quality,-size"
+		config = defaultSortConfig
 	}
 
 	sortConfigs := parseSortConfig(config)

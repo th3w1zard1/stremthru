@@ -57,7 +57,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 			Type:        "text",
 			Default:     ud.Sort,
 			Title:       "Stream Sort",
-			Description: "Comma separated fields: <code>resolution</code>, <code>quality</code>, <code>size</code>. Prefix with <code>-</code> for reverse sort.",
+			Description: "Comma separated fields: <code>resolution</code>, <code>quality</code>, <code>size</code>. Prefix with <code>-</code> for reverse sort. Default: <code>" + defaultSortConfig + "</code>",
 		},
 
 		ExtractorIds: []string{},
