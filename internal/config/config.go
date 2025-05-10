@@ -381,7 +381,10 @@ var config = func() Config {
 	if peerUri == "" {
 		peerUri = defaultPeerUri
 	}
-	peerUrl, peerAuthToken := parseUri(peerUri)
+	peerUrl, peerAuthToken := "", ""
+	if peerUri != "-" {
+		peerUrl, peerAuthToken = parseUri(peerUri)
+	}
 
 	databaseUri := getEnv("STREMTHRU_DATABASE_URI")
 
