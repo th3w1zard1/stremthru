@@ -28,25 +28,13 @@ type MagnetCache struct {
 	Files      Files
 }
 
-// If Buddy is available, refresh data more frequently.
-var cachedStaleTime = func() time.Duration {
-	if config.HasBuddy {
-		return 6 * time.Hour
-	}
-	return 12 * time.Hour
-}()
-var uncachedStaleTime = func() time.Duration {
-	if config.HasBuddy {
-		return 1 * time.Hour
-	}
-	return 2 * time.Hour
-}()
-
 func (mc MagnetCache) IsStale() bool {
-	if mc.IsCached {
-		return mc.ModifiedAt.Before(time.Now().Add(-cachedStaleTime))
+	staleTime := config.StoreContentCachedStaleTime.GetStaleTime(mc.IsCached, string(mc.Store.Name()))
+	if config.HasBuddy {
+		// If Buddy is available, refresh data more frequently.
+		staleTime = staleTime / 2
 	}
-	return mc.ModifiedAt.Before(time.Now().Add(-uncachedStaleTime))
+	return mc.ModifiedAt.Before(time.Now().Add(-staleTime))
 }
 
 func GetByHashes(store store.StoreCode, hashes []string, sid string) ([]MagnetCache, error) {

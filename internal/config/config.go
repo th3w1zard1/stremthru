@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"log/slog"
 	"net/url"
@@ -209,6 +210,70 @@ func (cpcl ContentProxyConnectionLimitMap) Get(user string) int {
 	return cpcl[user]
 }
 
+type storeContentCachedStaleTimeMapItem struct {
+	cached   time.Duration
+	uncached time.Duration
+}
+
+type storeContentCachedStaleTimeMap map[string]storeContentCachedStaleTimeMapItem
+
+func (sccst storeContentCachedStaleTimeMap) GetStaleTime(isCached bool, storeName string) time.Duration {
+	if staleTime, ok := sccst[storeName]; ok {
+		if isCached {
+			return staleTime.cached
+		}
+		return staleTime.uncached
+	}
+	if storeName != "*" {
+		return sccst.GetStaleTime(isCached, "*")
+	}
+	return 0
+}
+
+func parseStoreContentCachedStaleTime(staleTimeConfig string) (staleTimeMap storeContentCachedStaleTimeMap, err error) {
+	staleTimeMap = storeContentCachedStaleTimeMap{}
+	staleTimeList := strings.FieldsFunc(staleTimeConfig, func(c rune) bool {
+		return c == ','
+	})
+
+	for _, staleTimeString := range staleTimeList {
+		parts := strings.SplitN(staleTimeString, ":", 3)
+		if len(parts) != 3 {
+			return nil, fmt.Errorf("invalid stale time: %s", staleTimeString)
+		}
+
+		staleTime := storeContentCachedStaleTimeMapItem{}
+		store, cachedStaleTime, uncachedStaleTime := parts[0], parts[1], parts[2]
+
+		if cachedStaleDuration, err := time.ParseDuration(cachedStaleTime); err != nil {
+			return nil, fmt.Errorf("invalid cached stale time (%s): %v", cachedStaleTime, err)
+		} else if cachedStaleDuration < 18*time.Hour {
+			return nil, fmt.Errorf("cached stale time (%s) must be at least 18h", cachedStaleTime)
+		} else {
+			staleTime.cached = cachedStaleDuration
+		}
+
+		if uncachedStaleDuration, err := time.ParseDuration(uncachedStaleTime); err != nil {
+			return nil, fmt.Errorf("invalid uncached stale time (%s): %v", uncachedStaleTime, err)
+		} else if uncachedStaleDuration < 6*time.Hour {
+			return nil, fmt.Errorf("uncached stale time (%s) must be at least 6h", uncachedStaleTime)
+		} else {
+			staleTime.uncached = uncachedStaleDuration
+		}
+
+		staleTimeMap[store] = staleTime
+	}
+
+	if _, ok := staleTimeMap["*"]; !ok {
+		staleTimeMap["*"] = storeContentCachedStaleTimeMapItem{
+			cached:   24 * time.Hour,
+			uncached: 8 * time.Hour,
+		}
+	}
+
+	return staleTimeMap, nil
+}
+
 type Config struct {
 	LogLevel  slog.Level
 	LogFormat string
@@ -231,6 +296,7 @@ type Config struct {
 	LandingPage                 string
 	ServerStartTime             time.Time
 	StoreContentProxy           StoreContentProxyMap
+	StoreContentCachedStaleTime storeContentCachedStaleTimeMap
 	ContentProxyConnectionLimit ContentProxyConnectionLimitMap
 	IP                          *IPResolver
 
@@ -381,6 +447,11 @@ var config = func() Config {
 		log.Fatalf("data directory does not exist: %v", dataDir)
 	}
 
+	storeContentCachedStaleTimeMap, err := parseStoreContentCachedStaleTime(getEnv("STREMTHRU_STORE_CONTENT_CACHED_STALE_TIME"))
+	if err != nil {
+		log.Fatalf("failed to parse store content cached stale time: %v", err)
+	}
+
 	return Config{
 		LogLevel:  logLevel,
 		LogFormat: logFormat,
@@ -403,6 +474,7 @@ var config = func() Config {
 		LandingPage:                 getEnv("STREMTHRU_LANDING_PAGE"),
 		ServerStartTime:             time.Now(),
 		StoreContentProxy:           storeContentProxyMap,
+		StoreContentCachedStaleTime: storeContentCachedStaleTimeMap,
 		ContentProxyConnectionLimit: contentProxyConnectionMap,
 		IP:                          &IPResolver{},
 
@@ -431,6 +503,7 @@ var Version = config.Version
 var LandingPage = config.LandingPage
 var ServerStartTime = config.ServerStartTime
 var StoreContentProxy = config.StoreContentProxy
+var StoreContentCachedStaleTime = config.StoreContentCachedStaleTime
 var ContentProxyConnectionLimit = config.ContentProxyConnectionLimit
 var InstanceId = strings.ReplaceAll(uuid.NewString(), "-", "")
 var IP = config.IP

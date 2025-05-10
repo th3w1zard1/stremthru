@@ -189,6 +189,13 @@ If `username` is `*`, it is used as fallback.
 
 If `connection_limit` is `0`, no connection limit is applied.
 
+#### `STREMTHRU_STORE_CONTENT_CACHED_STALE_TIME`
+
+Comma separated list of stale time for cached/uncached content in store, in `store_name:cached_stale_time:uncached_stale_time` format.
+e.g. `*:24h:8h`.
+
+If `store_name` is `*`, it is used as fallback.
+
 #### `STREMTHRU_PEER_URI`
 
 URI for peer StremThru instance, in format `https://:<pass>@<host>[:<port>]`.
