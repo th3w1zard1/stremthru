@@ -30,14 +30,15 @@ var logoByStoreCode = map[string]string{
 	"tb": "https://torbox.app/android-chrome-192x192.png",
 }
 
-func getManifestCatalog(code string) stremio.Catalog {
+func getManifestCatalog(code string, hideCatalog bool) stremio.Catalog {
 	return stremio.Catalog{
 		Id:   getCatalogId(code),
 		Name: "Store " + strings.ToUpper(code),
 		Type: ContentTypeOther,
 		Extra: []stremio.CatalogExtra{
 			{
-				Name: "search",
+				Name:       "search",
+				IsRequired: hideCatalog,
 			},
 			{
 				Name: "skip",
@@ -72,11 +73,11 @@ func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 
 						code := "st-" + string(storeCode)
 						idPrefixes = append(idPrefixes, getIdPrefix(code))
-						catalogs = append(catalogs, getManifestCatalog(code))
+						catalogs = append(catalogs, getManifestCatalog(code, ud.HideCatalog))
 						if storeName == store.StoreNameTorBox {
 							code += "-usenet"
 							idPrefixes = append(idPrefixes, getIdPrefix(code))
-							catalogs = append(catalogs, getManifestCatalog(code))
+							catalogs = append(catalogs, getManifestCatalog(code, ud.HideCatalog))
 						}
 					}
 				}
@@ -96,11 +97,11 @@ func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 			}
 
 			idPrefixes = append(idPrefixes, getIdPrefix(storeCode))
-			catalogs = append(catalogs, getManifestCatalog(storeCode))
+			catalogs = append(catalogs, getManifestCatalog(storeCode, ud.HideCatalog))
 			if storeName == store.StoreNameTorBox {
 				code := storeCode + "-usenet"
 				idPrefixes = append(idPrefixes, getIdPrefix(code))
-				catalogs = append(catalogs, getManifestCatalog(code))
+				catalogs = append(catalogs, getManifestCatalog(code, ud.HideCatalog))
 			}
 		}
 

@@ -237,8 +237,12 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	if extra.Search != "" {
 		query := strings.ToLower(extra.Search)
 		parts := whitespacesRegex.Split(query, -1)
-		for i := range parts {
-			parts[i] = regexp.QuoteMeta(parts[i])
+		includeStoreActions := false
+		for i, part := range parts {
+			if !includeStoreActions && (part == "stremthru" || part == "st") {
+				includeStoreActions = true
+			}
+			parts[i] = regexp.QuoteMeta(part)
 		}
 		regex, err := regexp.Compile(strings.Join(parts, ".*"))
 		if err != nil {
@@ -246,6 +250,11 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		filteredItems := []CachedCatalogItem{}
+		if includeStoreActions {
+			filteredItems = append(filteredItems, CachedCatalogItem{
+				MetaPreview: getStoreActionMetaPreview(idr.getStoreCode()),
+			})
+		}
 		for i := range items {
 			item := &items[i]
 			if regex.MatchString(strings.ToLower(item.Name)) {

@@ -33,6 +33,14 @@ func getStoreNameConfig(defaultValue string) configure.Config {
 }
 
 func getTemplateData(ud *UserData) *configure.TemplateData {
+	hideCatalogConfig := configure.Config{
+		Key:   "hide_catalog",
+		Type:  configure.ConfigTypeCheckbox,
+		Title: "Hide Catalogs",
+	}
+	if ud.HideCatalog {
+		hideCatalogConfig.Default = "checked"
+	}
 	hideStreamConfig := configure.Config{
 		Key:   "hide_stream",
 		Type:  configure.ConfigTypeCheckbox,
@@ -57,6 +65,7 @@ func getTemplateData(ud *UserData) *configure.TemplateData {
 				Description: "",
 				Required:    true,
 			},
+			hideCatalogConfig,
 			hideStreamConfig,
 		},
 		Script: configure.GetScriptStoreTokenDescription("'#store_name'", "'#store_token'"),
