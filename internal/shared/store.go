@@ -26,21 +26,27 @@ import (
 
 var adStore = alldebrid.NewStoreClient(&alldebrid.StoreClientConfig{
 	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("alldebrid")),
+	UserAgent:  config.StoreClientUserAgent,
 })
 var dlStore = debridlink.NewStoreClient(&debridlink.StoreClientConfig{
 	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("debridlink")),
+	UserAgent:  config.StoreClientUserAgent,
 })
 var edStore = easydebrid.NewStoreClient(&easydebrid.StoreClientConfig{
 	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("easydebrid")),
+	UserAgent:  config.StoreClientUserAgent,
 })
 var pmStore = premiumize.NewStoreClient(&premiumize.StoreClientConfig{
 	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("premiumize")),
+	UserAgent:  config.StoreClientUserAgent,
 })
 var ppStore = pikpak.NewStoreClient(&pikpak.StoreClientConfig{
 	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("pikpak")),
+	UserAgent:  config.StoreClientUserAgent,
 })
 var ocStore = offcloud.NewStoreClient(&offcloud.StoreClientConfig{
 	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("offcloud")),
+	UserAgent:  config.StoreClientUserAgent,
 })
 var rdStore = realdebrid.NewStoreClient(&realdebrid.StoreClientConfig{
 	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("realdebrid")),
@@ -48,6 +54,7 @@ var rdStore = realdebrid.NewStoreClient(&realdebrid.StoreClientConfig{
 })
 var tbStore = torbox.NewStoreClient(&torbox.StoreClientConfig{
 	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("torbox")),
+	UserAgent:  config.StoreClientUserAgent,
 })
 
 func GetStore(name string) store.Store {

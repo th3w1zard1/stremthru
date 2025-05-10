@@ -56,6 +56,7 @@ var defaultValueByEnv = map[string]map[string]string{
 		"STREMTHRU_PORT":                           "8080",
 		"STREMTHRU_STORE_CONTENT_PROXY":            "*:true",
 		"STREMTHRU_STORE_TUNNEL":                   "*:true",
+		"STREMTHRU_STORE_CLIENT_USER_AGENT":        "stremthru",
 	},
 }
 
@@ -297,6 +298,7 @@ type Config struct {
 	ServerStartTime             time.Time
 	StoreContentProxy           StoreContentProxyMap
 	StoreContentCachedStaleTime storeContentCachedStaleTimeMap
+	StoreClientUserAgent        string
 	ContentProxyConnectionLimit ContentProxyConnectionLimitMap
 	IP                          *IPResolver
 
@@ -478,6 +480,7 @@ var config = func() Config {
 		ServerStartTime:             time.Now(),
 		StoreContentProxy:           storeContentProxyMap,
 		StoreContentCachedStaleTime: storeContentCachedStaleTimeMap,
+		StoreClientUserAgent:        getEnv("STREMTHRU_STORE_CLIENT_USER_AGENT"),
 		ContentProxyConnectionLimit: contentProxyConnectionMap,
 		IP:                          &IPResolver{},
 
@@ -507,6 +510,7 @@ var LandingPage = config.LandingPage
 var ServerStartTime = config.ServerStartTime
 var StoreContentProxy = config.StoreContentProxy
 var StoreContentCachedStaleTime = config.StoreContentCachedStaleTime
+var StoreClientUserAgent = config.StoreClientUserAgent
 var ContentProxyConnectionLimit = config.ContentProxyConnectionLimit
 var InstanceId = strings.ReplaceAll(uuid.NewString(), "-", "")
 var IP = config.IP
