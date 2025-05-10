@@ -109,7 +109,7 @@ type proxyLinkData struct {
 	TunT    config.TunnelType `json:"tunt,omitempty"`
 }
 
-func CreateProxyLink(r *http.Request, link string, headers map[string]string, tunnelType config.TunnelType, expiresIn time.Duration, user, password string, shouldEncrypt bool) (string, error) {
+func CreateProxyLink(r *http.Request, link string, headers map[string]string, tunnelType config.TunnelType, expiresIn time.Duration, user, password string, shouldEncrypt bool, filename string) (string, error) {
 	var encodedToken string
 
 	if !shouldEncrypt && expiresIn == 0 {
@@ -169,7 +169,10 @@ func CreateProxyLink(r *http.Request, link string, headers map[string]string, tu
 
 	pLink := ExtractRequestBaseURL(r).JoinPath("/v0/proxy", encodedToken)
 
-	if filename := filepath.Base(link); filename != "" && filepath.Ext(filename) != "" {
+	if filename == "" {
+		filename, _, _ = strings.Cut(filepath.Base(link), "?")
+	}
+	if filename != "" {
 		pLink = pLink.JoinPath(filename)
 	}
 
@@ -193,7 +196,7 @@ func GenerateStremThruLink(r *http.Request, ctx *context.StoreContext, link stri
 	if config.StoreContentProxy.IsEnabled(storeName) && ctx.StoreAuthToken == config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, storeName) {
 		if ctx.IsProxyAuthorized {
 			tunnelType := config.StoreTunnel.GetTypeForStream(string(ctx.Store.GetName()))
-			proxyLink, err := CreateProxyLink(r, data.Link, nil, tunnelType, 12*time.Hour, ctx.ProxyAuthUser, ctx.ProxyAuthPassword, true)
+			proxyLink, err := CreateProxyLink(r, data.Link, nil, tunnelType, 12*time.Hour, ctx.ProxyAuthUser, ctx.ProxyAuthPassword, true, "")
 			if err != nil {
 				return nil, err
 			}

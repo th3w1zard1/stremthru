@@ -134,8 +134,9 @@ func handleProxifyLinks(w http.ResponseWriter, r *http.Request) {
 
 	proxyLinks := make([]string, count)
 	for i, link := range links {
+		idx := strconv.Itoa(i)
 		var reqHeaders map[string]string
-		reqHeadersBlob := r.Form.Get("req_headers[" + strconv.Itoa(i) + "]")
+		reqHeadersBlob := r.Form.Get("req_headers[" + idx + "]")
 		if reqHeadersBlob == "" {
 			reqHeadersBlob = fallbackReqHeaders
 		}
@@ -150,7 +151,8 @@ func handleProxifyLinks(w http.ResponseWriter, r *http.Request) {
 			}
 			reqHeadersByBlob[reqHeadersBlob] = reqHeaders
 		}
-		proxyLink, err := shared.CreateProxyLink(r, link, reqHeaders, config.TUNNEL_TYPE_AUTO, expiresIn, user, password, shouldEncrypt)
+		filename := r.Form.Get("filename[" + idx + "]")
+		proxyLink, err := shared.CreateProxyLink(r, link, reqHeaders, config.TUNNEL_TYPE_AUTO, expiresIn, user, password, shouldEncrypt, filename)
 		if err != nil {
 			SendError(w, r, err)
 			return
