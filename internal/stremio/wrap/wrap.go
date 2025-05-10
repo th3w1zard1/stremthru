@@ -202,17 +202,8 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 
-	ctx.Store, ctx.StoreAuthToken = ud.stores[0].store, ud.stores[0].authToken
-	if len(ud.stores) > 1 {
-		storeCode := store.StoreCode(strings.ToLower(query.Get("s")))
-		for i := range ud.stores {
-			us := &ud.stores[i]
-			if us.store.GetName().Code() == storeCode {
-				ctx.Store, ctx.StoreAuthToken = us.store, us.authToken
-				break
-			}
-		}
-	}
+	s := ud.GetStoreByCode(query.Get("s"))
+	ctx.Store, ctx.StoreAuthToken = s.Store, s.AuthToken
 
 	cacheKey := strings.Join([]string{ctx.ClientIP, string(ctx.Store.GetName()), ctx.StoreAuthToken, magnetHash, strconv.Itoa(fileIdx), fileName, query.Encode()}, ":")
 

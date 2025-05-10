@@ -210,7 +210,7 @@ type UpstreamAddon struct {
 }
 
 type StoreConfig struct {
-	Code  UserDataStoreCode
+	Code  stremio_userdata.StoreCode
 	Token string
 	Error struct {
 		Code  string

@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
@@ -61,35 +60,13 @@ type UserDataUpstream struct {
 	ReconfigureStore bool                                    `json:"rs,omitempty"`
 }
 
-type UserDataStoreCode string
-
-func (udsc UserDataStoreCode) IsStremThru() bool {
-	return !IsPublicInstance && udsc == ""
-}
-
-func (udsc UserDataStoreCode) GetCodes(user string) []string {
-	codes := []string{}
-
-	storeNames := config.StoreAuthToken.ListStores(user)
-	for _, name := range storeNames {
-		codes = append(codes, string(store.StoreName(name).Code()))
-	}
-
-	return codes
-}
-
-type UserDataStore struct {
-	Code  UserDataStoreCode `json:"c"`
-	Token string            `json:"t"`
-}
-
 type UserData struct {
 	Upstreams   []UserDataUpstream `json:"upstreams"`
 	ManifestURL string             `json:"manifest_url,omitempty"`
 
-	Stores     []UserDataStore `json:"stores"`
-	StoreName  string          `json:"store,omitempty"`
-	StoreToken string          `json:"token,omitempty"`
+	stremio_userdata.UserDataStores
+	StoreName  string `json:"store,omitempty"`
+	StoreToken string `json:"token,omitempty"`
 
 	CachedOnly bool `json:"cached,omitempty"`
 
@@ -98,11 +75,9 @@ type UserData struct {
 
 	Sort string `json:"sort,omitempty"`
 
-	encoded          string             `json:"-"` // correctly configured
-	manifests        []stremio.Manifest `json:"-"`
-	resolver         upstreamsResolver  `json:"-"`
-	stores           multiStore         `json:"-"`
-	isStremThruStore bool               `json:"-"`
+	encoded   string             `json:"-"` // correctly configured
+	manifests []stremio.Manifest `json:"-"`
+	resolver  upstreamsResolver  `json:"-"`
 }
 
 var udManager = stremio_userdata.NewManager[UserData](&stremio_userdata.ManagerConfig{
@@ -215,45 +190,15 @@ func (ud *UserData) GetRequestContext(r *http.Request) (*context.StoreContext, e
 		return ctx, &userDataError{upstreamUrl: upstreamUrlErrors}
 	}
 
-	storeCount := len(ud.Stores)
-	if storeCount == 0 {
-		return ctx, &userDataError{store: []string{"Missing Store"}}
-	}
-	if storeCount == 1 && ud.Stores[0].Code.IsStremThru() {
-		token := ud.Stores[0].Token
-		auth, err := core.ParseBasicAuth(token)
-		if err != nil {
+	if err, errField := ud.UserDataStores.Prepare(ctx); err != nil {
+		switch errField {
+		case "store":
+			return ctx, &userDataError{store: []string{err.Error()}}
+		case "token":
 			return ctx, &userDataError{token: []string{err.Error()}}
+		default:
+			return ctx, &userDataError{store: []string{err.Error()}}
 		}
-		password := config.ProxyAuthPassword.GetPassword(auth.Username)
-		if password == "" || password != auth.Password {
-			return ctx, &userDataError{token: []string{"invalid token"}}
-		} else {
-			ctx.IsProxyAuthorized = true
-			ctx.ProxyAuthUser = auth.Username
-			ctx.ProxyAuthPassword = auth.Password
-		}
-
-		storeNames := config.StoreAuthToken.ListStores(auth.Username)
-		stores := make(multiStore, len(storeNames))
-		for i, storeName := range storeNames {
-			stores[i] = resolvedStore{
-				store:     shared.GetStore(storeName),
-				authToken: config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, storeName),
-			}
-		}
-		ud.stores = stores
-		ud.isStremThruStore = true
-	} else {
-		stores := make(multiStore, storeCount)
-		for i := range ud.Stores {
-			s := &ud.Stores[i]
-			stores[i] = resolvedStore{
-				store:     shared.GetStore(string(store.StoreCode(s.Code).Name())),
-				authToken: s.Token,
-			}
-		}
-		ud.stores = stores
 	}
 
 	ctx.ClientIP = shared.GetClientIP(r, ctx)
@@ -394,9 +339,9 @@ func getUserData(r *http.Request) (*UserData, error) {
 
 		shouldResync := false
 		if data.StoreToken != "" {
-			data.Stores = []UserDataStore{
+			data.Stores = []stremio_userdata.Store{
 				{
-					Code:  UserDataStoreCode(store.StoreName(data.StoreName).Code()),
+					Code:  stremio_userdata.StoreCode(store.StoreName(data.StoreName).Code()),
 					Token: data.StoreToken,
 				},
 			}
@@ -505,16 +450,16 @@ func getUserData(r *http.Request) (*UserData, error) {
 			code := r.Form.Get("stores[" + strconv.Itoa(idx) + "].code")
 			token := r.Form.Get("stores[" + strconv.Itoa(idx) + "].token")
 			if code == "" {
-				data.Stores = []UserDataStore{
+				data.Stores = []stremio_userdata.Store{
 					{
-						Code:  UserDataStoreCode(code),
+						Code:  stremio_userdata.StoreCode(code),
 						Token: token,
 					},
 				}
 				break
 			} else {
-				data.Stores = append(data.Stores, UserDataStore{
-					Code:  UserDataStoreCode(code),
+				data.Stores = append(data.Stores, stremio_userdata.Store{
+					Code:  stremio_userdata.StoreCode(code),
 					Token: token,
 				})
 			}

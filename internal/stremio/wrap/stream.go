@@ -136,7 +136,7 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 
 	isCachedByHash := map[string]string{}
 	if len(hashes) > 0 {
-		cmRes := ud.stores.CheckMagnet(&store.CheckMagnetParams{
+		cmRes := ud.CheckMagnet(&store.CheckMagnetParams{
 			Magnets:  hashes,
 			ClientIP: ctx.ClientIP,
 			SId:      stremId,
@@ -176,9 +176,10 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 				cachedStreams = append(cachedStreams, *stream.Stream)
 			} else if !ud.CachedOnly {
 				surlRawQuery := surl.RawQuery
-				for i := range ud.stores {
-					s := &ud.stores[i]
-					storeCode := strings.ToUpper(string(s.store.GetName().Code()))
+				stores := ud.GetStores()
+				for i := range stores {
+					s := &stores[i]
+					storeCode := strings.ToUpper(string(s.Store.GetName().Code()))
 					if storeCode == "ED" {
 						continue
 					}
