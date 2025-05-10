@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -268,6 +269,17 @@ func GetHTTPClient(tunnelType TunnelType) *http.Client {
 	}
 }
 
+func getHTTPClientWithProxy(proxyUrl *url.URL) *http.Client {
+	transport := DefaultHTTPTransport.Clone()
+	transport.Proxy = func(r *http.Request) (*url.URL, error) {
+		return proxyUrl, nil
+	}
+	return &http.Client{
+		Transport: transport,
+		Timeout:   90 * time.Second,
+	}
+}
+
 func getIp(client *http.Client) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, "https://checkip.amazonaws.com", nil)
 	if err != nil {
@@ -289,6 +301,11 @@ func getIp(client *http.Client) (string, error) {
 
 type IPResolver struct {
 	machineIP string
+
+	proxyIpByHostname  map[string]string
+	proxyIpByProxyHost map[string]string
+	proxyIpMapStaleAt  time.Time
+	m                  sync.Mutex
 }
 
 func (ipr *IPResolver) GetMachineIP() string {
@@ -310,4 +327,54 @@ func (ipr *IPResolver) GetTunnelIP() (string, error) {
 		return "", err
 	}
 	return ip, nil
+}
+
+func (ipr *IPResolver) resolveTunnelIPMap() error {
+	ipr.m.Lock()
+	defer ipr.m.Unlock()
+
+	if !ipr.proxyIpMapStaleAt.Before(time.Now()) {
+		return nil
+	}
+
+	proxyIpByProxyHost := map[string]string{}
+	proxyIpByHostname := map[string]string{}
+
+	for hostname, u := range Tunnel {
+		if ip, ok := proxyIpByProxyHost[u.Host]; ok {
+			proxyIpByHostname[hostname] = ip
+			continue
+		}
+		var ip string
+		if u.Host == "" {
+			ip = ipr.GetMachineIP()
+		} else {
+			client := getHTTPClientWithProxy(&u)
+			proxyIp, err := getIp(client)
+			if err != nil {
+				return err
+			}
+			ip = proxyIp
+		}
+		proxyIpByHostname[hostname] = ip
+		proxyIpByProxyHost[u.Host] = ip
+	}
+
+	delete(proxyIpByProxyHost, "")
+
+	ipr.proxyIpByHostname = proxyIpByHostname
+	ipr.proxyIpByProxyHost = proxyIpByProxyHost
+	ipr.proxyIpMapStaleAt = time.Now().Add(30 * time.Minute)
+
+	return nil
+}
+
+func (ipr *IPResolver) GetTunnelIPByProxyHost() (map[string]string, error) {
+	err := ipr.resolveTunnelIPMap()
+	return ipr.proxyIpByProxyHost, err
+}
+
+func (ipr *IPResolver) GetTunnelIPByHostname() (map[string]string, error) {
+	err := ipr.resolveTunnelIPMap()
+	return ipr.proxyIpByHostname, err
 }

@@ -1,7 +1,9 @@
 package endpoint
 
 import (
+	"maps"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
@@ -19,8 +21,9 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 type HealthDebugDataIP struct {
-	Exposed string `json:"exposed"`
-	Machine string `json:"machine"`
+	Machine string            `json:"machine"`
+	Tunnel  map[string]string `json:"tunnel"`
+	Exposed map[string]string `json:"exposed"`
 }
 
 type HealthDebugDataStore struct {
@@ -56,11 +59,50 @@ func handleHealthDebug(w http.ResponseWriter, r *http.Request) {
 				Names:   config.StoreAuthToken.ListStores(ctx.ProxyAuthUser),
 			},
 		}
-		exposedIp, _ := config.IP.GetTunnelIP()
+
 		machineIp := config.IP.GetMachineIP()
+
+		tunnelIpMap, err := config.IP.GetTunnelIPByProxyHost()
+		if err != nil {
+			SendError(w, r, err)
+			return
+		}
+
+		tunnel := map[string]string{}
+		maps.Copy(tunnel, tunnelIpMap)
+
+		exposedIpMap, err := config.IP.GetTunnelIPByHostname()
+		if err != nil {
+			SendError(w, r, err)
+			return
+		}
+
+		exposed := map[string]string{}
+		maps.Copy(exposed, exposedIpMap)
+		if os.Getenv("NO_PROXY") == "*" {
+			exposed["*"] = machineIp
+		}
+
+		for storeName := range config.StoreTunnel {
+			switch config.StoreTunnel.GetTypeForAPI(storeName) {
+			case config.TUNNEL_TYPE_FORCED:
+				exposed[":"+storeName+":api:"] = exposed["*"]
+			case config.TUNNEL_TYPE_NONE:
+				exposed[":"+storeName+":api:"] = machineIp
+			}
+
+			switch config.StoreTunnel.GetTypeForStream(storeName) {
+			case config.TUNNEL_TYPE_FORCED:
+				exposed[":"+storeName+":stream:"] = exposed["*"]
+			case config.TUNNEL_TYPE_NONE:
+				exposed[":"+storeName+":stream:"] = machineIp
+			}
+		}
+
 		data.IP = &HealthDebugDataIP{
-			Exposed: exposedIp,
 			Machine: machineIp,
+			Tunnel:  tunnel,
+			Exposed: exposed,
 		}
 	}
 

@@ -458,13 +458,13 @@ func PrintConfig(state *AppState) {
 	}
 
 	machineIP := IP.GetMachineIP()
-	tunnelIP := ""
+	var tunnelIpByProxyHost map[string]string
 	if hasTunnel {
-		ip, err := IP.GetTunnelIP()
+		ipMap, err := IP.GetTunnelIPByProxyHost()
 		if err != nil {
-			log.Panicf("Failed to resolve Tunnel IP: %v\n", err)
+			log.Panicf("Failed to resolve Tunnel IP Map: %v\n", err)
 		}
-		tunnelIP = ip
+		tunnelIpByProxyHost = ipMap
 	}
 
 	l := log.New(os.Stderr, "=", 0)
@@ -510,7 +510,10 @@ func PrintConfig(state *AppState) {
 
 	l.Println(" Machine IP: " + machineIP)
 	if hasTunnel {
-		l.Println("  Tunnel IP: " + tunnelIP)
+		l.Println("  Tunnel IP: ")
+		for proxyHost, tunnelIp := range tunnelIpByProxyHost {
+			l.Println("    [" + proxyHost + "]: " + tunnelIp)
+		}
 	}
 	l.Println()
 
