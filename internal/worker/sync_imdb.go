@@ -3,12 +3,15 @@ package worker
 import (
 	"compress/gzip"
 	"encoding/csv"
+	"errors"
 	"io"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -23,17 +26,79 @@ import (
 
 var syncIMDBJobTracker JobTracker[struct{}]
 
-func generateSyncIMDBJobId() string {
+func getTodayDateOnly() string {
 	return time.Now().Format(time.DateOnly)
 }
 
 func isIMDBSyncedToday() bool {
-	jobId := generateSyncIMDBJobId()
+	jobId := getTodayDateOnly()
 	job, err := syncIMDBJobTracker.Get(jobId)
 	if err != nil {
 		return false
 	}
 	return job != nil && job.Status == "done"
+}
+
+type imdbTitleWriter struct {
+	batch_idx  int
+	batch_size int
+	idx        int
+	is_done    bool
+	log        *slog.Logger
+	titles     []imdb_title.IMDBTitle
+}
+
+func (w *imdbTitleWriter) Write(t *imdb_title.IMDBTitle) error {
+	if w.is_done {
+		return nil
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	w.titles[w.idx] = *t
+	w.idx++
+	if w.idx == w.batch_size {
+		w.batch_idx++
+		if err := imdb_title.Upsert(w.titles); err != nil {
+			return err
+		}
+		w.log.Info("upserted titles", "count", w.batch_idx*w.batch_size)
+		w.idx = 0
+		time.Sleep(200 * time.Millisecond)
+	}
+	return nil
+}
+
+func (w *imdbTitleWriter) Done() error {
+	if w.is_done {
+		return nil
+	}
+
+	w.is_done = true
+
+	w.titles = w.titles[0:w.idx]
+	if err := imdb_title.Upsert(w.titles); err != nil {
+		return err
+	}
+	w.is_done = true
+	w.log.Info("upserted titles", "count", w.batch_idx*w.batch_size+w.idx)
+	return nil
+}
+
+func newIMDBTitleWriter(log *slog.Logger) imdbTitleWriter {
+	batch_size := 1000
+	if db.Dialect == db.DBDialectPostgres {
+		batch_size = 10000
+	}
+	return imdbTitleWriter{
+		batch_idx:  0,
+		batch_size: batch_size,
+		idx:        0,
+		log:        log,
+		titles:     make([]imdb_title.IMDBTitle, batch_size),
+	}
 }
 
 func InitSyncIMDBWorker(conf *WorkerConfig) *Worker {
@@ -61,20 +126,50 @@ func InitSyncIMDBWorker(conf *WorkerConfig) *Worker {
 		return nil
 	}
 
-	DATASET_URL := "https://datasets.imdbws.com/title.basics.tsv.gz"
-	DATASET_FILENAME := filepath.Base(DATASET_URL)
+	DATASET_ARCHIVE_URL := "https://datasets.imdbws.com/title.basics.tsv.gz"
+	DATASET_ARCHIVE_FILENAME := filepath.Base(DATASET_ARCHIVE_URL)
 
-	cleanArchives := func(date string) error {
-		files, err := fs.Glob(os.DirFS(DOWNLOAD_DIR), "*.gz")
+	listDatasets := func() ([]string, error) {
+		return fs.Glob(os.DirFS(DOWNLOAD_DIR), "*-title.basics.tsv")
+	}
+	getOldDatasetFilename := func(newDatasetFilename string) (string, error) {
+		filenames, err := listDatasets()
 		if err != nil {
-			return Error{"failed to list archives", err}
+			return "", Error{"failed to list dataset files", err}
 		}
-		for _, filename := range files {
-			if !strings.HasPrefix(filename, date+"-") {
-				err := os.Remove(path.Join(DOWNLOAD_DIR, filename))
-				if err != nil {
-					log.Warn("failed to remove old archive", "filename", filename, "error", err)
-				}
+		var lastFilename string
+		var lastDate time.Time
+		for _, filename := range filenames {
+			if filename == newDatasetFilename {
+				continue
+			}
+			fileDateString := filename[0:len(time.DateOnly)]
+			fileDate, err := time.Parse(time.DateOnly, fileDateString)
+			if err != nil {
+				log.Error("failed to parse date", "filename", filename, "error", err)
+				continue
+			}
+			if fileDate.After(lastDate) {
+				lastDate = fileDate
+				lastFilename = filename
+			}
+		}
+		return lastFilename, nil
+	}
+	cleanupFiles := func(newFilename string, oldFilename string) error {
+		filenames, err := listDatasets()
+		if err != nil {
+			return Error{"failed to list dataset files", err}
+		}
+		for _, filename := range filenames {
+			if filename == newFilename || filename == oldFilename {
+				continue
+			}
+			if err := os.Remove(path.Join(DOWNLOAD_DIR, filename)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				log.Warn("failed to remove old dataset", "filename", filename, "error", err)
+			}
+			if err := os.Remove(path.Join(DOWNLOAD_DIR, filename+".gz")); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				log.Warn("failed to remove old archive", "filename", filename+".gz", "error", err)
 			}
 		}
 		return nil
@@ -157,7 +252,61 @@ func InitSyncIMDBWorker(conf *WorkerConfig) *Worker {
 
 	nilValue := `\N`
 
-	processDataset := func(filePath string, parse func(row []string) (*imdb_title.IMDBTitle, error)) error {
+	parseRow := func(row []string) (*imdb_title.IMDBTitle, error) {
+		tType, err := util.TSVGetValue(row, 1, "", nilValue)
+		if err != nil {
+			return nil, err
+		}
+		if !isAllowedType(tType) {
+			return nil, nil
+		}
+
+		tId, err := util.TSVGetValue(row, 0, "", nilValue)
+		if err != nil {
+			return nil, err
+		}
+		title, err := util.TSVGetValue(row, 2, "", nilValue)
+		if err != nil {
+			return nil, err
+		}
+		origTitle, err := util.TSVGetValue(row, 3, "", nilValue)
+		if err != nil {
+			return nil, err
+		}
+		isAdult, err := util.TSVGetValue(row, 4, false, nilValue)
+		if err != nil {
+			return nil, err
+		}
+		year, err := util.TSVGetValue(row, 5, 0, nilValue)
+		if err != nil {
+			return nil, err
+		}
+
+		if origTitle == title {
+			origTitle = ""
+		}
+
+		return &imdb_title.IMDBTitle{
+			TId:       tId,
+			Title:     title,
+			OrigTitle: origTitle,
+			Year:      year,
+			Type:      tType,
+			IsAdult:   isAdult,
+		}, nil
+	}
+
+	csvReadRecord := func(r *csv.Reader) ([]string, error) {
+		for {
+			if record, err := r.Read(); err == nil || err == io.EOF {
+				return record, err
+			} else {
+				log.Debug("failed to read row", "error", err)
+			}
+		}
+	}
+
+	processWholeDataset := func(filePath string) error {
 		f, err := os.Open(filePath)
 		if err != nil {
 			return Error{"failed to open file", err}
@@ -165,54 +314,107 @@ func InitSyncIMDBWorker(conf *WorkerConfig) *Worker {
 
 		r := csv.NewReader(f)
 		r.Comma = '\t'
+		r.LazyQuotes = true
+		r.ReuseRecord = true
 
-		batch_size := 1000
-		if db.Dialect == db.DBDialectPostgres {
-			batch_size = 10000
-		}
-		titles := make([]imdb_title.IMDBTitle, batch_size)
-		idx := -1
-		batch_idx := 0
+		w := newIMDBTitleWriter(log)
 
-		log.Info("processing...")
+		_, _ = csvReadRecord(r)
 		for {
-			row, err := r.Read()
-
-			if idx == -1 {
-				idx++
-				continue
-			}
-
+			row, err := csvReadRecord(r)
 			if err == io.EOF {
 				break
 			}
 
-			t, err := parse(row)
+			t, err := parseRow(row)
 			if err != nil {
 				return err
 			}
 
-			if t == nil {
-				continue
-			}
-
-			titles[idx] = *t
-			idx++
-			if idx == batch_size {
-				batch_idx++
-				if err := imdb_title.Upsert(titles); err != nil {
-					return err
-				}
-				log.Info("upserted titles", "count", batch_idx*batch_size)
-				idx = 0
-				time.Sleep(200 * time.Millisecond)
+			if err := w.Write(t); err != nil {
+				return err
 			}
 		}
-		titles = titles[0:idx]
-		if err := imdb_title.Upsert(titles); err != nil {
+		return w.Done()
+	}
+
+	processDiffDataset := func(oldDatasetPath, newDatasetPath string) error {
+		w := newIMDBTitleWriter(log)
+
+		oldFile, err := os.Open(oldDatasetPath)
+		defer oldFile.Close()
+		if err != nil {
 			return err
 		}
-		log.Info("upserted titles", "count", batch_idx*batch_size+idx)
+		newFile, err := os.Open(newDatasetPath)
+		defer newFile.Close()
+		if err != nil {
+			return err
+		}
+
+		oldR := csv.NewReader(oldFile)
+		oldR.Comma = '\t'
+		oldR.LazyQuotes = true
+		oldR.ReuseRecord = true
+
+		newR := csv.NewReader(newFile)
+		newR.Comma = '\t'
+		newR.LazyQuotes = true
+		newR.ReuseRecord = true
+
+		_, _ = csvReadRecord(oldR)
+		_, _ = csvReadRecord(newR)
+
+		oldRec, oldErr := csvReadRecord(oldR)
+		newRec, newErr := csvReadRecord(newR)
+
+		for oldErr == nil && newErr == nil {
+			oldKey := oldRec[0]
+			newKey := newRec[0]
+
+			switch {
+			case oldKey < newKey:
+				// removed
+				oldRec, oldErr = csvReadRecord(oldR)
+			case oldKey > newKey:
+				// added
+				if t, err := parseRow(newRec); err != nil {
+					return err
+				} else if err := w.Write(t); err != nil {
+					return err
+				}
+				newRec, newErr = csvReadRecord(newR)
+			default:
+				if !slices.Equal(oldRec, newRec) {
+					// changed
+					if t, err := parseRow(newRec); err != nil {
+						return err
+					} else if err := w.Write(t); err != nil {
+						return err
+					}
+				}
+				oldRec, oldErr = csvReadRecord(oldR)
+				newRec, newErr = csvReadRecord(newR)
+			}
+		}
+
+		for newErr == nil {
+			// added
+			if t, err := parseRow(newRec); err != nil {
+				return err
+			} else if err := w.Write(t); err != nil {
+				return err
+			}
+			newRec, newErr = csvReadRecord(newR)
+		}
+		if err := w.Done(); err != nil {
+			return err
+		}
+
+		for oldErr == nil {
+			// removed
+			oldRec, oldErr = csvReadRecord(oldR)
+		}
 		return nil
 	}
 
@@ -252,7 +454,7 @@ func InitSyncIMDBWorker(conf *WorkerConfig) *Worker {
 				return nil
 			}
 
-			jobId = generateSyncIMDBJobId()
+			jobId = getTodayDateOnly()
 
 			job, err := jobTracker.Get(jobId)
 			if err != nil {
@@ -270,67 +472,43 @@ func InitSyncIMDBWorker(conf *WorkerConfig) *Worker {
 				return err
 			}
 
-			archivePath := path.Join(DOWNLOAD_DIR, jobId+"-"+DATASET_FILENAME)
-			datasetPath := path.Join(DOWNLOAD_DIR, strings.TrimSuffix(DATASET_FILENAME, ".gz"))
+			newDate := jobId
+			newDatasetFilename := newDate + "-" + strings.TrimSuffix(DATASET_ARCHIVE_FILENAME, ".gz")
+			newArchivePath := path.Join(DOWNLOAD_DIR, newDatasetFilename+".gz")
+			newDatasetPath := path.Join(DOWNLOAD_DIR, newDatasetFilename)
 
-			if err := cleanArchives(jobId); err != nil {
-				return err
-			}
-
-			if err = downloadFile(DATASET_URL, archivePath); err != nil {
-				return err
-			}
-
-			if err = extractArchive(archivePath, datasetPath); err != nil {
-				return err
-			}
-
-			err = processDataset(datasetPath, func(row []string) (*imdb_title.IMDBTitle, error) {
-				tType, err := util.TSVGetValue(row, 1, "", nilValue)
-				if err != nil {
-					return nil, err
-				}
-				if !isAllowedType(tType) {
-					return nil, nil
-				}
-
-				tId, err := util.TSVGetValue(row, 0, "", nilValue)
-				if err != nil {
-					return nil, err
-				}
-				title, err := util.TSVGetValue(row, 2, "", nilValue)
-				if err != nil {
-					return nil, err
-				}
-				origTitle, err := util.TSVGetValue(row, 3, "", nilValue)
-				if err != nil {
-					return nil, err
-				}
-				isAdult, err := util.TSVGetValue(row, 4, false, nilValue)
-				if err != nil {
-					return nil, err
-				}
-				year, err := util.TSVGetValue(row, 5, 0, nilValue)
-				if err != nil {
-					return nil, err
-				}
-
-				if origTitle == title {
-					origTitle = ""
-				}
-
-				return &imdb_title.IMDBTitle{
-					TId:       tId,
-					Title:     title,
-					OrigTitle: origTitle,
-					Year:      year,
-					Type:      tType,
-					IsAdult:   isAdult,
-				}, nil
-			})
-
+			oldDatasetFilename, err := getOldDatasetFilename(newDatasetFilename)
 			if err != nil {
 				return err
+			}
+
+			if err := cleanupFiles(newDatasetFilename, oldDatasetFilename); err != nil {
+				return err
+			}
+
+			if err = downloadFile(DATASET_ARCHIVE_URL, newArchivePath); err != nil {
+				return err
+			}
+
+			if err = extractArchive(newArchivePath, newDatasetPath); err != nil {
+				return err
+			}
+
+			if oldDatasetFilename == "" {
+				log.Info("processing whole dataset...")
+
+				err = processWholeDataset(newDatasetPath)
+				if err != nil {
+					return err
+				}
+			} else {
+				log.Info("processing diff dataset...")
+
+				oldDatasetPath := path.Join(DOWNLOAD_DIR, oldDatasetFilename)
+				err = processDiffDataset(oldDatasetPath, newDatasetPath)
+				if err != nil {
+					return err
+				}
 			}
 
 			err = jobTracker.Set(jobId, "done", "", nil)
