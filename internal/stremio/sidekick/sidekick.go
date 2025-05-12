@@ -54,7 +54,7 @@ func setCookie(w http.ResponseWriter, authKey string, email string) {
 	cookie := &http.Cookie{
 		Name:     COOKIE_NAME,
 		Value:    value.Encode(),
-		Expires:  time.Now().Add(24 * time.Hour),
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
 		Path:     COOKIE_PATH,
 		Secure:   true,
