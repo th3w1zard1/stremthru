@@ -64,7 +64,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 		TemplateIds:  []string{},
 	}
 
-	if cookie, err := getCookieValue(w, r); err == nil && !cookie.IsExpired {
+	if cookie, err := stremio_template.GetAdminCookieValue(w, r); err == nil && !cookie.IsExpired {
 		td.IsAuthed = config.ProxyAuthPassword.GetPassword(cookie.User()) == cookie.Pass()
 	}
 

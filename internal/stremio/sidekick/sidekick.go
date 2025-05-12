@@ -16,6 +16,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/internal/stremio/addon"
 	"github.com/MunifTanjim/stremthru/internal/stremio/api"
+	stremio_template "github.com/MunifTanjim/stremthru/internal/stremio/template"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
 
@@ -117,7 +118,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 				} else if !config.AuthAdmin.IsAdmin(user) {
 					td.AuthAdminError = "Not Authorized!"
 				} else {
-					setAdminCookie(w, user, pass)
+					stremio_template.SetAdminCookie(w, user, pass)
 					td.HasAuthAdmin = true
 					if r.Header.Get("hx-request") == "true" {
 						w.Header().Add("hx-refresh", "true")
@@ -125,7 +126,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		case "deauthorize":
-			unsetAdminCookie(w)
+			stremio_template.UnsetAdminCookie(w)
 			td.HasAuthAdmin = false
 		}
 	}
