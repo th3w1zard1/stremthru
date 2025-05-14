@@ -139,6 +139,9 @@ func TrackFiles(filesByHash map[string]Files, discardIdx bool) {
 	items := []InsertData{}
 	for hash, files := range filesByHash {
 		for _, file := range files {
+			if file.Name == "" {
+				continue
+			}
 			items = append(items, InsertData{Hash: hash, File: file})
 		}
 	}

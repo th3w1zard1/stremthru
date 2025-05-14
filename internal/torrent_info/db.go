@@ -557,6 +557,9 @@ func Upsert(items []TorrentInfoInsertData, category TorrentInfoCategory, discard
 
 			tSource := string(t.Source)
 			for _, f := range t.Files {
+				if f.Name == "" {
+					continue
+				}
 				if f.Source == "" {
 					f.Source = tSource
 				}
