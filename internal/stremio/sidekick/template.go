@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
+	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 	stremio_template "github.com/MunifTanjim/stremthru/internal/stremio/template"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
@@ -63,7 +64,7 @@ func getTemplateData(cookie *CookieValue, w http.ResponseWriter, r *http.Request
 		},
 	}
 
-	if cookie, err := stremio_template.GetAdminCookieValue(w, r); err == nil && !cookie.IsExpired {
+	if cookie, err := stremio_shared.GetAdminCookieValue(w, r); err == nil && !cookie.IsExpired {
 		td.HasAuthAdmin = config.ProxyAuthPassword.GetPassword(cookie.User()) == cookie.Pass()
 	}
 

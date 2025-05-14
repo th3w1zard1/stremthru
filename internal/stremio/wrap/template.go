@@ -8,29 +8,11 @@ import (
 
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
+	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 	stremio_template "github.com/MunifTanjim/stremthru/internal/stremio/template"
 	stremio_transformer "github.com/MunifTanjim/stremthru/internal/stremio/transformer"
 	stremio_userdata "github.com/MunifTanjim/stremthru/internal/stremio/userdata"
 )
-
-func getStoreCodeOptions() []configure.ConfigOption {
-	options := []configure.ConfigOption{
-		{Value: "", Label: "StremThru"},
-		{Value: "ad", Label: "AllDebrid"},
-		{Value: "dl", Label: "DebridLink"},
-		{Value: "ed", Label: "EasyDebrid"},
-		{Value: "oc", Label: "Offcloud"},
-		{Value: "pm", Label: "Premiumize"},
-		{Value: "pp", Label: "PikPak"},
-		{Value: "rd", Label: "RealDebrid"},
-		{Value: "tb", Label: "TorBox"},
-	}
-	if config.IsPublicInstance {
-		options[0].Disabled = true
-		options[0].Label = ""
-	}
-	return options
-}
 
 func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *TemplateData {
 	td := &TemplateData{
@@ -41,7 +23,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 		},
 		Upstreams:        []UpstreamAddon{},
 		Stores:           []StoreConfig{},
-		StoreCodeOptions: getStoreCodeOptions(),
+		StoreCodeOptions: stremio_shared.GetStoreCodeOptions(),
 		Configs: []configure.Config{
 			{
 				Key:     "cached",
@@ -64,7 +46,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 		TemplateIds:  []string{},
 	}
 
-	if cookie, err := stremio_template.GetAdminCookieValue(w, r); err == nil && !cookie.IsExpired {
+	if cookie, err := stremio_shared.GetAdminCookieValue(w, r); err == nil && !cookie.IsExpired {
 		td.IsAuthed = config.ProxyAuthPassword.GetPassword(cookie.User()) == cookie.Pass()
 	}
 

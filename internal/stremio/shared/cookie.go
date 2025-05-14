@@ -1,4 +1,4 @@
-package stremio_template
+package stremio_shared
 
 import (
 	"net/http"
