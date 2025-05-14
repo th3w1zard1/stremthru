@@ -105,6 +105,8 @@ func getTemplateData(cookie *CookieValue, w http.ResponseWriter, r *http.Request
 
 var executeTemplate = func() stremio_template.Executor[TemplateData] {
 	return stremio_template.GetExecutor("stremio/sidekick", func(td *TemplateData) *TemplateData {
+		td.StremThruAddons = stremio_shared.GetStremThruAddons()
+
 		td.CanAuthAdmin = !IsPublicInstance
 
 		td.Version = config.Version

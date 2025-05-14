@@ -1,8 +1,11 @@
 package stremio_store
 
 import (
+	"bytes"
+
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
+	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 )
 
 func getStoreNameConfig(defaultValue string) configure.Config {
@@ -70,4 +73,9 @@ func getTemplateData(ud *UserData) *configure.TemplateData {
 		},
 		Script: configure.GetScriptStoreTokenDescription("'#store_name'", "'#store_token'"),
 	}
+}
+
+func getPage(td *configure.TemplateData) (bytes.Buffer, error) {
+	td.StremThruAddons = stremio_shared.GetStremThruAddons()
+	return configure.GetPage(td)
 }

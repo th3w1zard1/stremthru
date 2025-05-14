@@ -271,6 +271,7 @@ func (td *TemplateData) HasFieldError() bool {
 
 var executeTemplate = func() stremio_template.Executor[TemplateData] {
 	return stremio_template.GetExecutor("stremio/wrap", func(td *TemplateData) *TemplateData {
+		td.StremThruAddons = stremio_shared.GetStremThruAddons()
 		td.Version = config.Version
 		td.CanAuthorize = !IsPublicInstance
 		td.CanAddUpstream = td.IsAuthed || len(td.Upstreams) < MaxPublicInstanceUpstreamCount
