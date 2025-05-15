@@ -19,15 +19,18 @@ func (blob StreamTemplateBlob) IsEmpty() bool {
 }
 
 type StreamTemplate struct {
+	Blob        StreamTemplateBlob
 	Name        *template.Template
 	Description *template.Template
 }
 
 func (blob StreamTemplateBlob) Parse() (*StreamTemplate, error) {
-	if blob.IsEmpty() {
-		return nil, nil
+	t := &StreamTemplate{
+		Blob: blob,
 	}
-	t := &StreamTemplate{}
+	if blob.IsEmpty() {
+		return t, nil
+	}
 	var err error
 	t.Name, err = template.New("name").Funcs(funcMap).Parse(blob.Name)
 	if err != nil {
@@ -40,6 +43,14 @@ func (blob StreamTemplateBlob) Parse() (*StreamTemplate, error) {
 		return t, err
 	}
 	return t, nil
+}
+
+func (blob StreamTemplateBlob) MustParse() *StreamTemplate {
+	st, err := blob.Parse()
+	if err != nil {
+		panic(err)
+	}
+	return st
 }
 
 type StreamTemplateDataRaw struct {

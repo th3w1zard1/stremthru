@@ -153,29 +153,8 @@ func getExtractorIds() ([]string, error) {
 var builtInTemplates = func() map[string]stremio_transformer.StreamTemplateBlob {
 	templates := map[string]stremio_transformer.StreamTemplateBlob{}
 
-	templates[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Default"] = stremio_transformer.StreamTemplateBlob{
-		Name: strings.TrimSpace(`
-{{if ne .Store.Code ""}}{{if .Store.IsCached}}⚡️ {{end}}[{{.Store.Code}}]
-{{end}}{{.Addon.Name}}
-{{.Resolution}}
-`),
-		Description: strings.TrimSpace(`
-{{if ne .Quality ""}}💿 {{.Quality}} {{end}}{{if ne .Codec ""}}🎞️ {{.Codec}}{{end}}
-{{if ne (len .HDR) 0}}📺 {{str_join .HDR " "}} {{end -}}
-{{- if or (gt (len .Audio) 0) (gt (len .Channels) 0)}}🎧 {{if gt (len .Audio) 0}}{{str_join .Audio  ", "}}{{if gt (len .Channels) 0}} | {{end}}{{end}}{{if gt (len .Channels) 0}}{{str_join .Channels ", "}}{{end}}{{end}}
-{{if ne .Size ""}}📦 {{.Size}} {{end}}{{if ne .Site ""}}🔗 {{.Site}}{{end}}{{if ne (len .Languages) 0}}
-🌐 {{lang_join .Languages " " "emoji"}}
-{{- end}}{{if ne .File.Name ""}}
-📄 {{.File.Name}}{{else if ne .TTitle ""}}
-📁 {{.TTitle}}
-{{end}}
-`),
-	}
-
-	templates[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Raw"] = stremio_transformer.StreamTemplateBlob{
-		Name:        `{{.Raw.Name}}`,
-		Description: `{{.Raw.Description}}`,
-	}
+	templates[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Default"] = stremio_transformer.StreamTemplateDefault.Blob
+	templates[BUILTIN_TRANSFORMER_ENTITY_ID_PREFIX+"Raw"] = stremio_transformer.StreamTemplateRaw.Blob
 
 	return templates
 }()
