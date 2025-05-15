@@ -1,7 +1,6 @@
-package stremio_wrap
+package stremio_torz
 
 import (
-	"errors"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -14,119 +13,18 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	store_video "github.com/MunifTanjim/stremthru/internal/store/video"
-	stremio_addon "github.com/MunifTanjim/stremthru/internal/stremio/addon"
 	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
 	"github.com/MunifTanjim/stremthru/store"
-	"github.com/MunifTanjim/stremthru/stremio"
 	"golang.org/x/sync/singleflight"
 )
 
 var IsPublicInstance = config.IsPublicInstance
-var MaxPublicInstanceUpstreamCount = 3
 var MaxPublicInstanceStoreCount = 3
 
-var addon = func() *stremio_addon.Client {
-	return stremio_addon.NewClient(&stremio_addon.ClientConfig{})
-}()
-
 func handleRoot(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/stremio/wrap/configure", http.StatusFound)
-}
-
-func handleManifest(w http.ResponseWriter, r *http.Request) {
-	if !IsMethod(r, http.MethodGet) {
-		shared.ErrorMethodNotAllowed(r).Send(w, r)
-		return
-	}
-
-	ud, err := getUserData(r)
-	if err != nil {
-		SendError(w, r, err)
-		return
-	}
-
-	ctx, err := ud.GetRequestContext(r)
-	if err != nil {
-		shared.ErrorBadRequest(r, "failed to get request context: "+err.Error()).Send(w, r)
-		return
-	}
-
-	manifests, errs := ud.getUpstreamManifests(ctx)
-	if errs != nil {
-		serr := shared.ErrorInternalServerError(r, "failed to fetch upstream manifests")
-		serr.Cause = errors.Join(errs...)
-		serr.Send(w, r)
-		return
-	}
-
-	manifest := GetManifest(r, manifests, ud)
-
-	SendResponse(w, r, 200, manifest)
-}
-
-func handleResource(w http.ResponseWriter, r *http.Request) {
-	if !IsMethod(r, http.MethodGet) && !IsMethod(r, http.MethodHead) {
-		shared.ErrorMethodNotAllowed(r).Send(w, r)
-		return
-	}
-
-	ud, err := getUserData(r)
-	if err != nil {
-		SendError(w, r, err)
-		return
-	}
-
-	resource := r.PathValue("resource")
-	contentType := r.PathValue("contentType")
-	id := r.PathValue("id")
-	extra := r.PathValue("extra")
-
-	ctx, err := ud.GetRequestContext(r)
-	if err != nil {
-		shared.ErrorBadRequest(r, "failed to get request context: "+err.Error()).Send(w, r)
-		return
-	}
-
-	switch stremio.ResourceName(resource) {
-	case stremio.ResourceNameAddonCatalog:
-		ud.fetchAddonCatalog(ctx, w, r, contentType, id)
-	case stremio.ResourceNameCatalog:
-		ud.fetchCatalog(ctx, w, r, contentType, id, extra)
-	case stremio.ResourceNameMeta:
-		err = ud.fetchMeta(ctx, w, r, contentType, id, extra)
-		if err != nil {
-			SendError(w, r, err)
-		}
-		return
-	case stremio.ResourceNameStream:
-		res, err := ud.fetchStream(ctx, r, contentType, id)
-		if err != nil {
-			SendError(w, r, err)
-			return
-		}
-		SendResponse(w, r, 200, res)
-		return
-
-	case stremio.ResourceNameSubtitles:
-		res, err := ud.fetchSubtitles(ctx, contentType, id, extra)
-		if err != nil {
-			SendError(w, r, err)
-			return
-		}
-		SendResponse(w, r, 200, res)
-		return
-	default:
-		addon.ProxyResource(w, r, &stremio_addon.ProxyResourceParams{
-			BaseURL:  ud.Upstreams[0].baseUrl,
-			Resource: resource,
-			Type:     contentType,
-			Id:       id,
-			Extra:    extra,
-			ClientIP: ctx.ClientIP,
-		})
-	}
+	http.Redirect(w, r, "/stremio/torz/configure", http.StatusFound)
 }
 
 var stremLinkCache = cache.NewCache[string](&cache.CacheConfig{
@@ -175,12 +73,13 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := r.URL.Query()
+	sid := r.PathValue("stremId")
 
-	s := ud.GetStoreByCode(query.Get("s"))
+	storeCode := r.PathValue("storeCode")
+	s := ud.GetStoreByCode(storeCode)
 	ctx.Store, ctx.StoreAuthToken = s.Store, s.AuthToken
 
-	cacheKey := strings.Join([]string{ctx.ClientIP, string(ctx.Store.GetName()), ctx.StoreAuthToken, magnetHash, strconv.Itoa(fileIdx), fileName, query.Encode()}, ":")
+	cacheKey := strings.Join([]string{ctx.ClientIP, storeCode, ctx.StoreAuthToken, sid, magnetHash, strconv.Itoa(fileIdx), fileName}, ":")
 
 	stremLink := ""
 	if stremLinkCache.Get(cacheKey, &stremLink) {
@@ -227,19 +126,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 			return strem, err
 		}
 
-		sid := query.Get("sid")
-		if sid == "" {
-			sid = "*"
-		}
-
 		go buddy.TrackMagnet(ctx.Store, magnet.Hash, magnet.Name, magnet.Size, magnet.Files, torrent_info.GetCategoryFromStremId(sid), magnet.Status != store.MagnetStatusDownloaded, ctx.StoreAuthToken)
-
-		var pattern *regexp.Regexp
-		if re := query.Get("re"); re != "" {
-			if pat, err := regexp.Compile(re); err == nil {
-				pattern = pat
-			}
-		}
 
 		var file *store.MagnetFile
 		if fileName != "" {
@@ -248,16 +135,6 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 				if f.Name == fileName {
 					file = f
 					log.Debug("matched file using filename", "filename", f.Name)
-					break
-				}
-			}
-		}
-		if file == nil && pattern != nil {
-			for i := range magnet.Files {
-				f := &magnet.Files[i]
-				if pattern.MatchString(f.Name) {
-					file = f
-					log.Debug("matched file using pattern", "pattern", pattern.String(), "filename", f.Name)
 					break
 				}
 			}
@@ -291,8 +168,10 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 				f := &magnet.Files[i]
 				if file == nil || file.Size < f.Size {
 					file = f
-					log.Debug("matched file using largest size", "filename", f.Name)
 				}
+			}
+			if file != nil {
+				log.Debug("matched file using largest size", "filename", file.Name)
 			}
 		}
 
@@ -351,9 +230,7 @@ func commonMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func AddStremioWrapEndpoints(mux *http.ServeMux) {
-	seedDefaultTransformerEntities()
-
+func AddStremioTorzEndpoints(mux *http.ServeMux) {
 	withCors := shared.Middleware(shared.EnableCORS)
 
 	router := http.NewServeMux()
@@ -366,11 +243,10 @@ func AddStremioWrapEndpoints(mux *http.ServeMux) {
 	router.HandleFunc("/configure", handleConfigure)
 	router.HandleFunc("/{userData}/configure", handleConfigure)
 
-	router.HandleFunc("/{userData}/{resource}/{contentType}/{id}", withCors(handleResource))
-	router.HandleFunc("/{userData}/{resource}/{contentType}/{id}/{extra}", withCors(handleResource))
+	router.HandleFunc("/{userData}/stream/{contentType}/{idJson}", withCors(handleStream))
 
-	router.HandleFunc("/{userData}/_/strem/{magnetHash}/{fileIdx}/{$}", withCors(handleStrem))
-	router.HandleFunc("/{userData}/_/strem/{magnetHash}/{fileIdx}/{fileName}", withCors(handleStrem))
+	router.HandleFunc("/{userData}/_/strem/{stremId}/{storeCode}/{magnetHash}/{fileIdx}/{$}", withCors(handleStrem))
+	router.HandleFunc("/{userData}/_/strem/{stremId}/{storeCode}/{magnetHash}/{fileIdx}/{fileName}", withCors(handleStrem))
 
-	mux.Handle("/stremio/wrap/", http.StripPrefix("/stremio/wrap", commonMiddleware(router)))
+	mux.Handle("/stremio/torz/", http.StripPrefix("/stremio/torz", commonMiddleware(router)))
 }

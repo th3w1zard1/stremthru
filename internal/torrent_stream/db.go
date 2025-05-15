@@ -114,7 +114,7 @@ func GetFilesByHashes(hashes []string) (map[string]Files, error) {
 		hashPlaceholders[i] = "?"
 	}
 
-	rows, err := db.Query("SELECT h, "+db.FnJSONGroupArray+"("+db.FnJSONObject+"('i', i, 'n', n, 's', s)) AS files FROM "+TableName+" WHERE h IN ("+strings.Join(hashPlaceholders, ",")+") GROUP BY h", args...)
+	rows, err := db.Query("SELECT h, "+db.FnJSONGroupArray+"("+db.FnJSONObject+"('i', i, 'n', n, 's', s, 'sid', sid, 'src', src)) AS files FROM "+TableName+" WHERE h IN ("+strings.Join(hashPlaceholders, ",")+") GROUP BY h", args...)
 	if err != nil {
 		return nil, err
 	}

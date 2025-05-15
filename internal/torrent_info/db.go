@@ -924,6 +924,59 @@ func UpsertParsed(tInfos []*TorrentInfo) error {
 	return nil
 }
 
+var query_list_hashes_by_stremid_from_torrent_stream = fmt.Sprintf(
+	"SELECT DISTINCT %s FROM %s WHERE %s = ? OR %s LIKE ?",
+	ts.Column.Hash,
+	ts.TableName,
+	ts.Column.SId,
+	ts.Column.SId,
+)
+var query_list_hashes_by_stremid_from_imdb_torrent = fmt.Sprintf(
+	"SELECT %s FROM %s WHERE %s = ?",
+	imdb_torrent.Column.Hash,
+	imdb_torrent.TableName,
+	imdb_torrent.Column.TId,
+)
+
+func ListHashesByStremId(stremId string) ([]string, error) {
+	query := ""
+	args := make([]any, 3)
+
+	if strings.Contains(stremId, ":") {
+		query += query_list_hashes_by_stremid_from_torrent_stream
+		args[0] = stremId
+		args[1], _, _ = strings.Cut(stremId, ":")
+		args = args[0:2]
+	} else {
+		query += query_list_hashes_by_stremid_from_torrent_stream + " UNION " + query_list_hashes_by_stremid_from_imdb_torrent
+		args[0] = stremId
+		args[1] = stremId + ":%"
+		args[2] = stremId
+	}
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		log.Error("failed to list hashes by strem id", "error", err, "stremId", stremId)
+		return nil, err
+	}
+	defer rows.Close()
+
+	hashes := []string{}
+	for rows.Next() {
+		var hash string
+		if err := rows.Scan(&hash); err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, hash)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return hashes, nil
+}
+
 type TorrentItem struct {
 	Hash         string              `json:"hash"`
 	TorrentTitle string              `json:"name"`
@@ -971,29 +1024,16 @@ var query_list_by_stremid_after_select = fmt.Sprintf(
 	ts.Column.Hash,
 	ts.Column.Source,
 )
-var query_list_by_stremid_subquery_from_torrent_stream = fmt.Sprintf(
-	"SELECT DISTINCT %s FROM %s WHERE %s = ? OR %s LIKE ?",
-	ts.Column.Hash,
-	ts.TableName,
-	ts.Column.SId,
-	ts.Column.SId,
-)
-var query_list_by_stremid_subquery_from_imdb_torrent = fmt.Sprintf(
-	"SELECT %s FROM %s WHERE %s = ?",
-	imdb_torrent.Column.Hash,
-	imdb_torrent.TableName,
-	imdb_torrent.Column.TId,
-)
 var query_list_by_stremid_cond_hashes_from_ts = fmt.Sprintf(
 	"%s IN (%s)",
 	Column.Hash,
-	query_list_by_stremid_subquery_from_torrent_stream,
+	query_list_hashes_by_stremid_from_torrent_stream,
 )
 var query_list_by_stremid_cond_hashes_from_ts_union_ito = fmt.Sprintf(
 	"%s IN (%s UNION %s)",
 	Column.Hash,
-	query_list_by_stremid_subquery_from_torrent_stream,
-	query_list_by_stremid_subquery_from_imdb_torrent,
+	query_list_hashes_by_stremid_from_torrent_stream,
+	query_list_hashes_by_stremid_from_imdb_torrent,
 )
 var query_list_by_stremid_cond_no_missing_size = fmt.Sprintf(
 	"%s > 0",

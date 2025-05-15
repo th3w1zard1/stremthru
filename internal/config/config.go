@@ -155,6 +155,7 @@ const (
 	FeatureIMDBTitle       string = "imdb_title"
 	FeatureStremioSidekick string = "stremio_sidekick"
 	FeatureStremioStore    string = "stremio_store"
+	FeatureStremioTorz     string = "stremio_torz"
 	FeatureStremioWrap     string = "stremio_wrap"
 )
 
@@ -164,6 +165,7 @@ var features = []string{
 	FeatureStremioSidekick,
 	FeatureStremioStore,
 	FeatureStremioWrap,
+	FeatureStremioTorz,
 }
 
 type FeatureConfig struct {
