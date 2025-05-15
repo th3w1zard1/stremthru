@@ -75,9 +75,13 @@ func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 						idPrefixes = append(idPrefixes, getIdPrefix(code))
 						catalogs = append(catalogs, getManifestCatalog(code, ud.HideCatalog))
 						if storeName == store.StoreNameTorBox {
-							code += "-usenet"
-							idPrefixes = append(idPrefixes, getIdPrefix(code))
-							catalogs = append(catalogs, getManifestCatalog(code, ud.HideCatalog))
+							usenetCode := code + "-usenet"
+							idPrefixes = append(idPrefixes, getIdPrefix(usenetCode))
+							catalogs = append(catalogs, getManifestCatalog(usenetCode, ud.HideCatalog))
+
+							webdlCode := code + "-webdl"
+							idPrefixes = append(idPrefixes, getIdPrefix(webdlCode))
+							catalogs = append(catalogs, getManifestCatalog(webdlCode, ud.HideCatalog))
 						}
 					}
 				}
@@ -99,9 +103,13 @@ func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 			idPrefixes = append(idPrefixes, getIdPrefix(storeCode))
 			catalogs = append(catalogs, getManifestCatalog(storeCode, ud.HideCatalog))
 			if storeName == store.StoreNameTorBox {
-				code := storeCode + "-usenet"
-				idPrefixes = append(idPrefixes, getIdPrefix(code))
-				catalogs = append(catalogs, getManifestCatalog(code, ud.HideCatalog))
+				usenetCode := storeCode + "-usenet"
+				idPrefixes = append(idPrefixes, getIdPrefix(usenetCode))
+				catalogs = append(catalogs, getManifestCatalog(usenetCode, ud.HideCatalog))
+
+				webdlCode := storeCode + "-webdl"
+				idPrefixes = append(idPrefixes, getIdPrefix(webdlCode))
+				catalogs = append(catalogs, getManifestCatalog(webdlCode, ud.HideCatalog))
 			}
 		}
 

@@ -42,12 +42,12 @@ type StreamFileMatcher struct {
 	Episode        int
 	Season         int
 
+	IdR        *ParsedId
 	IdPrefix   string
 	Store      store.Store
 	StoreCode  string
 	StoreToken string
 	ClientIP   string
-	IsUsenet   bool
 }
 
 func handleStream(w http.ResponseWriter, r *http.Request) {
@@ -127,11 +127,11 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			FileLink: link,
 
 			IdPrefix:   idPrefix,
+			IdR:        idr,
 			Store:      ctx.Store,
 			StoreCode:  idr.getStoreCode(),
 			StoreToken: ctx.StoreAuthToken,
 			ClientIP:   ctx.ClientIP,
-			IsUsenet:   idr.isUsenet,
 		})
 	}
 
@@ -170,8 +170,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
-				isUsenet := strings.HasSuffix(idPrefix, "-usenet:")
-				items := getCatalogItems(ctx.Store, ctx.StoreAuthToken, ctx.ClientIP, idPrefix, isUsenet)
+				items := getCatalogItems(ctx.Store, ctx.StoreAuthToken, ctx.ClientIP, idPrefix, idr)
 				if meta.Name != "" {
 					query := strings.ToLower(meta.Name)
 					filteredItems := []CachedCatalogItem{}
@@ -194,11 +193,11 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 							Episode:  episode,
 
 							IdPrefix:   idPrefix,
+							IdR:        idr,
 							Store:      ctx.Store,
 							StoreCode:  idr.getStoreCode(),
 							StoreToken: ctx.StoreAuthToken,
 							ClientIP:   ctx.ClientIP,
-							IsUsenet:   isUsenet,
 						})
 					} else {
 						matcherResults[idx] = append(matcherResults[idx], StreamFileMatcher{
@@ -206,11 +205,11 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 							UseLargestFile: true,
 
 							IdPrefix:   idPrefix,
+							IdR:        idr,
 							Store:      ctx.Store,
 							StoreCode:  idr.getStoreCode(),
 							StoreToken: ctx.StoreAuthToken,
 							ClientIP:   ctx.ClientIP,
-							IsUsenet:   isUsenet,
 						})
 					}
 				}
@@ -237,13 +236,13 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			defer wg.Done()
 
-			cInfo, err := getStoreContentInfo(matcher.Store, matcher.StoreToken, matcher.MagnetId, matcher.ClientIP, matcher.IsUsenet)
+			cInfo, err := getStoreContentInfo(matcher.Store, matcher.StoreToken, matcher.MagnetId, matcher.ClientIP, matcher.IdR)
 			if err != nil {
 				errs[i] = err
 				return
 			}
 
-			if !matcher.IsUsenet && meta == nil {
+			if !matcher.IdR.isUsenet && !matcher.IdR.isWebDL && meta == nil {
 				stremIdByHash, err := torrent_stream.GetStremIdByHashes([]string{cInfo.Hash})
 				if err != nil {
 					log.Error("failed to get strem id by hashes", "error", err)

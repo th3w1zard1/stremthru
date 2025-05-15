@@ -10,6 +10,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/server"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	store_video "github.com/MunifTanjim/stremthru/internal/store/video"
+	stremio_store_webdl "github.com/MunifTanjim/stremthru/internal/stremio/store/webdl"
 	stremio_usenet "github.com/MunifTanjim/stremthru/internal/stremio/usenet"
 )
 
@@ -122,6 +123,36 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		rParams.APIKey = ctx.StoreAuthToken
 		var lerr error
 		data, err := stremio_usenet.GenerateLink(rParams, storeName)
+		if err == nil {
+			if config.StoreContentProxy.IsEnabled(string(storeName)) && ctx.StoreAuthToken == config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, string(storeName)) {
+				if ctx.IsProxyAuthorized {
+					tunnelType := config.StoreTunnel.GetTypeForStream(string(ctx.Store.GetName()))
+					if proxyLink, err := shared.CreateProxyLink(r, data.Link, nil, tunnelType, 12*time.Hour, ctx.ProxyAuthUser, ctx.ProxyAuthPassword, true, ""); err == nil {
+						data.Link = proxyLink
+					} else {
+						lerr = err
+					}
+				}
+			}
+		} else {
+			lerr = err
+		}
+		if lerr != nil {
+			LogError(r, "failed to generate stremthru link", lerr)
+			store_video.Redirect("500", w, r)
+			return
+		}
+
+		http.Redirect(w, r, data.Link, http.StatusFound)
+	} else if idr.isWebDL {
+		storeName := ctx.Store.GetName()
+		rParams := &stremio_store_webdl.GenerateLinkParams{
+			Link:     link,
+			CLientIP: ctx.ClientIP,
+		}
+		rParams.APIKey = ctx.StoreAuthToken
+		var lerr error
+		data, err := stremio_store_webdl.GenerateLink(rParams, storeName)
 		if err == nil {
 			if config.StoreContentProxy.IsEnabled(string(storeName)) && ctx.StoreAuthToken == config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, string(storeName)) {
 				if ctx.IsProxyAuthorized {

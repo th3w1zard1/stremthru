@@ -12,6 +12,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_addon "github.com/MunifTanjim/stremthru/internal/stremio/addon"
+	stremio_store_webdl "github.com/MunifTanjim/stremthru/internal/stremio/store/webdl"
 	stremio_usenet "github.com/MunifTanjim/stremthru/internal/stremio/usenet"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
@@ -201,13 +202,25 @@ func getMetaPreviewDescriptionForUsenet(hash, name string, largestFilename strin
 	return getMetaPreviewDescription(description, r)
 }
 
+func getMetaPreviewDescriptionForWebDL(hash, name string) string {
+	description := "[ 📥 " + hash + " ]"
+
+	r, err := util.ParseTorrentTitle(name)
+	if err != nil {
+		pttLog.Warn("failed to parse", "error", err, "title", name)
+		return description
+	}
+
+	return getMetaPreviewDescription(description, r)
+}
+
 type contentInfo struct {
 	*store.GetMagnetData
 	largestFilename string
 }
 
-func getStoreContentInfo(s store.Store, storeToken string, id string, clientIp string, isUsenet bool) (*contentInfo, error) {
-	if isUsenet {
+func getStoreContentInfo(s store.Store, storeToken string, id string, clientIp string, idr *ParsedId) (*contentInfo, error) {
+	if idr.isUsenet {
 		if s.GetName() != store.StoreNameTorBox {
 			return nil, nil
 		}
@@ -238,6 +251,39 @@ func getStoreContentInfo(s store.Store, storeToken string, id string, clientIp s
 
 		}
 		return &contentInfo{cInfo, news.GetLargestFileName()}, nil
+	}
+
+	if idr.isWebDL {
+		if s.GetName() != store.StoreNameTorBox {
+			return nil, nil
+		}
+
+		params := &stremio_store_webdl.GetWebDLParams{
+			Id: id,
+		}
+		params.APIKey = storeToken
+		webdl, err := stremio_store_webdl.GetWebDL(params, s.GetName())
+		if err != nil {
+			return nil, err
+		}
+		cInfo := &store.GetMagnetData{
+			AddedAt: webdl.AddedAt,
+			Hash:    webdl.Hash,
+			Id:      webdl.Id,
+			Name:    webdl.Name,
+			Size:    webdl.Size,
+			Status:  webdl.Status,
+		}
+		for _, f := range webdl.Files {
+			cInfo.Files = append(cInfo.Files, store.MagnetFile{
+				Idx:  f.Idx,
+				Name: f.Name,
+				Size: f.Size,
+				Link: f.Link,
+			})
+
+		}
+		return &contentInfo{cInfo, ""}, nil
 	}
 
 	params := &store.GetMagnetParams{
@@ -334,7 +380,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cInfo, err := getStoreContentInfo(ctx.Store, ctx.StoreAuthToken, strings.TrimPrefix(id, idPrefix), ctx.ClientIP, idr.isUsenet)
+	cInfo, err := getStoreContentInfo(ctx.Store, ctx.StoreAuthToken, strings.TrimPrefix(id, idPrefix), ctx.ClientIP, idr)
 	if err != nil {
 		SendError(w, r, err)
 		return
@@ -352,6 +398,8 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 
 	if idr.isUsenet {
 		meta.Description = getMetaPreviewDescriptionForUsenet(cInfo.Hash, cInfo.Name, cInfo.largestFilename)
+	} else if idr.isWebDL {
+		meta.Description = getMetaPreviewDescriptionForWebDL(cInfo.Hash, cInfo.Name)
 	} else {
 		meta.Description = getMetaPreviewDescriptionForTorrent(cInfo.Hash, cInfo.Name)
 
@@ -458,7 +506,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	if !idr.isUsenet {
+	if !idr.isUsenet && !idr.isWebDL {
 		go torrent_info.Upsert([]torrent_info.TorrentInfoInsertData{tInfo}, "", ctx.Store.GetName().Code() != store.StoreCodeRealDebrid)
 	}
 
