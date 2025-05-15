@@ -52,6 +52,14 @@ func getTemplateData(ud *UserData) *configure.TemplateData {
 	if ud.HideStream {
 		hideStreamConfig.Default = "checked"
 	}
+	enableWebDLConfig := configure.Config{
+		Key:   "enable_webdl",
+		Type:  configure.ConfigTypeCheckbox,
+		Title: "Enable WebDL",
+	}
+	if ud.EnableWebDL {
+		enableWebDLConfig.Default = "checked"
+	}
 	return &configure.TemplateData{
 		Base: configure.Base{
 			Title:       "StremThru Store",
@@ -70,6 +78,7 @@ func getTemplateData(ud *UserData) *configure.TemplateData {
 			},
 			hideCatalogConfig,
 			hideStreamConfig,
+			enableWebDLConfig,
 		},
 		Script: configure.GetScriptStoreTokenDescription("'#store_name'", "'#store_token'"),
 	}
