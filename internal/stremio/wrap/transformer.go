@@ -21,6 +21,22 @@ type WrappedStream struct {
 	noContentProxy bool
 }
 
+func (ws WrappedStream) IsSortable() bool {
+	return ws.r != nil
+}
+
+func (ws WrappedStream) GetQuality() string {
+	return ws.r.Quality
+}
+
+func (ws WrappedStream) GetResolution() string {
+	return ws.r.Resolution
+}
+
+func (ws WrappedStream) GetSize() string {
+	return ws.r.Size
+}
+
 func (st StreamTransformer) Do(stream *stremio.Stream, sType string, tryReconfigure bool) (*WrappedStream, error) {
 	s := &WrappedStream{Stream: stream}
 

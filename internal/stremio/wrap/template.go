@@ -39,7 +39,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 			Type:        "text",
 			Default:     ud.Sort,
 			Title:       "Stream Sort",
-			Description: "Comma separated fields: <code>resolution</code>, <code>quality</code>, <code>size</code>. Prefix with <code>-</code> for reverse sort. Default: <code>" + defaultSortConfig + "</code>",
+			Description: "Comma separated fields: <code>resolution</code>, <code>quality</code>, <code>size</code>. Prefix with <code>-</code> for reverse sort. Default: <code>" + stremio_transformer.StreamDefaultSortConfig + "</code>",
 		},
 
 		ExtractorIds: []string{},

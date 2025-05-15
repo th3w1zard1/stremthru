@@ -15,6 +15,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/context"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_addon "github.com/MunifTanjim/stremthru/internal/stremio/addon"
+	stremio_transformer "github.com/MunifTanjim/stremthru/internal/stremio/transformer"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/worker"
 	"github.com/MunifTanjim/stremthru/store"
@@ -113,7 +114,7 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 	}
 
 	if template != nil {
-		SortWrappedStreams(allStreams, ud.Sort)
+		stremio_transformer.SortStreams(allStreams, ud.Sort)
 	}
 
 	totalStreams := len(allStreams)
