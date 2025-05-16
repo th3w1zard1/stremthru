@@ -40,7 +40,7 @@ func (ws WrappedStream) GetSize() string {
 func (st StreamTransformer) Do(stream *stremio.Stream, sType string, tryReconfigure bool) (*WrappedStream, error) {
 	s := &WrappedStream{Stream: stream}
 
-	if st.Template == nil {
+	if st.Template == nil || st.Template.IsEmpty() {
 		return s, nil
 	}
 

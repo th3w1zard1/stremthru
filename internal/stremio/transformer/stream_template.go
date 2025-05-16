@@ -25,6 +25,10 @@ type StreamTemplate struct {
 	Description *template.Template
 }
 
+func (t StreamTemplate) IsEmpty() bool {
+	return t.Name == nil && t.Description == nil
+}
+
 func (blob StreamTemplateBlob) Parse() (*StreamTemplate, error) {
 	t := &StreamTemplate{
 		Blob: blob,
@@ -70,19 +74,23 @@ func (t StreamTemplate) Execute(stream *stremio.Stream, data *StreamExtractorRes
 	}()
 
 	s = stream
-	var name bytes.Buffer
-	if err := t.Name.Execute(&name, data); err != nil {
-		return stream, err
+	if t.Name != nil {
+		var name bytes.Buffer
+		if err := t.Name.Execute(&name, data); err != nil {
+			return stream, err
+		}
+		stream.Name = strings.TrimSpace(name.String())
 	}
-	stream.Name = strings.TrimSpace(name.String())
 
-	var description bytes.Buffer
-	if err := t.Description.Execute(&description, data); err != nil {
-		return stream, err
-	}
-	stream.Description = newlinesRegex.ReplaceAllLiteralString(strings.TrimSpace(description.String()), "\n")
-	if stream.Title != "" {
-		stream.Title = ""
+	if t.Description != nil {
+		var description bytes.Buffer
+		if err := t.Description.Execute(&description, data); err != nil {
+			return stream, err
+		}
+		stream.Description = newlinesRegex.ReplaceAllLiteralString(strings.TrimSpace(description.String()), "\n")
+		if stream.Title != "" {
+			stream.Title = ""
+		}
 	}
 
 	return stream, nil
