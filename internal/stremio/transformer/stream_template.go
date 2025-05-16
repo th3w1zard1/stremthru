@@ -6,6 +6,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/MunifTanjim/stremthru/internal/util"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
 
@@ -60,7 +61,15 @@ type StreamTemplateDataRaw struct {
 
 var newlinesRegex = regexp.MustCompile("\n\n+")
 
-func (t StreamTemplate) Execute(stream *stremio.Stream, data *StreamExtractorResult) (*stremio.Stream, error) {
+func (t StreamTemplate) Execute(stream *stremio.Stream, data *StreamExtractorResult) (s *stremio.Stream, err error) {
+	defer func() {
+		if perr, stack := util.RecoverPanic(true); perr != nil {
+			err = perr
+			log.Error("StreamTemplate panic", "error", err, "stack", stack)
+		}
+	}()
+
+	s = stream
 	var name bytes.Buffer
 	if err := t.Name.Execute(&name, data); err != nil {
 		return stream, err
