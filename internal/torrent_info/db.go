@@ -1050,12 +1050,13 @@ var query_list_by_stremid_after_select = fmt.Sprintf(
 	ts.Column.Hash,
 	ts.Column.Source,
 )
-var query_list_by_stremid_cond_hashes_from_ts = fmt.Sprintf(
-	"%s IN (%s)",
+var query_list_by_stremid_cond_hashes_for_series = fmt.Sprintf(
+	"%s IN (%s UNION %s)",
 	Column.Hash,
 	query_list_hashes_by_stremid_from_torrent_stream,
+	query_list_hashes_by_stremid_from_imdb_torrent_for_series,
 )
-var query_list_by_stremid_cond_hashes_from_ts_union_ito = fmt.Sprintf(
+var query_list_by_stremid_cond_hashes_for_movie = fmt.Sprintf(
 	"%s IN (%s UNION %s)",
 	Column.Hash,
 	query_list_hashes_by_stremid_from_torrent_stream,
@@ -1072,18 +1073,22 @@ var query_list_by_stremid_after_cond = fmt.Sprintf(
 
 func ListByStremId(stremId string, excludeMissingSize bool) (*ListTorrentsData, error) {
 	query := query_list_by_stremid_select + query_list_by_stremid_after_select + " WHERE "
-	args := make([]any, 3)
+	var args []any
 
 	if strings.Contains(stremId, ":") {
-		query += query_list_by_stremid_cond_hashes_from_ts
-		args[0] = stremId
-		args[1], _, _ = strings.Cut(stremId, ":")
-		args = args[0:2]
+		args = make([]any, 0, 7)
+		query += query_list_by_stremid_cond_hashes_for_series
+		args = append(args, stremId)
+		if parts := strings.SplitN(stremId, ":", 3); len(parts) == 3 {
+			args = append(args, parts[0], parts[0], parts[1], "%,"+parts[1]+",%", parts[2], "%,"+parts[2]+",%")
+		} else {
+			imdbId, _, _ := strings.Cut(stremId, ":")
+			args = append(args, imdbId)
+		}
 	} else {
-		query += query_list_by_stremid_cond_hashes_from_ts_union_ito
-		args[0] = stremId
-		args[1] = stremId + ":%"
-		args[2] = stremId
+		args = make([]any, 0, 3)
+		query += query_list_by_stremid_cond_hashes_for_movie
+		args = append(args, stremId, stremId+":%", stremId)
 	}
 
 	if excludeMissingSize {
