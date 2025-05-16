@@ -66,11 +66,11 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 
 	sid := r.PathValue("stremId")
 
-	storeCode := r.PathValue("storeCode")
-	s := ud.GetStoreByCode(storeCode)
+	s := ud.GetStoreByCode(r.PathValue("storeCode"))
 	ctx.Store, ctx.StoreAuthToken = s.Store, s.AuthToken
+	storeCode := s.Store.GetName().Code()
 
-	cacheKey := strings.Join([]string{ctx.ClientIP, storeCode, ctx.StoreAuthToken, sid, magnetHash, strconv.Itoa(fileIdx), fileName}, ":")
+	cacheKey := strings.Join([]string{ctx.ClientIP, string(storeCode), ctx.StoreAuthToken, sid, magnetHash, strconv.Itoa(fileIdx), fileName}, ":")
 
 	stremLink := ""
 	if stremLinkCache.Get(cacheKey, &stremLink) {
@@ -103,6 +103,8 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 			AddedAt: amRes.AddedAt,
 		}
 
+		shouldTagStream := strings.HasPrefix(sid, "tt")
+
 		magnet, err = stremio_shared.WaitForMagnetStatus(ctx, magnet, store.MagnetStatusDownloaded, 3, 5*time.Second)
 		if err != nil {
 			strem := &stremResult{
@@ -126,18 +128,19 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if file == nil && strings.Contains(sid, ":") {
-			if file = stremio_shared.MatchFileByStremId(magnet.Files, sid); file != nil {
+			if file = stremio_shared.MatchFileByStremId(magnet.Files, sid, magnetHash, storeCode); file != nil {
 				log.Debug("matched file using strem id", "sid", sid, "filename", file.Name)
 			}
 		}
-		if file == nil && fileIdx != -1 {
-			if file = stremio_shared.MatchFileByIdx(magnet.Files, fileIdx); file != nil {
+		if file == nil {
+			if file = stremio_shared.MatchFileByIdx(magnet.Files, fileIdx, storeCode); file != nil {
 				log.Debug("matched file using fileidx", "fileidx", file.Idx, "filename", file.Name)
 			}
 		}
 		if file == nil {
 			if file = stremio_shared.MatchFileByLargestSize(magnet.Files); file != nil {
 				log.Debug("matched file using largest size", "filename", file.Name)
+				shouldTagStream = false
 			}
 		}
 
@@ -152,7 +155,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 			}, nil
 		}
 
-		if strings.HasPrefix(sid, "tt") {
+		if shouldTagStream {
 			torrent_stream.TagStremId(magnet.Hash, file.Name, sid)
 		}
 

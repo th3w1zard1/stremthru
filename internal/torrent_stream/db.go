@@ -1,6 +1,7 @@
 package torrent_stream
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -98,6 +99,26 @@ var Columns = []string{
 	Column.Source,
 	Column.CAt,
 	Column.UAt,
+}
+
+var query_get_file = fmt.Sprintf(
+	"SELECT %s, %s, %s FROM %s WHERE %s = ? AND %s = ?",
+	Column.Name, Column.Idx, Column.Size,
+	TableName,
+	Column.Hash,
+	Column.SId,
+)
+
+func GetFile(hash string, sid string) (*File, error) {
+	row := db.QueryRow(query_get_file, hash, sid)
+	var file File
+	if err := row.Scan(&file.Name, &file.Idx, &file.Size); err != nil {
+		if err != sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &file, nil
 }
 
 func GetFilesByHashes(hashes []string) (map[string]Files, error) {
