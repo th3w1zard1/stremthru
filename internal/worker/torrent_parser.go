@@ -40,7 +40,7 @@ func InitParseTorrentWorker(conf *WorkerConfig) *Worker {
 		RunSingleInstance: true,
 		TaskFunc: func() (err error) {
 			defer func() {
-				if perr, stack := util.RecoverPanic(true); perr != nil {
+				if perr, stack := util.HandlePanic(recover(), true); perr != nil {
 					err = perr
 					log.Error("Worker Panic", "error", err, "stack", stack)
 				}

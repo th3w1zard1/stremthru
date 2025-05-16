@@ -63,7 +63,7 @@ var newlinesRegex = regexp.MustCompile("\n\n+")
 
 func (t StreamTemplate) Execute(stream *stremio.Stream, data *StreamExtractorResult) (s *stremio.Stream, err error) {
 	defer func() {
-		if perr, stack := util.RecoverPanic(true); perr != nil {
+		if perr, stack := util.HandlePanic(recover(), true); perr != nil {
 			err = perr
 			log.Error("StreamTemplate panic", "error", err, "stack", stack)
 		}
