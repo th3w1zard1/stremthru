@@ -6,6 +6,10 @@ import (
 )
 
 func HandlePanic(e any, captureStack bool) (err error, stack string) {
+	if e == nil {
+		return nil, stack
+	}
+
 	if perr, ok := e.(error); ok {
 		err = perr
 	} else {
