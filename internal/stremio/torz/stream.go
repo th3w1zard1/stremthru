@@ -70,6 +70,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		shared.ErrorBadRequest(r, "unsupported id: "+id).Send(w, r)
+		return
 	}
 
 	eud := ud.GetEncoded()

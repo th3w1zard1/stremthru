@@ -48,6 +48,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 	storeActionIdPrefix := getStoreActionIdPrefix(idr.getStoreCode())
 	if !strings.HasPrefix(actionId, storeActionIdPrefix) {
 		shared.ErrorBadRequest(r, "unsupported id: "+actionId).Send(w, r)
+		return
 	}
 
 	ctx, err := ud.GetRequestContext(r, idr)
