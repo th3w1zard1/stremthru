@@ -2,7 +2,6 @@ package stremio_torz
 
 import (
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -122,47 +121,22 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 
 		var file *store.MagnetFile
 		if fileName != "" {
-			for i := range magnet.Files {
-				f := &magnet.Files[i]
-				if f.Name == fileName {
-					file = f
-					log.Debug("matched file using filename", "filename", f.Name)
-					break
-				}
+			if file = stremio_shared.MatchFileByName(magnet.Files, fileName); file != nil {
+				log.Debug("matched file using filename", "filename", file.Name)
 			}
 		}
 		if file == nil && strings.Contains(sid, ":") {
-			if parts := strings.SplitN(sid, ":", 3); len(parts) == 3 {
-				if pat, err := regexp.Compile("0?" + parts[1] + ".{1,3}" + "0?" + parts[2]); err == nil {
-					for i := range magnet.Files {
-						f := &magnet.Files[i]
-						if pat.MatchString(f.Name) {
-							file = f
-							log.Debug("matched file using stream id", "sid", sid, "pattern", pat.String(), "filename", f.Name)
-							break
-						}
-					}
-				}
+			if file = stremio_shared.MatchFileByStremId(magnet.Files, sid); file != nil {
+				log.Debug("matched file using strem id", "sid", sid, "filename", file.Name)
 			}
 		}
 		if file == nil && fileIdx != -1 {
-			for i := range magnet.Files {
-				f := &magnet.Files[i]
-				if f.Idx == fileIdx {
-					file = f
-					log.Debug("matched file using fileidx", "fileidx", f.Idx, "filename", f.Name)
-					break
-				}
+			if file = stremio_shared.MatchFileByIdx(magnet.Files, fileIdx); file != nil {
+				log.Debug("matched file using fileidx", "fileidx", file.Idx, "filename", file.Name)
 			}
 		}
 		if file == nil {
-			for i := range magnet.Files {
-				f := &magnet.Files[i]
-				if file == nil || file.Size < f.Size {
-					file = f
-				}
-			}
-			if file != nil {
+			if file = stremio_shared.MatchFileByLargestSize(magnet.Files); file != nil {
 				log.Debug("matched file using largest size", "filename", file.Name)
 			}
 		}
