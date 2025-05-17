@@ -10,8 +10,8 @@ import (
 
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/shared"
+	stremio_store_usenet "github.com/MunifTanjim/stremthru/internal/stremio/store/usenet"
 	stremio_store_webdl "github.com/MunifTanjim/stremthru/internal/stremio/store/webdl"
-	stremio_usenet "github.com/MunifTanjim/stremthru/internal/stremio/usenet"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
 	"github.com/MunifTanjim/stremthru/internal/worker"
@@ -43,13 +43,13 @@ func getUsenetCatalogItems(s store.Store, storeToken string, clientIp string, id
 		offset := 0
 		hasMore := true
 		for hasMore && offset < max_fetch_list_items {
-			params := &stremio_usenet.ListNewsParams{
+			params := &stremio_store_usenet.ListNewsParams{
 				Limit:    fetch_list_limit,
 				Offset:   offset,
 				ClientIP: clientIp,
 			}
 			params.APIKey = storeToken
-			res, err := stremio_usenet.ListNews(params, s.GetName())
+			res, err := stremio_store_usenet.ListNews(params, s.GetName())
 			if err != nil {
 				log.Error("failed to list news", "error", err, "offset", offset)
 				break

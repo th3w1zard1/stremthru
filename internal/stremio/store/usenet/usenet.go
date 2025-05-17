@@ -1,4 +1,4 @@
-package stremio_usenet
+package stremio_store_usenet
 
 import (
 	"errors"

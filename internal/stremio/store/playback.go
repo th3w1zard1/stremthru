@@ -8,8 +8,8 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	store_video "github.com/MunifTanjim/stremthru/internal/store/video"
+	stremio_store_usenet "github.com/MunifTanjim/stremthru/internal/stremio/store/usenet"
 	stremio_store_webdl "github.com/MunifTanjim/stremthru/internal/stremio/store/webdl"
-	stremio_usenet "github.com/MunifTanjim/stremthru/internal/stremio/usenet"
 )
 
 func handleStrem(w http.ResponseWriter, r *http.Request) {
@@ -59,13 +59,13 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 
 	if idr.isUsenet {
 		storeName := ctx.Store.GetName()
-		rParams := &stremio_usenet.GenerateLinkParams{
+		rParams := &stremio_store_usenet.GenerateLinkParams{
 			Link:     link,
 			CLientIP: ctx.ClientIP,
 		}
 		rParams.APIKey = ctx.StoreAuthToken
 		var lerr error
-		data, err := stremio_usenet.GenerateLink(rParams, storeName)
+		data, err := stremio_store_usenet.GenerateLink(rParams, storeName)
 		if err == nil {
 			if config.StoreContentProxy.IsEnabled(string(storeName)) && ctx.StoreAuthToken == config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, string(storeName)) {
 				if ctx.IsProxyAuthorized {

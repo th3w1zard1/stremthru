@@ -12,8 +12,8 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_addon "github.com/MunifTanjim/stremthru/internal/stremio/addon"
+	stremio_store_usenet "github.com/MunifTanjim/stremthru/internal/stremio/store/usenet"
 	stremio_store_webdl "github.com/MunifTanjim/stremthru/internal/stremio/store/webdl"
-	stremio_usenet "github.com/MunifTanjim/stremthru/internal/stremio/usenet"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
 	"github.com/MunifTanjim/stremthru/internal/util"
@@ -241,11 +241,11 @@ func getStoreContentInfo(s store.Store, storeToken string, id string, clientIp s
 			return nil, nil
 		}
 
-		params := &stremio_usenet.GetNewsParams{
+		params := &stremio_store_usenet.GetNewsParams{
 			Id: id,
 		}
 		params.APIKey = storeToken
-		news, err := stremio_usenet.GetNews(params, s.GetName())
+		news, err := stremio_store_usenet.GetNews(params, s.GetName())
 		if err != nil {
 			return nil, err
 		}
