@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/buddy"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
@@ -75,6 +76,8 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	eud := ud.GetEncoded()
+
+	buddy.PullTorrentsByStremId(id, "")
 
 	hashes, err := torrent_info.ListHashesByStremId(id)
 	if err != nil {
