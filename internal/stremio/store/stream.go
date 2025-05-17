@@ -269,6 +269,10 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 
 			for i := range cInfo.Files {
 				f := &cInfo.Files[i]
+				if !core.HasVideoExtension(f.Name) {
+					continue
+				}
+
 				if matcher.FileLink != "" && matcher.FileLink == f.Link {
 					file = f
 					break
