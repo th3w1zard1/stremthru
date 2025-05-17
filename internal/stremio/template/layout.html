@@ -135,12 +135,11 @@
             modal.replaceWith(modal.cloneNode(true));
           }
 
-          document
-            .querySelector(modalSelector + " [data-modal-close]")
-            ?.addEventListener("click", onClose);
-
           trigger.addEventListener("click", function(e) {
             const modal = document.querySelector(modalSelector);
+
+            modal.querySelector(modalSelector + " [data-modal-close]")
+              ?.addEventListener("click", onClose);
 
             window[modalOnOpenFnName](e, { modal, onClose, trigger });
 
