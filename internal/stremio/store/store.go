@@ -12,6 +12,7 @@ import (
 	store_video "github.com/MunifTanjim/stremthru/internal/store/video"
 	stremio_store_webdl "github.com/MunifTanjim/stremthru/internal/stremio/store/webdl"
 	stremio_usenet "github.com/MunifTanjim/stremthru/internal/stremio/usenet"
+	"github.com/MunifTanjim/stremthru/store"
 )
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -63,8 +64,10 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 	idPrefix := getIdPrefix(idr.getStoreCode())
 	switch strings.TrimPrefix(actionId, storeActionIdPrefix) {
 	case "clear_cache":
-		cacheKey := getCatalogCacheKey(idPrefix, ctx.StoreAuthToken)
-		catalogCache.Remove(cacheKey)
+		catalogCache.Remove(getCatalogCacheKey(idPrefix, ctx.StoreAuthToken))
+		if ctx.Store.GetName() == store.StoreNameRealDebrid {
+			rdDownloadsCache.Remove(getRDDownloadsCacheKey(ctx.StoreAuthToken))
+		}
 	}
 
 	store_video.Redirect("200", w, r)

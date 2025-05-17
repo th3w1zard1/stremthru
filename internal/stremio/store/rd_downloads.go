@@ -23,6 +23,10 @@ var rdDownloadsCache = cache.NewCache[[]stremio.MetaVideo](&cache.CacheConfig{
 	Name:     "stremio:store:rd:downloads",
 })
 
+func getRDDownloadsCacheKey(storeToken string) string {
+	return storeToken
+}
+
 func getRDWebDLsMeta(r *http.Request, ctx *context.StoreContext, idStoreCode string) stremio.Meta {
 	released := time.Now().UTC()
 
@@ -34,7 +38,8 @@ func getRDWebDLsMeta(r *http.Request, ctx *context.StoreContext, idStoreCode str
 		Released:    &released,
 		Videos:      []stremio.MetaVideo{},
 	}
-	if !rdDownloadsCache.Get(ctx.StoreAuthToken, &meta.Videos) {
+	cacheKey := getRDDownloadsCacheKey(ctx.StoreAuthToken)
+	if !rdDownloadsCache.Get(cacheKey, &meta.Videos) {
 		offset := 0
 		hasMore := true
 		for hasMore && offset < max_fetch_list_items {
@@ -91,7 +96,7 @@ func getRDWebDLsMeta(r *http.Request, ctx *context.StoreContext, idStoreCode str
 			hasMore = len(res.Data) == fetch_list_limit
 			time.Sleep(1 * time.Second)
 		}
-		rdDownloadsCache.Add(ctx.StoreAuthToken, meta.Videos)
+		rdDownloadsCache.Add(cacheKey, meta.Videos)
 	}
 	return meta
 }
