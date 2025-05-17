@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 )
@@ -45,4 +46,12 @@ func parseStremId(sid string) (sType, sId string, season, episode int) {
 		sType = "movie"
 	}
 	return sType, sId, season, episode
+}
+
+func getContentType(r *http.Request) (string, *core.APIError) {
+	contentType := r.PathValue("contentType")
+	if contentType != ContentTypeOther {
+		return "", shared.ErrorBadRequest(r, "unsupported type: "+contentType)
+	}
+	return contentType, nil
 }
