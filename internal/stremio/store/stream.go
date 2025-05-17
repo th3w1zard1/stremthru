@@ -351,7 +351,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 				if meta != nil && season != -1 && episode != -1 {
 					for i := range meta.Videos {
 						video := &meta.Videos[i]
-						if video.Season == season && video.Episode == episode {
+						if video.Season.Equal(season) && video.Episode.Equal(episode) {
 							pttr.Title = video.Name
 							break
 						}

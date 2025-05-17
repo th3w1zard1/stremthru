@@ -27,6 +27,14 @@ func getStoreActionIdPrefix(storeCode string) string {
 	return getStoreActionId(storeCode) + ":"
 }
 
+func getRDWebDLsId(storeCode string) string {
+	return getIdPrefix(storeCode) + "webdls"
+}
+
+func getRDWebDLsIdPrefix(storeCode string) string {
+	return getRDWebDLsId(storeCode) + ":"
+}
+
 type ParsedId struct {
 	storeCode    store.StoreCode
 	storeName    store.StoreName

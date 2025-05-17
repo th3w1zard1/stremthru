@@ -69,9 +69,25 @@ func getPosterUrl(imdbId string) string {
 	return "https://images.metahub.space/poster/small/" + imdbId + "/img"
 }
 
-func getMetaPreviewDescription(description string, r *ptt.Result) string {
+func getMetaPreviewDescription(description string, r *ptt.Result, includeSeriesMeta bool) string {
 	if r.Title != "" {
 		description += " [ ✏️ " + r.Title + " ]"
+	}
+	if includeSeriesMeta {
+		meta := ""
+		if len(r.Seasons) > 0 {
+			meta += "S" + strconv.Itoa(r.Seasons[0])
+		}
+		if len(r.Episodes) > 0 {
+			if meta != "" {
+				meta += " · "
+			}
+			meta += "E"
+			meta += strconv.Itoa(r.Episodes[0])
+		}
+		if meta != "" {
+			description += " [ " + meta + " ]"
+		}
 	}
 	if r.Year != "" || r.Date != "" {
 		description += " [ 📅 "
@@ -135,7 +151,7 @@ func getMetaPreviewDescriptionForTorrent(hash, name string) string {
 		return description
 	}
 
-	return getMetaPreviewDescription(description, r)
+	return getMetaPreviewDescription(description, r, false)
 }
 
 func getMetaPreviewDescriptionForUsenet(hash, name string, largestFilename string) string {
@@ -199,10 +215,10 @@ func getMetaPreviewDescriptionForUsenet(hash, name string, largestFilename strin
 		}
 	}
 
-	return getMetaPreviewDescription(description, r)
+	return getMetaPreviewDescription(description, r, false)
 }
 
-func getMetaPreviewDescriptionForWebDL(hash, name string) string {
+func getMetaPreviewDescriptionForWebDL(hash, name string, includeSeriesMeta bool) string {
 	description := "[ 📥 " + hash + " ]"
 
 	r, err := util.ParseTorrentTitle(name)
@@ -211,7 +227,7 @@ func getMetaPreviewDescriptionForWebDL(hash, name string) string {
 		return description
 	}
 
-	return getMetaPreviewDescription(description, r)
+	return getMetaPreviewDescription(description, r, includeSeriesMeta)
 }
 
 type contentInfo struct {
@@ -349,7 +365,8 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idPrefix := getIdPrefix(idr.getStoreCode())
+	idStoreCode := idr.getStoreCode()
+	idPrefix := getIdPrefix(idStoreCode)
 
 	if !strings.HasPrefix(id, idPrefix) {
 		shared.ErrorBadRequest(r, "unsupported id: "+id).Send(w, r)
@@ -365,7 +382,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if id == getStoreActionId(idr.getStoreCode()) {
+	if id == getStoreActionId(idStoreCode) {
 		eud, err := ud.GetEncoded()
 		if err != nil {
 			SendError(w, r, err)
@@ -373,7 +390,16 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		}
 
 		res := stremio.MetaHandlerResponse{
-			Meta: getStoreActionMeta(r, idr.getStoreCode(), eud),
+			Meta: getStoreActionMeta(r, idStoreCode, eud),
+		}
+
+		SendResponse(w, r, 200, res)
+		return
+	}
+
+	if idr.storeCode == store.StoreCodeRealDebrid && id == getRDWebDLsId(idStoreCode) {
+		res := stremio.MetaHandlerResponse{
+			Meta: getRDWebDLsMeta(r, ctx, idStoreCode),
 		}
 
 		SendResponse(w, r, 200, res)
@@ -399,7 +425,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 	if idr.isUsenet {
 		meta.Description = getMetaPreviewDescriptionForUsenet(cInfo.Hash, cInfo.Name, cInfo.largestFilename)
 	} else if idr.isWebDL {
-		meta.Description = getMetaPreviewDescriptionForWebDL(cInfo.Hash, cInfo.Name)
+		meta.Description = getMetaPreviewDescriptionForWebDL(cInfo.Hash, cInfo.Name, false)
 	} else {
 		meta.Description = getMetaPreviewDescriptionForTorrent(cInfo.Hash, cInfo.Name)
 
@@ -434,7 +460,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 			if sType == "series" {
 				for i := range m.Videos {
 					video := &m.Videos[i]
-					key := strconv.Itoa(video.Season) + ":" + strconv.Itoa(video.Episode)
+					key := video.Season.String() + ":" + video.Episode.String()
 					metaVideoByKey[key] = video
 				}
 			}
@@ -474,14 +500,14 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		} else {
 			if len(pttr.Seasons) > 0 {
 				season = pttr.Seasons[0]
-				video.Season = season
+				video.Season = stremio.ZeroIndexedInt(season)
 			} else if len(tpttr.Seasons) == 1 {
 				season = tpttr.Seasons[0]
-				video.Season = season
+				video.Season = stremio.ZeroIndexedInt(season)
 			}
 			if len(pttr.Episodes) > 0 {
 				episode = pttr.Episodes[0]
-				video.Episode = episode
+				video.Episode = stremio.ZeroIndexedInt(episode)
 			}
 		}
 		if season != -1 && episode != -1 {

@@ -105,7 +105,7 @@ func getWebDLCatalogItems(s store.Store, storeToken string, clientIp string, idP
 						Name:        item.Name,
 						PosterShape: stremio.MetaPosterShapePoster,
 					}, item.Hash}
-					cItem.Description = getMetaPreviewDescriptionForWebDL(cItem.hash, item.Name)
+					cItem.Description = getMetaPreviewDescriptionForWebDL(cItem.hash, item.Name, false)
 					items = append(items, cItem)
 				}
 			}
@@ -271,15 +271,15 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		Metas: []stremio.MetaPreview{},
 	}
 
+	idStoreCode := idr.getStoreCode()
+
 	if extra.Genre == CatalogGenreStremThru {
-		res.Metas = append(res.Metas, getStoreActionMetaPreview(idr.getStoreCode()))
+		res.Metas = append(res.Metas, getStoreActionMetaPreview(idStoreCode))
 		SendResponse(w, r, 200, res)
 		return
 	}
 
-	idPrefix := getIdPrefix(idr.getStoreCode())
-
-	items := getCatalogItems(ctx.Store, ctx.StoreAuthToken, ctx.ClientIP, idPrefix, idr)
+	items := getCatalogItems(ctx.Store, ctx.StoreAuthToken, ctx.ClientIP, getIdPrefix(idStoreCode), idr)
 
 	if extra.Search != "" {
 		query := strings.ToLower(extra.Search)
@@ -299,7 +299,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		filteredItems := []CachedCatalogItem{}
 		if includeStoreActions {
 			filteredItems = append(filteredItems, CachedCatalogItem{
-				MetaPreview: getStoreActionMetaPreview(idr.getStoreCode()),
+				MetaPreview: getStoreActionMetaPreview(idStoreCode),
 			})
 		}
 		for i := range items {
@@ -321,7 +321,23 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		hashes[i] = item.hash
 	}
 
-	res.Metas = make([]stremio.MetaPreview, len(hashes))
+	includeRDDownlodsMetaPreview := ud.EnableWebDL && idr.storeCode == store.StoreCodeRealDebrid
+
+	count := len(hashes)
+	if includeRDDownlodsMetaPreview {
+		count += 1
+	}
+
+	res.Metas = make([]stremio.MetaPreview, 0, count)
+
+	if includeRDDownlodsMetaPreview {
+		res.Metas = append(res.Metas, stremio.MetaPreview{
+			Id:     getRDWebDLsId(idStoreCode),
+			Type:   ContentTypeOther,
+			Name:   "Web Downloads",
+			Poster: "https://emojiapi.dev/api/v1/inbox_tray/256.png",
+		})
+	}
 
 	stremIdByHash, err := torrent_stream.GetStremIdByHashes(hashes)
 	if err != nil {
@@ -333,7 +349,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 			stremId, _, _ = strings.Cut(stremId, ":")
 			item.Poster = getPosterUrl(stremId)
 		}
-		res.Metas[i] = item.MetaPreview
+		res.Metas = append(res.Metas, item.MetaPreview)
 	}
 
 	SendResponse(w, r, 200, res)
