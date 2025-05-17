@@ -248,8 +248,10 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 					log.Error("failed to get strem id by hashes", "error", err)
 				}
 				if stremId := stremIdByHash.Get(cInfo.Hash); stremId != "" {
-					sType, sId := "", ""
-					sType, sId, season, episode = parseStremId(stremId)
+					sType, sId, sSeason, sEpisode := parseStremId(stremId)
+					if !isStremThruStoreId {
+						season, episode = sSeason, sEpisode
+					}
 					if mRes, err := fetchMeta(sType, sId, core.GetRequestIP(r)); err == nil {
 						meta = &mRes.Meta
 					} else {
@@ -262,9 +264,12 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				pttLog.Warn("failed to parse", "error", err, "title", cInfo.Name)
 			}
-			tSeason := -1
+			tSeason, tEpisode := -1, -1
 			if len(tpttr.Seasons) == 1 {
 				tSeason = tpttr.Seasons[0]
+			}
+			if len(tpttr.Episodes) == 1 {
+				tEpisode = tpttr.Episodes[0]
 			}
 
 			var pttr *ptt.Result
@@ -281,20 +286,26 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 				} else if matcher.Episode > 0 {
 					if r, err := util.ParseTorrentTitle(f.Name); err == nil {
 						pttr = r
-						season, episode := tSeason, -1
+						fSeason, fEpisode := tSeason, tEpisode
 						if len(r.Seasons) > 0 {
-							season = r.Seasons[0]
+							fSeason = r.Seasons[0]
+						} else if tSeason != -1 {
+							r.Seasons = append(r.Seasons, tSeason)
 						}
 						if len(r.Episodes) > 0 {
-							episode = r.Episodes[0]
+							fEpisode = r.Episodes[0]
+						} else if tEpisode != -1 {
+							r.Episodes = append(r.Episodes, tEpisode)
 						}
-						if season == matcher.Season && episode == matcher.Episode {
+						if fSeason == matcher.Season && fEpisode == matcher.Episode {
 							file = f
+							season, episode = fSeason, fEpisode
 							break
 						}
 					} else {
 						pttLog.Warn("failed to parse", "error", err, "title", f.Name)
 					}
+					pttr = nil
 				} else if matcher.UseLargestFile {
 					if file == nil || file.Size < f.Size {
 						file = f
@@ -319,6 +330,16 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			if pttr == nil {
 				if r, err := util.ParseTorrentTitle(file.Name); err == nil {
 					pttr = r
+					if len(pttr.Seasons) > 0 {
+						season = pttr.Seasons[0]
+					} else {
+						season = tSeason
+					}
+					if len(pttr.Episodes) > 0 {
+						episode = pttr.Episodes[0]
+					} else {
+						episode = tEpisode
+					}
 				} else {
 					pttLog.Warn("failed to parse", "error", err, "title", file.Name)
 				}
