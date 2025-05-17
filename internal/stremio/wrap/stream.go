@@ -174,13 +174,18 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 				stream.URL = surl.String()
 				stream.Name = "⚡ [" + storeCode + "] " + stream.Name
 
+				if ctx.IsProxyAuthorized && config.StoreContentProxy.IsEnabled(string(ud.GetStoreByCode(storeCode).Store.GetName())) {
+					stream.Name = "✨ " + stream.Name
+				}
+
 				cachedStreams = append(cachedStreams, *stream.Stream)
 			} else if !ud.CachedOnly {
 				surlRawQuery := surl.RawQuery
 				stores := ud.GetStores()
 				for i := range stores {
 					s := &stores[i]
-					storeCode := strings.ToUpper(string(s.Store.GetName().Code()))
+					storeName := s.Store.GetName()
+					storeCode := strings.ToUpper(string(storeName.Code()))
 					if storeCode == "ED" {
 						continue
 					}
@@ -189,6 +194,10 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 					surl.RawQuery = surlRawQuery + "&s=" + storeCode
 					stream.URL = surl.String()
 					stream.Name = "[" + storeCode + "] " + stream.Name
+
+					if ctx.IsProxyAuthorized && config.StoreContentProxy.IsEnabled(string(storeName)) && ctx.IsProxyAuthorized {
+						stream.Name = "✨ " + stream.Name
+					}
 
 					uncachedStreams = append(uncachedStreams, stream)
 				}

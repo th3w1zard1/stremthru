@@ -9,6 +9,7 @@ import (
 
 	"github.com/MunifTanjim/go-ptt"
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_transformer "github.com/MunifTanjim/stremthru/internal/stremio/transformer"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
@@ -19,18 +20,9 @@ import (
 )
 
 var streamTemplate = func() *stremio_transformer.StreamTemplate {
-	tmplBlob := stremio_transformer.StreamTemplateBlob{
-		Name: `Store {{.Store.Code}}
-{{ if ne .Resolution ""}}{{.Resolution}}{{end}}`,
-		Description: `✏️ {{.TTitle}}
-{{if ne .Quality ""}} 💿 {{.Quality}} {{end}}{{if ne .Codec ""}} 🎞️ {{.Codec}} {{end}}{{if gt (len .HDR) 0}} 📺 {{str_join .HDR ","}}{{end}}{{if gt (len .Audio) 0}} 🎧 {{str_join .Audio ","}}{{if gt (len .Channels) 0}} | {{str_join .Channels ","}}{{end}}{{end}}
-{{if ne .Size ""}} 📦 {{.Size}}{{end}}{{if ne .Group ""}} ⚙️ {{.Group}}{{end}}
-📄 {{.Raw.Name}}`,
-	}
-	tmpl, err := tmplBlob.Parse()
-	if err != nil {
-		panic(err)
-	}
+	tmplBlob := stremio_transformer.StreamTemplateDefault.Blob
+	tmplBlob.Description = "✏️ {{.Title}}\n" + tmplBlob.Description
+	tmpl := tmplBlob.MustParse()
 	return tmpl
 }()
 
@@ -378,20 +370,30 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 						}
 					}
 				}
+				storeName := matcher.Store.GetName()
 				data := &stremio_transformer.StreamExtractorResult{
 					Result: pttr,
+					File: stremio_transformer.StreamExtractorResultFile{
+						Name: file.Name,
+						Idx:  file.Idx,
+						Size: pttr.Size,
+					},
 					Raw: stremio_transformer.StreamExtractorResultRaw{
-						Name:        stream.Name,
-						Description: stream.Description,
+						Name: stream.Name,
 					},
 					Store: stremio_transformer.StreamExtractorResultStore{
-						Code:     strings.ToUpper(matcher.StoreCode),
-						Name:     string(store.StoreCode(matcher.StoreCode).Name()),
-						IsCached: true,
+						Code:      strings.ToUpper(string(storeName.Code())),
+						Name:      string(storeName),
+						IsCached:  true,
+						IsProxied: matcher.IdR.isST && config.StoreContentProxy.IsEnabled(string(storeName)),
 					},
 				}
-				if stream.Description == "" {
-					data.Raw.Description = stream.Title
+				if matcher.IdR.isUsenet {
+					data.Addon.Name = "Usenet Store"
+				} else if matcher.IdR.isWebDL {
+					data.Addon.Name = "WebDL Store"
+				} else {
+					data.Addon.Name = "Store"
 				}
 				if _, err := streamTemplate.Execute(&stream, data); err != nil {
 					log.Error("failed to execute stream template", "error", err)

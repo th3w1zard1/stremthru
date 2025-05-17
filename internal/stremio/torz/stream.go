@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 	stremio_transformer "github.com/MunifTanjim/stremthru/internal/stremio/transformer"
@@ -195,8 +196,11 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	uncachedStreams := []stremio.Stream{}
 	for _, wStream := range wrappedStreams {
 		if storeCode, isCached := isCachedByHash[wStream.hash]; isCached && storeCode != "" {
+			storeName := store.StoreCode(strings.ToLower(storeCode)).Name()
 			wStream.r.Store.Code = storeCode
+			wStream.r.Store.Name = string(storeName)
 			wStream.r.Store.IsCached = true
+			wStream.r.Store.IsProxied = ctx.IsProxyAuthorized && config.StoreContentProxy.IsEnabled(string(storeName))
 			stream, err := streamTemplate.Execute(&wStream.Stream, wStream.r)
 			if err != nil {
 				SendError(w, r, err)
@@ -212,13 +216,16 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			stores := ud.GetStores()
 			for i := range stores {
 				s := &stores[i]
-				storeCode := s.Store.GetName().Code()
+				storeName := s.Store.GetName()
+				storeCode := storeName.Code()
 				if storeCode == store.StoreCodeEasyDebrid {
 					continue
 				}
 
 				origStream := wStream.Stream
 				wStream.r.Store.Code = strings.ToUpper(string(storeCode))
+				wStream.r.Store.Name = string(storeName)
+				wStream.r.Store.IsProxied = ctx.IsProxyAuthorized && config.StoreContentProxy.IsEnabled(string(storeName))
 				stream, err := streamTemplate.Execute(&origStream, wStream.r)
 				if err != nil {
 					SendError(w, r, err)
