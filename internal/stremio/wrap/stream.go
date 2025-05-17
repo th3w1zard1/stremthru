@@ -47,6 +47,10 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 	isImdbStremId := strings.HasPrefix(stremId, "tt")
 	torrentInfoCategory := torrent_info.GetCategoryFromStremId(stremId)
 
+	if isImdbStremId {
+		go buddy.PullTorrentsByStremId(stremId, "")
+	}
+
 	var wg sync.WaitGroup
 	for i := range upstreams {
 		wg.Add(1)
@@ -62,7 +66,7 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 			streams := res.Data.Streams
 			wstreams := make([]WrappedStream, len(streams))
 			errs[i] = err
-			tInfoData := []torrent_info.TorrentInfoInsertData{}
+			tInfos := []torrent_info.TorrentInfoInsertData{}
 			if err == nil {
 				extractor, err := up.extractor.Parse()
 				if err != nil {
@@ -77,7 +81,7 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 						stream := streams[i]
 						if isImdbStremId {
 							if cData := torrent_info.ExtractCreateDataFromStream(addonHostname, stremId, &stream); cData != nil {
-								tInfoData = append(tInfoData, *cData)
+								tInfos = append(tInfos, *cData)
 							}
 						}
 						wstream, err := transformer.Do(&stream, rType, up.ReconfigureStore)
@@ -92,11 +96,10 @@ func (ud UserData) fetchStream(ctx *context.StoreContext, r *http.Request, rType
 				}
 			}
 			if isImdbStremId {
-				if len(tInfoData) > 0 {
+				if len(tInfos) > 0 {
 					worker.TorrentPusherQueue.Queue(stremId)
 				}
-				go torrent_info.Upsert(tInfoData, torrentInfoCategory, false)
-				go buddy.PullTorrentsByStremId(stremId, "")
+				go torrent_info.Upsert(tInfos, torrentInfoCategory, false)
 			}
 			chunks[i] = wstreams
 		}()
