@@ -519,7 +519,9 @@
 <script>
   {{if and .CanAuthorize (ne .AuthError "")}}
   htmx.on("htmx:load", function(evt) {
-    document.querySelector("[data-modal-on-open='onOpenAuthorize']").click();
+    setTimeout(() => {
+      document.querySelector("[data-modal-on-open='onOpenAuthorize']").click();
+    }, 200);
   }, { once: true });
   {{end}}
 
