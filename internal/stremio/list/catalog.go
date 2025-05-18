@@ -7,6 +7,7 @@ import (
 
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/stremio"
+	"slices"
 )
 
 type ExtraData struct {
@@ -92,6 +93,18 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	extra := getExtra(r)
+
+	if extra.Genre != "" {
+		filteredItems := []stremio.MetaPreview{}
+		for i := range items {
+			item := &items[i]
+			if slices.Contains(item.Genres, extra.Genre) {
+				filteredItems = append(filteredItems, *item)
+			}
+		}
+		items = filteredItems
+	}
+
 	limit := 100
 	totalItems := len(items)
 	items = items[min(extra.Skip, totalItems):min(extra.Skip+limit, totalItems)]

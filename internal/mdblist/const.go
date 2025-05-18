@@ -45,7 +45,6 @@ const (
 )
 
 var Genres = []Genre{
-	"",
 	GenreAction,
 	GenreAdventure,
 	GenreAnimation,
