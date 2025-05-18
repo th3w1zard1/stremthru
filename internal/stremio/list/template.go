@@ -42,6 +42,8 @@ type TemplateData struct {
 
 	RPDBAPIKey configure.Config
 
+	Shuffle configure.Config
+
 	ManifestURL string
 	Script      template.JS
 
@@ -86,11 +88,20 @@ func getTemplateData(ud *UserData, udError userDataError, w http.ResponseWriter,
 		},
 		RPDBAPIKey: configure.Config{
 			Key:         "rpdb_api_key",
-			Type:        "password",
+			Type:        configure.ConfigTypePassword,
 			Default:     ud.RPDBAPIKey,
 			Title:       "RPDB API Key",
 			Description: `Rating Poster Database <a href="https://ratingposterdb.com/api-key/" target="blank">API Key</a>`,
 		},
+		Shuffle: configure.Config{
+			Key:   "shuffle",
+			Type:  configure.ConfigTypeCheckbox,
+			Title: "Shuffle List Items",
+		},
+	}
+
+	if ud.Shuffle {
+		td.Shuffle.Default = "checked"
 	}
 
 	td.MDBList.Error.APIKey = udError.mdblist.api_key

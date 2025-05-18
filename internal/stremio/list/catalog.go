@@ -1,13 +1,14 @@
 package stremio_list
 
 import (
+	"math/rand"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/stremio"
-	"slices"
 )
 
 type ExtraData struct {
@@ -108,6 +109,12 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	limit := 100
 	totalItems := len(items)
 	items = items[min(extra.Skip, totalItems):min(extra.Skip+limit, totalItems)]
+
+	if ud.Shuffle {
+		rand.Shuffle(len(items), func(i, j int) {
+			items[i], items[j] = items[j], items[i]
+		})
+	}
 
 	res := stremio.CatalogHandlerResponse{
 		Metas: items,
