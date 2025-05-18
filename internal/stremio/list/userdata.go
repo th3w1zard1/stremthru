@@ -121,6 +121,14 @@ func getUserData(r *http.Request) (*UserData, error) {
 				return ud, err
 			}
 
+			userParams := mdblist.GetMyLimitsParams{}
+			userParams.APIKey = ud.MDBListAPIkey
+			if _, userErr := mdblistClient.GetMyLimits(&userParams); userErr != nil {
+				err := userDataError{}
+				err.mdblist.api_key = "Invalid API Key: " + userErr.Error()
+				return ud, err
+			}
+
 			ud.MDBListLists = make([]int, 0, lists_length)
 			ud.mdblistListURLs = make([]string, 0, lists_length)
 			udErr := userDataError{}
