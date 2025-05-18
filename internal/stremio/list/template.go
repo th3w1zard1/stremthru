@@ -7,6 +7,7 @@ import (
 
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
+	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
 	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 	stremio_template "github.com/MunifTanjim/stremthru/internal/stremio/template"
 )
@@ -38,6 +39,8 @@ type TemplateData struct {
 	Base
 
 	MDBList TemplateDataMDBList
+
+	RPDBAPIKey configure.Config
 
 	ManifestURL string
 	Script      template.JS
@@ -80,6 +83,13 @@ func getTemplateData(ud *UserData, udError userDataError, w http.ResponseWriter,
 		MDBList: TemplateDataMDBList{
 			APIKey: ud.MDBListAPIkey,
 			Lists:  []TemplateDataMDBListList{},
+		},
+		RPDBAPIKey: configure.Config{
+			Key:         "rpdb_api_key",
+			Type:        "password",
+			Default:     ud.RPDBAPIKey,
+			Title:       "RPDB API Key",
+			Description: `Rating Poster Database <a href="https://ratingposterdb.com/api-key/" target="blank">API Key</a>`,
 		},
 	}
 

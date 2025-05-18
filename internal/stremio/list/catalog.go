@@ -61,13 +61,25 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 			SendError(w, r, err)
 			return
 		}
+
+		rpdbPosterBaseUrl := ""
+		if ud.RPDBAPIKey != "" {
+			rpdbPosterBaseUrl = "https://api.ratingposterdb.com/" + ud.RPDBAPIKey + "/imdb/poster-default/"
+		}
+
 		for i := range list.Items {
 			item := &list.Items[i]
+
+			poster := item.Poster
+			if rpdbPosterBaseUrl != "" {
+				poster = rpdbPosterBaseUrl + item.ImdbId + ".jpg?fallback=true"
+			}
+
 			meta := stremio.MetaPreview{
 				Id:          item.ImdbId,
 				Type:        mediaTypeToResourceType(item.Mediatype),
 				Name:        item.Title,
-				Poster:      item.Poster,
+				Poster:      poster,
 				PosterShape: stremio.MetaPosterShapePoster,
 				Genres:      item.Genre,
 				ReleaseInfo: strconv.Itoa(item.ReleaseYear),

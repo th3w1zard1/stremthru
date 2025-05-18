@@ -14,6 +14,8 @@ type UserData struct {
 	MDBListAPIkey string `json:"mdblist_api_key"`
 	MDBListLists  []int  `json:"mdblist_lists"`
 
+	RPDBAPIKey string `json:"rpdb_api_key,omitempty"`
+
 	encoded string `json:"-"` // correctly configured
 
 	mdblistListURLs []string `json:"-"`
@@ -172,6 +174,8 @@ func getUserData(r *http.Request) (*UserData, error) {
 				return ud, udErr
 			}
 		}
+
+		ud.RPDBAPIKey = r.Form.Get("rpdb_api_key")
 	}
 
 	return ud, nil
