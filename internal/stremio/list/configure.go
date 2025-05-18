@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"slices"
 
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 )
@@ -29,6 +30,25 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 
 	if action := r.Header.Get("x-addon-configure-action"); action != "" {
 		switch action {
+		case "authorize":
+			if !IsPublicInstance {
+				user := r.Form.Get("user")
+				pass := r.Form.Get("pass")
+				if pass == "" || config.ProxyAuthPassword.GetPassword(user) != pass {
+					td.AuthError = "Wrong Credential!"
+				} else if !config.AuthAdmin.IsAdmin(user) {
+					td.AuthError = "Not Authorized!"
+				} else {
+					stremio_shared.SetAdminCookie(w, user, pass)
+					td.IsAuthed = true
+					if r.Header.Get("hx-request") == "true" {
+						w.Header().Add("hx-refresh", "true")
+					}
+				}
+			}
+		case "deauthorize":
+			stremio_shared.UnsetAdminCookie(w)
+			td.IsAuthed = false
 		case "add-mdblist-list":
 			if td.IsAuthed || len(td.MDBList.Lists) < MaxPublicInstanceMDBListListCount {
 				td.MDBList.Lists = append(td.MDBList.Lists, TemplateDataMDBListList{
