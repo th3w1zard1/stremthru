@@ -70,6 +70,8 @@ var Exec = func() func(query string, args ...any) (sql.Result, error) {
 				time.Sleep(2 * time.Second)
 				r, err = db.Exec(query, args...)
 				retryLeft--
+			} else {
+				retryLeft = 0
 			}
 		}
 		return r, err
