@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
+	"github.com/MunifTanjim/stremthru/internal/mdblist"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 )
@@ -61,6 +62,26 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				end = 1
 			}
 			td.MDBList.Lists = slices.Clone(td.MDBList.Lists[0:end])
+		case "import-mdblist-mylists":
+			if ud.MDBListAPIkey != "" {
+				params := &mdblist.GetMyListsParams{}
+				params.APIKey = ud.MDBListAPIkey
+				res, err := mdblistClient.GetMyLists(params)
+				if err != nil {
+					SendError(w, r, err)
+					return
+				}
+				lists := res.Data
+				if !td.IsAuthed {
+					lists = lists[0 : MaxPublicInstanceMDBListListCount-len(td.MDBList.Lists)]
+				}
+				for i := range lists {
+					list := lists[i]
+					td.MDBList.Lists = append(td.MDBList.Lists, TemplateDataMDBListList{
+						URL: list.GetURL(),
+					})
+				}
+			}
 		}
 
 		page, err := getPage(td)

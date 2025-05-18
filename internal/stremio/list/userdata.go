@@ -119,20 +119,23 @@ func getUserData(r *http.Request) (*UserData, error) {
 				return ud, err
 			}
 
-			ud.MDBListLists = make([]int, lists_length)
-			ud.mdblistListURLs = make([]string, lists_length)
+			ud.MDBListLists = make([]int, 0, lists_length)
+			ud.mdblistListURLs = make([]string, 0, lists_length)
 			udErr := userDataError{}
-			udErr.mdblist.list_url = make([]string, lists_length)
-			for idx := range lists_length {
-				idxStr := strconv.Itoa(idx)
-				listUrlStr := r.Form.Get("mdblist_lists[" + idxStr + "].url")
-				ud.MDBListLists[idx] = 0
-				ud.mdblistListURLs[idx] = listUrlStr
+			udErr.mdblist.list_url = make([]string, 0, lists_length)
 
+			idx := -1
+			for i := range lists_length {
+				listUrlStr := r.Form.Get("mdblist_lists[" + strconv.Itoa(i) + "].url")
 				if listUrlStr == "" {
-					udErr.mdblist.list_url[idx] = "Missing List URL"
 					continue
 				}
+
+				idx++
+				ud.MDBListLists = append(ud.MDBListLists, 0)
+				ud.mdblistListURLs = append(ud.mdblistListURLs, listUrlStr)
+				udErr.mdblist.list_url = append(udErr.mdblist.list_url, "")
+
 				listUrl, err := url.Parse(listUrlStr)
 				if err != nil {
 					udErr.mdblist.list_url[idx] = "Invalid List URL: " + err.Error()
@@ -176,6 +179,13 @@ func getUserData(r *http.Request) (*UserData, error) {
 		}
 
 		ud.RPDBAPIKey = r.Form.Get("rpdb_api_key")
+	}
+
+	if IsPublicInstance && len(ud.MDBListLists) > MaxPublicInstanceMDBListListCount {
+		ud.MDBListLists = ud.MDBListLists[0:MaxPublicInstanceMDBListListCount]
+		if len(ud.mdblistListURLs) > MaxPublicInstanceMDBListListCount {
+			ud.mdblistListURLs = ud.mdblistListURLs[0:MaxPublicInstanceMDBListListCount]
+		}
 	}
 
 	return ud, nil

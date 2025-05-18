@@ -36,6 +36,16 @@ type List struct {
 	refreshed_at time.Time `json:"-"`
 }
 
+func (l *List) GetURL() string {
+	if l.UserName != "" && l.Slug != "" {
+		return "https://mdblist.com/lists/" + l.UserName + "/" + l.Slug
+	}
+	if l.Id != 0 {
+		return "https://mdblist.com/?list=" + strconv.Itoa(l.Id)
+	}
+	return ""
+}
+
 type fetchListData struct {
 	ResponseContainer
 	data List

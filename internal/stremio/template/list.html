@@ -95,6 +95,21 @@
             </button>
           </small>
         </div>
+        <div class="absolute" style="bottom: -0.75rem; left: 1rem;">
+          <button
+            {{if not .MDBList.CanAddList}}disabled{{end}}
+            id="configure-action-import-mdblist-mylists"
+            type="button"
+            hx-target="body"
+            hx-post="configure"
+            hx-include="#configuration"
+            hx-headers='{"x-addon-configure-action":"import-mdblist-mylists"}'
+            class="secondary mb-0"
+            style="font-size: 0.75rem; padding: 0.25em;"
+          >
+            Import My Lists
+          </button>
+        </div>
       </div>
     </div>
   </div>
