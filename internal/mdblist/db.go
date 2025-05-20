@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"time"
 
@@ -477,35 +478,39 @@ func upsertItems(tx *db.Tx, items []MDBListItem) error {
 		return nil
 	}
 
-	query := query_upsert_items +
-		util.RepeatJoin(query_upsert_items_placeholder, count, ",") +
-		query_upsert_items_after_values
+	for cItems := range slices.Chunk(items, 500) {
+		count := len(cItems)
 
-	columnCount := len(ItemColumns)
-	args := make([]any, count*columnCount)
-	for i, item := range items {
-		args[i*columnCount] = item.Id
-		args[i*columnCount+1] = item.Rank
-		args[i*columnCount+2] = item.Adult
-		args[i*columnCount+3] = item.Title
-		args[i*columnCount+4] = item.Poster
-		args[i*columnCount+5] = item.ImdbId
-		args[i*columnCount+6] = item.TvdbId
-		args[i*columnCount+7] = item.Language
-		args[i*columnCount+8] = item.Mediatype
-		args[i*columnCount+9] = item.ReleaseYear
-		args[i*columnCount+10] = item.SpokenLanguage
-	}
+		query := query_upsert_items +
+			util.RepeatJoin(query_upsert_items_placeholder, count, ",") +
+			query_upsert_items_after_values
 
-	_, err := tx.Exec(query, args...)
-	if err != nil {
-		return err
-	}
+		columnCount := len(ItemColumns)
+		args := make([]any, count*columnCount)
+		for i, item := range cItems {
+			args[i*columnCount] = item.Id
+			args[i*columnCount+1] = item.Rank
+			args[i*columnCount+2] = item.Adult
+			args[i*columnCount+3] = item.Title
+			args[i*columnCount+4] = item.Poster
+			args[i*columnCount+5] = item.ImdbId
+			args[i*columnCount+6] = item.TvdbId
+			args[i*columnCount+7] = item.Language
+			args[i*columnCount+8] = item.Mediatype
+			args[i*columnCount+9] = item.ReleaseYear
+			args[i*columnCount+10] = item.SpokenLanguage
+		}
 
-	for _, item := range items {
-		err = setItemGenre(tx, item.Id, item.Genre)
+		_, err := tx.Exec(query, args...)
 		if err != nil {
 			return err
+		}
+
+		for _, item := range cItems {
+			err = setItemGenre(tx, item.Id, item.Genre)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
