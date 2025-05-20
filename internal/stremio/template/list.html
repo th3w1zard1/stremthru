@@ -42,23 +42,22 @@
 <form
   id="configuration" action="configure" method="post" hx-boost="true"
 >
-  <div id="mdblist" class="relative border border-dashed rounded-sm mb-4 p-4" style="border-color: gray">
+  <div id="lists" class="relative border border-dashed rounded-sm mb-4 p-4" style="border-color: gray">
     <header class="w-full flex flex-row justify-between absolute px-4" style="top: -0.75rem; left: 0;">
       <span class="px-2" style="background-color: var(--pico-background-color);">
-        MDBList
+        Lists
       </span>
     </header>
 
     <div>
       <div class="relative mb-8">
-        {{template "configure_config.html" .MDBList.APIKey}}
 
-        <input type="hidden" name="mdblist_lists_length" value="{{ .MDBList.Lists | len }}" />
+        <input type="hidden" name="lists_length" value="{{ .Lists | len }}" />
 
-        {{range $idx, $list := .MDBList.Lists}}
+        {{range $idx, $list := .Lists}}
         <div class="relative border border-dashed rounded-sm my-4 p-4" style="border-color: gray">
-          <label for="mdblist_lists[{{$idx}}].url">List URL</label>
-          <input type="url" id="mdblist_lists[{{$idx}}].url" name="mdblist_lists[{{$idx}}].url" value="{{$list.URL}}" {{if ne $list.Error.URL ""}}aria-invalid="true"{{end}} />
+          <label for="lists[{{$idx}}].url">URL</label>
+          <input type="url" id="lists[{{$idx}}].url" name="lists[{{$idx}}].url" value="{{$list.URL}}" {{if ne $list.Error.URL ""}}aria-invalid="true"{{end}} />
           <small><span class="error">{{$list.Error.URL}}</span><span class="description"></span></small>
         </div>
         {{end}}
@@ -66,26 +65,26 @@
         <div class="absolute" style="bottom: -0.75rem; right: 1rem;">
           <small>
             <button
-              {{if not .MDBList.CanRemoveList}}disabled{{end}}
-              id="configure-action-remove-mdblist-list"
+              {{if not .CanRemoveList}}disabled{{end}}
+              id="configure-action-remove-list"
               type="button"
               hx-target="body"
               hx-post="configure"
               hx-include="#configuration"
-              hx-headers='{"x-addon-configure-action":"remove-mdblist-list"}'
+              hx-headers='{"x-addon-configure-action":"remove-list"}'
               class="secondary mb-0"
               style="font-size: 0.75rem; padding: 0.25em;"
             >
               - Remove
             </button>
             <button
-              {{if not .MDBList.CanAddList}}disabled{{end}}
-              id="configure-action-add-mdblist-list"
+              {{if not .CanAddList}}disabled{{end}}
+              id="configure-action-add-list"
               type="button"
               hx-target="body"
               hx-post="configure"
               hx-include="#configuration"
-              hx-headers='{"x-addon-configure-action":"add-mdblist-list"}'
+              hx-headers='{"x-addon-configure-action":"add-list"}'
               class="secondary mb-0"
               style="font-size: 0.75rem; padding: 0.25em;"
             >
@@ -95,7 +94,7 @@
         </div>
         <div class="absolute" style="bottom: -0.75rem; left: 1rem;">
           <button
-            {{if not .MDBList.CanAddList}}disabled{{end}}
+            {{if not .CanAddList}}disabled{{end}}
             id="configure-action-import-mdblist-mylists"
             type="button"
             hx-target="body"
@@ -105,12 +104,14 @@
             class="secondary mb-0"
             style="font-size: 0.75rem; padding: 0.25em;"
           >
-            Import My Lists
+            Import MDBList Lists
           </button>
         </div>
       </div>
     </div>
   </div>
+
+  {{template "configure_config.html" .MDBListAPIKey}}
 
   {{template "configure_config.html" .RPDBAPIKey}}
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"html/template"
 	"net/http"
+	"strconv"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
@@ -13,29 +14,25 @@ import (
 )
 
 var IsPublicInstance = config.IsPublicInstance
-var MaxPublicInstanceMDBListListCount = 5
+var MaxPublicInstanceListCount = 5
 
 type Base = stremio_template.BaseData
 
-type TemplateDataMDBListList struct {
+type TemplateDataList struct {
 	URL   string
 	Error struct {
 		URL string
 	}
 }
 
-type TemplateDataMDBList struct {
-	APIKey configure.Config
-	Lists  []TemplateDataMDBListList
-
-	CanAddList    bool
-	CanRemoveList bool
-}
-
 type TemplateData struct {
 	Base
 
-	MDBList TemplateDataMDBList
+	Lists         []TemplateDataList
+	CanAddList    bool
+	CanRemoveList bool
+
+	MDBListAPIKey configure.Config
 
 	RPDBAPIKey configure.Config
 
@@ -49,24 +46,23 @@ type TemplateData struct {
 	AuthError    string
 }
 
-func (td *TemplateData) HasMDBListError() bool {
-	if len(td.MDBList.Lists) > 0 {
-		if td.MDBList.APIKey.Error != "" {
+func (td *TemplateData) HasListError() bool {
+	if len(td.Lists) > 0 {
+		if td.MDBListAPIKey.Error != "" {
 			return true
 		}
 
-		for i := range td.MDBList.Lists {
-			if td.MDBList.Lists[i].Error.URL != "" {
+		for i := range td.Lists {
+			if td.Lists[i].Error.URL != "" {
 				return true
 			}
 		}
-
 	}
 	return false
 }
 
 func (td *TemplateData) HasFieldError() bool {
-	if td.HasMDBListError() {
+	if td.HasListError() {
 		return true
 	}
 	return false
@@ -79,17 +75,15 @@ func getTemplateData(ud *UserData, udError userDataError, w http.ResponseWriter,
 			Description: "Stremio Addon to access various Lists",
 			NavTitle:    "List",
 		},
-		MDBList: TemplateDataMDBList{
-			APIKey: configure.Config{
-				Key:          "mdblist_api_key",
-				Type:         "password",
-				Default:      ud.MDBListAPIkey,
-				Title:        "MDBList API Key",
-				Description:  `<a href="https://mdblist.com/preferences/#api_key_uid" target="_blank">API Key</a>`,
-				Autocomplete: "off",
-				Error:        udError.mdblist.api_key,
-			},
-			Lists: []TemplateDataMDBListList{},
+		Lists: []TemplateDataList{},
+		MDBListAPIKey: configure.Config{
+			Key:          "mdblist_api_key",
+			Type:         "password",
+			Default:      ud.MDBListAPIkey,
+			Title:        "MDBList API Key",
+			Description:  `<a href="https://mdblist.com/preferences/#api_key_uid" target="_blank">API Key</a>`,
+			Autocomplete: "off",
+			Error:        udError.mdblist.api_key,
 		},
 		RPDBAPIKey: configure.Config{
 			Key:         "rpdb_api_key",
@@ -109,29 +103,44 @@ func getTemplateData(ud *UserData, udError userDataError, w http.ResponseWriter,
 		td.Shuffle.Default = "checked"
 	}
 
-	if len(ud.MDBListLists) > 0 {
-		if ud.MDBListAPIkey != "" && len(ud.mdblistListURLs) == 0 {
-			for _, listId := range ud.MDBListLists {
-				list := mdblist.MDBListList{Id: listId}
-				if err := list.Fetch(ud.MDBListAPIkey); err != nil {
-					log.Error("failed to fetch list", "error", err, "id", listId)
-					break
-				}
-				ud.mdblistListURLs = append(ud.mdblistListURLs, list.GetURL())
-			}
+	for i, listId := range ud.Lists {
+		list := TemplateDataList{}
+		if len(ud.list_urls) > i {
+			list.URL = ud.list_urls[i]
+		}
+		if len(udError.list_urls) > i {
+			list.Error.URL = udError.list_urls[i]
 		}
 
-		for i := range ud.MDBListLists {
-			list := TemplateDataMDBListList{}
-			list.URL = ud.mdblistListURLs[i]
-			if len(udError.mdblist.list_url) > i {
-				list.Error.URL = udError.mdblist.list_url[i]
+		if listId == "" {
+			if list.Error.URL == "" {
+				list.Error.URL = "Missing List ID"
 			}
-			if list.URL == "" && list.Error.URL == "" {
-				list.Error.URL = "Missing List URL"
+		} else if list.URL == "" {
+			service, id, err := parseListId(listId)
+			if err != nil {
+				list.Error.URL = "Failed to Parse List ID: " + listId
+			} else {
+				switch service {
+				case "mdblist":
+					lId, err := strconv.Atoi(id)
+					if err != nil {
+						list.Error.URL = "Failed to Parse List ID: " + id
+					}
+					l := mdblist.MDBListList{Id: lId}
+					if err := ud.FetchMDBListList(&l); err != nil {
+						log.Error("failed to fetch list", "error", err, "id", listId)
+						list.Error.URL = "Failed to Fetch List: " + err.Error()
+					} else {
+						list.URL = l.GetURL()
+					}
+				}
 			}
-			td.MDBList.Lists = append(td.MDBList.Lists, list)
 		}
+		if list.URL == "" && list.Error.URL == "" {
+			list.Error.URL = "Missing List URL"
+		}
+		td.Lists = append(td.Lists, list)
 	}
 
 	if cookie, err := stremio_shared.GetAdminCookieValue(w, r); err == nil && !cookie.IsExpired {
@@ -146,11 +155,11 @@ var executeTemplate = func() stremio_template.Executor[TemplateData] {
 		td.StremThruAddons = stremio_shared.GetStremThruAddons()
 		td.Version = config.Version
 		td.CanAuthorize = !IsPublicInstance
-		td.MDBList.CanAddList = td.IsAuthed || len(td.MDBList.Lists) < MaxPublicInstanceMDBListListCount
-		td.MDBList.CanRemoveList = len(td.MDBList.Lists) > 1
+		td.CanAddList = td.IsAuthed || len(td.Lists) < MaxPublicInstanceListCount
+		td.CanRemoveList = len(td.Lists) > 1
 
-		if len(td.MDBList.Lists) == 0 {
-			td.MDBList.Lists = append(td.MDBList.Lists, TemplateDataMDBListList{})
+		if len(td.Lists) == 0 {
+			td.Lists = append(td.Lists, TemplateDataList{})
 		}
 
 		return td

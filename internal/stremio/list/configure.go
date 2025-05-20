@@ -50,18 +50,16 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		case "deauthorize":
 			stremio_shared.UnsetAdminCookie(w)
 			td.IsAuthed = false
-		case "add-mdblist-list":
-			if td.IsAuthed || len(td.MDBList.Lists) < MaxPublicInstanceMDBListListCount {
-				td.MDBList.Lists = append(td.MDBList.Lists, TemplateDataMDBListList{
+		case "add-list":
+			if td.IsAuthed || len(td.Lists) < MaxPublicInstanceListCount {
+				td.Lists = append(td.Lists, TemplateDataList{
 					URL: "",
 				})
 			}
-		case "remove-mdblist-list":
-			end := len(td.MDBList.Lists) - 1
-			if end == 0 {
-				end = 1
+		case "remove-list":
+			if end := len(td.Lists); end > 1 {
+				td.Lists = slices.Clone(td.Lists[0 : end-1])
 			}
-			td.MDBList.Lists = slices.Clone(td.MDBList.Lists[0:end])
 		case "import-mdblist-mylists":
 			if ud.MDBListAPIkey != "" {
 				params := &mdblist.GetMyListsParams{}
@@ -75,17 +73,19 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 				for i := range lists {
 					list := lists[i]
 					url := list.GetURL()
-					if !slices.ContainsFunc(td.MDBList.Lists, func(list TemplateDataMDBListList) bool {
+					if !slices.ContainsFunc(td.Lists, func(list TemplateDataList) bool {
 						return list.URL == url
 					}) {
-						td.MDBList.Lists = append(td.MDBList.Lists, TemplateDataMDBListList{
+						td.Lists = append(td.Lists, TemplateDataList{
 							URL: url,
 						})
 					}
 				}
-				if !td.IsAuthed && len(lists) > MaxPublicInstanceMDBListListCount {
-					td.MDBList.Lists = td.MDBList.Lists[0:MaxPublicInstanceMDBListListCount]
+				if !td.IsAuthed && len(lists) > MaxPublicInstanceListCount {
+					td.Lists = td.Lists[0:MaxPublicInstanceListCount]
 				}
+			} else if td.MDBListAPIKey.Error == "" {
+				td.MDBListAPIKey.Error = "Missing API Key"
 			}
 		}
 
@@ -99,10 +99,10 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if ud.GetEncoded() != "" {
-		if len(td.MDBList.Lists) == 0 {
-			list := TemplateDataMDBListList{}
+		if len(td.Lists) == 0 {
+			list := TemplateDataList{}
 			list.Error.URL = "Missing List URL"
-			td.MDBList.Lists = append(td.MDBList.Lists, list)
+			td.Lists = append(td.Lists, list)
 		}
 	}
 

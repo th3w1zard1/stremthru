@@ -23,6 +23,7 @@ func (l *MDBListList) Fetch(apiKey string) error {
 				isMissing = true
 			} else {
 				l.Id = listId
+				log.Debug("found list id by name", "id", l.Id, "name", l.UserName+"/"+l.Slug)
 				listIdByNameCache.Add(listIdByNameCacheKey, l.Id)
 			}
 		}
@@ -38,6 +39,7 @@ func (l *MDBListList) Fetch(apiKey string) error {
 				isMissing = true
 			} else {
 				*l = *list
+				log.Debug("found list by id", "id", l.Id, "is_stale", l.IsStale())
 				listCache.Add(listCacheKey, *l)
 			}
 		} else {
@@ -51,6 +53,7 @@ func (l *MDBListList) Fetch(apiKey string) error {
 
 	var list *List
 	if l.Id != 0 {
+		log.Debug("fetching list by id", "id", l.Id)
 		params := &FetchListByIdParams{
 			ListId: l.Id,
 		}
@@ -61,6 +64,7 @@ func (l *MDBListList) Fetch(apiKey string) error {
 		}
 		list = &res.Data
 	} else if l.UserName != "" && l.Slug != "" {
+		log.Debug("fetching list by name", "name", l.UserName+"/"+l.Slug)
 		params := &FetchListByNameParams{
 			UserName: l.UserName,
 			Slug:     l.Slug,
@@ -92,6 +96,7 @@ func (l *MDBListList) Fetch(apiKey string) error {
 	l.Private = list.Private
 	l.Likes = list.Likes
 
+	log.Debug("fetching list items", "id", l.Id)
 	hasMore := true
 	limit := 500
 	offset := 0

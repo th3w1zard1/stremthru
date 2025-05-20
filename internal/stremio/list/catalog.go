@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/MunifTanjim/stremthru/internal/mdblist"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
@@ -47,19 +48,19 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 
 	catalogId := GetPathValue(r, "id")
 
-	idr := parseId(catalogId)
+	service, id := parseCatalogId(catalogId)
 
 	items := []stremio.MetaPreview{}
 
-	switch idr.Service {
+	switch service {
 	case "mdblist":
-		id, err := strconv.Atoi(idr.Id)
+		id, err := strconv.Atoi(id)
 		if err != nil {
 			shared.ErrorBadRequest(r, "invalid id").Send(w, r)
 			return
 		}
-		list, err := ud.FetchListById(id)
-		if err != nil {
+		list := mdblist.MDBListList{Id: id}
+		if err := ud.FetchMDBListList(&list); err != nil {
 			SendError(w, r, err)
 			return
 		}

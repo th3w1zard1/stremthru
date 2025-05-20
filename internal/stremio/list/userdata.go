@@ -11,17 +11,18 @@ import (
 )
 
 type UserData struct {
-	MDBListAPIkey string `json:"mdblist_api_key"`
-	MDBListLists  []int  `json:"mdblist_lists"`
+	Lists        []string `json:"lists"`
+	list_urls    []string `json:"-"`
+	MDBListLists []int    `json:"mdblist_lists,omitempty"` // deprecated
 
-	RPDBAPIKey string `json:"rpdb_api_key,omitempty"`
+	MDBListAPIkey string `json:"mdblist_api_key"`
+	RPDBAPIKey    string `json:"rpdb_api_key,omitempty"`
 
 	Shuffle bool `json:"shuffle,omitempty"`
 
 	encoded string `json:"-"` // correctly configured
 
-	mdblistListURLs []string `json:"-"`
-	mdblistById     map[int]mdblist.MDBListList
+	mdblistById map[int]mdblist.MDBListList
 }
 
 var udManager = stremio_userdata.NewManager[UserData](&stremio_userdata.ManagerConfig{
@@ -29,7 +30,7 @@ var udManager = stremio_userdata.NewManager[UserData](&stremio_userdata.ManagerC
 })
 
 func (ud UserData) HasRequiredValues() bool {
-	return ud.MDBListAPIkey != "" && len(ud.MDBListLists) != 0
+	return ud.MDBListAPIkey != "" && len(ud.Lists) != 0
 }
 
 func (ud *UserData) GetEncoded() string {
@@ -46,17 +47,17 @@ func (ud *UserData) Ptr() *UserData {
 
 type userDataError struct {
 	mdblist struct {
-		api_key  string
-		list_url []string
+		api_key string
 	}
+	list_urls []string
 }
 
 func (uderr userDataError) HasError() bool {
 	if uderr.mdblist.api_key != "" {
 		return true
 	}
-	for i := range uderr.mdblist.list_url {
-		if uderr.mdblist.list_url[i] != "" {
+	for i := range uderr.list_urls {
+		if uderr.list_urls[i] != "" {
 			return true
 		}
 	}
@@ -68,7 +69,7 @@ func (uderr userDataError) Error() string {
 	if uderr.mdblist.api_key != "" {
 		str.WriteString("mdblist.api_key: " + uderr.mdblist.api_key + "\n")
 	}
-	for i, err := range uderr.mdblist.list_url {
+	for i, err := range uderr.list_urls {
 		if err != "" {
 			str.WriteString("mdblist.list[" + strconv.Itoa(i) + "].url: " + err + "\n")
 		}
@@ -89,6 +90,18 @@ func getUserData(r *http.Request) (*UserData, error) {
 		if ud.encoded == "" {
 			return ud, nil
 		}
+
+		if len(ud.MDBListLists) > 0 {
+			for _, id := range ud.MDBListLists {
+				ud.Lists = append(ud.Lists, "mdblist:"+strconv.Itoa(id))
+			}
+
+			ud.MDBListLists = nil
+
+			if err := udManager.Sync(ud); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	if IsMethod(r, http.MethodPost) {
@@ -100,27 +113,21 @@ func getUserData(r *http.Request) (*UserData, error) {
 		ud.MDBListAPIkey = r.Form.Get("mdblist_api_key")
 
 		lists_length := 0
-		if v := r.Form.Get("mdblist_lists_length"); v != "" {
+		if v := r.Form.Get("lists_length"); v != "" {
 			if lists_length, err = strconv.Atoi(v); err != nil {
 				return nil, err
 			}
 		}
 
-		isMDBListEnabled := ud.MDBListAPIkey != "" || lists_length > 0
+		if lists_length == 0 {
+			err := userDataError{}
+			err.list_urls = []string{"Missing List URL"}
+			return ud, err
+		}
+
+		isMDBListEnabled := ud.MDBListAPIkey != ""
 
 		if isMDBListEnabled {
-			if ud.MDBListAPIkey == "" {
-				err := userDataError{}
-				err.mdblist.api_key = "Missing API Key"
-				return ud, err
-			}
-
-			if lists_length == 0 {
-				err := userDataError{}
-				err.mdblist.list_url = []string{"Missing List URL"}
-				return ud, err
-			}
-
 			userParams := mdblist.GetMyLimitsParams{}
 			userParams.APIKey = ud.MDBListAPIkey
 			if _, userErr := mdblistClient.GetMyLimits(&userParams); userErr != nil {
@@ -128,35 +135,44 @@ func getUserData(r *http.Request) (*UserData, error) {
 				err.mdblist.api_key = "Invalid API Key: " + userErr.Error()
 				return ud, err
 			}
+		}
 
-			ud.MDBListLists = make([]int, 0, lists_length)
-			ud.mdblistListURLs = make([]string, 0, lists_length)
-			udErr := userDataError{}
-			udErr.mdblist.list_url = make([]string, 0, lists_length)
+		ud.Lists = make([]string, 0, lists_length)
+		ud.list_urls = make([]string, 0, lists_length)
+		udErr := userDataError{}
+		udErr.list_urls = make([]string, 0, lists_length)
 
-			idx := -1
-			for i := range lists_length {
-				listUrlStr := r.Form.Get("mdblist_lists[" + strconv.Itoa(i) + "].url")
-				if listUrlStr == "" {
+		idx := -1
+		for i := range lists_length {
+			listUrlStr := r.Form.Get("lists[" + strconv.Itoa(i) + "].url")
+			if listUrlStr == "" {
+				continue
+			}
+
+			idx++
+			ud.Lists = append(ud.Lists, "")
+			ud.list_urls = append(ud.list_urls, listUrlStr)
+			udErr.list_urls = append(udErr.list_urls, "")
+
+			listUrl, err := url.Parse(listUrlStr)
+			if err != nil {
+				udErr.list_urls[idx] = "Invalid List URL: " + err.Error()
+				continue
+			}
+
+			switch listUrl.Hostname() {
+			case "mdblist.com":
+				if !isMDBListEnabled {
+					udErr.list_urls[idx] = "MDBList API Key is required"
 					continue
 				}
 
-				idx++
-				ud.MDBListLists = append(ud.MDBListLists, 0)
-				ud.mdblistListURLs = append(ud.mdblistListURLs, listUrlStr)
-				udErr.mdblist.list_url = append(udErr.mdblist.list_url, "")
-
-				listUrl, err := url.Parse(listUrlStr)
-				if err != nil {
-					udErr.mdblist.list_url[idx] = "Invalid List URL: " + err.Error()
-					continue
-				}
 				query := listUrl.Query()
 				list := mdblist.MDBListList{}
 				if idStr := query.Get("list"); idStr != "" {
 					id, err := strconv.Atoi(idStr)
 					if err != nil {
-						udErr.mdblist.list_url[idx] = "Invalid List ID: " + err.Error()
+						udErr.list_urls[idx] = "Invalid List ID: " + err.Error()
 						continue
 					}
 					list.Id = id
@@ -166,48 +182,50 @@ func getUserData(r *http.Request) (*UserData, error) {
 						list.UserName = username
 						list.Slug = slug
 					} else {
-						udErr.mdblist.list_url[idx] = "Invalid List URL"
+						udErr.list_urls[idx] = "Invalid List URL"
 						continue
 					}
 				} else {
-					udErr.mdblist.list_url[idx] = "Invalid List URL"
+					udErr.list_urls[idx] = "Invalid List URL"
 					continue
 				}
 
-				err = list.Fetch(ud.MDBListAPIkey)
+				err := ud.FetchMDBListList(&list)
 				if err != nil {
-					udErr.mdblist.list_url[idx] = "Failed to fetch List: " + err.Error()
+					udErr.list_urls[idx] = "Failed to fetch List: " + err.Error()
 					continue
 				}
-				ud.mdblistById[list.Id] = list
-				ud.MDBListLists[idx] = list.Id
+				ud.Lists[idx] = "mdblist:" + strconv.Itoa(list.Id)
+			default:
+				udErr.list_urls[idx] = "Unsupported List URL"
 			}
+		}
 
-			if udErr.HasError() {
-				return ud, udErr
-			}
+		if udErr.HasError() {
+			return ud, udErr
 		}
 
 		ud.RPDBAPIKey = r.Form.Get("rpdb_api_key")
 		ud.Shuffle = r.Form.Get("shuffle") == "on"
 	}
 
-	if IsPublicInstance && len(ud.MDBListLists) > MaxPublicInstanceMDBListListCount {
-		ud.MDBListLists = ud.MDBListLists[0:MaxPublicInstanceMDBListListCount]
-		if len(ud.mdblistListURLs) > MaxPublicInstanceMDBListListCount {
-			ud.mdblistListURLs = ud.mdblistListURLs[0:MaxPublicInstanceMDBListListCount]
-		}
+	if IsPublicInstance && len(ud.Lists) > MaxPublicInstanceListCount {
+		ud.Lists = ud.Lists[0:MaxPublicInstanceListCount]
 	}
 
 	return ud, nil
 }
 
-func (ud *UserData) FetchListById(id int) (*mdblist.MDBListList, error) {
-	if list, ok := ud.mdblistById[id]; ok {
-		return &list, nil
+func (ud *UserData) FetchMDBListList(list *mdblist.MDBListList) error {
+	if list.Id != 0 {
+		if l, ok := ud.mdblistById[list.Id]; ok {
+			*list = l
+			return nil
+		}
 	}
-	list := mdblist.MDBListList{Id: id}
-	err := list.Fetch(ud.MDBListAPIkey)
-	ud.mdblistById[list.Id] = list
-	return &list, err
+	if err := list.Fetch(ud.MDBListAPIkey); err != nil {
+		return err
+	}
+	ud.mdblistById[list.Id] = *list
+	return nil
 }

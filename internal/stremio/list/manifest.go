@@ -5,25 +5,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
-
-type parsedId struct {
-	Service string
-	Id      string
-}
-
-func parseId(id string) parsedId {
-	id = strings.TrimPrefix(id, "st.list.")
-	service, id, _ := strings.Cut(id, ".")
-	return parsedId{
-		Service: service,
-		Id:      id,
-	}
-}
 
 func mediaTypeToResourceType(mediaType mdblist.MediaType) stremio.ContentType {
 	switch mediaType {
@@ -46,27 +33,37 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 	catalogs := []stremio.Catalog{}
 
 	if isConfigured {
-		for _, listId := range ud.MDBListLists {
-			list := mdblist.MDBListList{Id: listId}
-			err := list.Fetch(ud.MDBListAPIkey)
-			if err != nil {
-				return nil, err
+		for _, listId := range ud.Lists {
+			service, idStr, ok := strings.Cut(listId, ":")
+			if !ok {
+				return nil, core.NewError("invalid list id: " + listId)
 			}
-			catalog := stremio.Catalog{
-				Type: string(mediaTypeToResourceType(list.Mediatype)),
-				Id:   "st.list.mdblist." + strconv.Itoa(list.Id),
-				Name: list.Name,
-				Extra: []stremio.CatalogExtra{
-					{
-						Name:    "genre",
-						Options: mdblist.Genres,
+			switch service {
+			case "mdblist":
+				id, err := strconv.Atoi(idStr)
+				if err != nil {
+					return nil, core.NewError("invalid list id: " + listId)
+				}
+				list := mdblist.MDBListList{Id: id}
+				if err := list.Fetch(ud.MDBListAPIkey); err != nil {
+					return nil, err
+				}
+				catalog := stremio.Catalog{
+					Type: string(mediaTypeToResourceType(list.Mediatype)),
+					Id:   "st.list.mdblist." + idStr,
+					Name: list.Name,
+					Extra: []stremio.CatalogExtra{
+						{
+							Name:    "genre",
+							Options: mdblist.Genres,
+						},
+						{
+							Name: "skip",
+						},
 					},
-					{
-						Name: "skip",
-					},
-				},
+				}
+				catalogs = append(catalogs, catalog)
 			}
-			catalogs = append(catalogs, catalog)
 		}
 	}
 
