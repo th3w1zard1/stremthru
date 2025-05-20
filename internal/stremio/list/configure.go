@@ -16,7 +16,12 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ud, err := getUserData(r)
+	isAuthed := false
+	if cookie, err := stremio_shared.GetAdminCookieValue(w, r); err == nil && !cookie.IsExpired {
+		isAuthed = config.ProxyAuthPassword.GetPassword(cookie.User()) == cookie.Pass()
+	}
+
+	ud, err := getUserData(r, isAuthed)
 	udErr := userDataError{}
 	if err != nil {
 		if e, ok := err.(userDataError); !ok {
@@ -27,7 +32,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	td := getTemplateData(ud, udErr, w, r)
+	td := getTemplateData(ud, udErr, isAuthed, r)
 
 	if action := r.Header.Get("x-addon-configure-action"); action != "" {
 		switch action {

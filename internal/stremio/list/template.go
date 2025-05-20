@@ -21,8 +21,10 @@ type Base = stremio_template.BaseData
 
 type TemplateDataList struct {
 	URL   string
+	Name  string
 	Error struct {
-		URL string
+		URL  string
+		Name string
 	}
 }
 
@@ -71,7 +73,7 @@ func (td *TemplateData) HasFieldError() bool {
 	return false
 }
 
-func getTemplateData(ud *UserData, udError userDataError, w http.ResponseWriter, r *http.Request) *TemplateData {
+func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http.Request) *TemplateData {
 	td := &TemplateData{
 		Base: Base{
 			Title:       "StremThru List",
@@ -107,8 +109,12 @@ func getTemplateData(ud *UserData, udError userDataError, w http.ResponseWriter,
 		td.Shuffle.Default = "checked"
 	}
 
+	hasListNames := len(ud.ListNames) > 0
 	for i, listId := range ud.Lists {
 		list := TemplateDataList{}
+		if hasListNames {
+			list.Name = ud.ListNames[i]
+		}
 		if len(ud.list_urls) > i {
 			list.URL = ud.list_urls[i]
 		}
@@ -147,9 +153,7 @@ func getTemplateData(ud *UserData, udError userDataError, w http.ResponseWriter,
 		td.Lists = append(td.Lists, list)
 	}
 
-	if cookie, err := stremio_shared.GetAdminCookieValue(w, r); err == nil && !cookie.IsExpired {
-		td.IsAuthed = config.ProxyAuthPassword.GetPassword(cookie.User()) == cookie.Pass()
-	}
+	td.IsAuthed = isAuthed
 
 	if udManager.IsSaved(ud) {
 		td.SavedUserDataKey = udManager.GetId(ud)

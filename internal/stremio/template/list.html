@@ -61,6 +61,12 @@
           <label for="lists[{{$idx}}].url">URL</label>
           <input type="url" id="lists[{{$idx}}].url" name="lists[{{$idx}}].url" value="{{$list.URL}}" {{if ne $list.Error.URL ""}}aria-invalid="true"{{end}} />
           <small><span class="error">{{$list.Error.URL}}</span><span class="description"></span></small>
+
+          {{if $.IsAuthed}}
+          <label for="lists[{{$idx}}].name">Name</label>
+          <input type="text" id="lists[{{$idx}}].name" name="lists[{{$idx}}].name" value="{{$list.Name}}" {{if ne $list.Error.Name ""}}aria-invalid="true"{{end}} />
+          <small><span class="error">{{$list.Error.Name}}</span><span class="description"></span></small>
+          {{end}}
         </div>
         {{end}}
 

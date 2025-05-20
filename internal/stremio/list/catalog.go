@@ -40,7 +40,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ud, err := getUserData(r)
+	ud, err := getUserData(r, false)
 	if err != nil {
 		SendError(w, r, err)
 		return

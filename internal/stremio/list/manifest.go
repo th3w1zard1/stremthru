@@ -33,7 +33,9 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 	catalogs := []stremio.Catalog{}
 
 	if isConfigured {
-		for _, listId := range ud.Lists {
+		hasListNames := len(ud.ListNames) > 0
+
+		for idx, listId := range ud.Lists {
 			service, idStr, ok := strings.Cut(listId, ":")
 			if !ok {
 				return nil, core.NewError("invalid list id: " + listId)
@@ -61,6 +63,11 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 							Name: "skip",
 						},
 					},
+				}
+				if hasListNames {
+					if name := ud.ListNames[idx]; name != "" {
+						catalog.Name = name
+					}
 				}
 				catalogs = append(catalogs, catalog)
 			}
@@ -99,7 +106,7 @@ func handleManifest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ud, err := getUserData(r)
+	ud, err := getUserData(r, false)
 	if err != nil {
 		SendError(w, r, err)
 		return

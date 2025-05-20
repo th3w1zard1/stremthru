@@ -12,6 +12,7 @@ import (
 
 type UserData struct {
 	Lists        []string `json:"lists"`
+	ListNames    []string `json:"list_names"`
 	list_urls    []string `json:"-"`
 	MDBListLists []int    `json:"mdblist_lists,omitempty"` // deprecated
 
@@ -77,7 +78,7 @@ func (uderr userDataError) Error() string {
 	return str.String()
 }
 
-func getUserData(r *http.Request) (*UserData, error) {
+func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 	ud := &UserData{}
 	ud.SetEncoded(r.PathValue("userData"))
 
@@ -136,6 +137,10 @@ func getUserData(r *http.Request) (*UserData, error) {
 		}
 
 		ud.Lists = make([]string, 0, lists_length)
+		if isAuthed {
+			ud.ListNames = make([]string, 0, lists_length)
+		}
+
 		ud.list_urls = make([]string, 0, lists_length)
 		udErr := userDataError{}
 		udErr.list_urls = make([]string, 0, lists_length)
@@ -148,7 +153,12 @@ func getUserData(r *http.Request) (*UserData, error) {
 			}
 
 			idx++
+
 			ud.Lists = append(ud.Lists, "")
+			if isAuthed {
+				ud.ListNames = append(ud.ListNames, r.Form.Get("lists["+strconv.Itoa(i)+"].name"))
+			}
+
 			ud.list_urls = append(ud.list_urls, listUrlStr)
 			udErr.list_urls = append(udErr.list_urls, "")
 
