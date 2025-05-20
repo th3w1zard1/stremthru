@@ -72,14 +72,19 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				lists := res.Data
-				if !td.IsAuthed {
-					lists = lists[0 : MaxPublicInstanceMDBListListCount-len(td.MDBList.Lists)]
-				}
 				for i := range lists {
 					list := lists[i]
-					td.MDBList.Lists = append(td.MDBList.Lists, TemplateDataMDBListList{
-						URL: list.GetURL(),
-					})
+					url := list.GetURL()
+					if !slices.ContainsFunc(td.MDBList.Lists, func(list TemplateDataMDBListList) bool {
+						return list.URL == url
+					}) {
+						td.MDBList.Lists = append(td.MDBList.Lists, TemplateDataMDBListList{
+							URL: url,
+						})
+					}
+				}
+				if !td.IsAuthed && len(lists) > MaxPublicInstanceMDBListListCount {
+					td.MDBList.Lists = td.MDBList.Lists[0:MaxPublicInstanceMDBListListCount]
 				}
 			}
 		}
