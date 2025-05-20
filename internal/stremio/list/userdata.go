@@ -29,7 +29,7 @@ var udManager = stremio_userdata.NewManager[UserData](&stremio_userdata.ManagerC
 })
 
 func (ud UserData) HasRequiredValues() bool {
-	return ud.MDBListAPIkey != ""
+	return ud.MDBListAPIkey != "" && len(ud.MDBListLists) != 0
 }
 
 func (ud *UserData) GetEncoded() string {

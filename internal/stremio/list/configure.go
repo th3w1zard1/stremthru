@@ -98,6 +98,14 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if ud.GetEncoded() != "" {
+		if len(td.MDBList.Lists) == 0 {
+			list := TemplateDataMDBListList{}
+			list.Error.URL = "Missing List URL"
+			td.MDBList.Lists = append(td.MDBList.Lists, list)
+		}
+	}
+
 	if IsMethod(r, http.MethodGet) {
 		if ud.HasRequiredValues() {
 			td.ManifestURL = ExtractRequestBaseURL(r).JoinPath("/stremio/list/" + ud.GetEncoded() + "/manifest.json").String()

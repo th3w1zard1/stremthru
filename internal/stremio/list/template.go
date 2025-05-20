@@ -132,8 +132,6 @@ func getTemplateData(ud *UserData, udError userDataError, w http.ResponseWriter,
 			}
 			td.MDBList.Lists = append(td.MDBList.Lists, list)
 		}
-	} else {
-		td.MDBList.Lists = append(td.MDBList.Lists, TemplateDataMDBListList{})
 	}
 
 	if cookie, err := stremio_shared.GetAdminCookieValue(w, r); err == nil && !cookie.IsExpired {
@@ -150,6 +148,10 @@ var executeTemplate = func() stremio_template.Executor[TemplateData] {
 		td.CanAuthorize = !IsPublicInstance
 		td.MDBList.CanAddList = td.IsAuthed || len(td.MDBList.Lists) < MaxPublicInstanceMDBListListCount
 		td.MDBList.CanRemoveList = len(td.MDBList.Lists) > 1
+
+		if len(td.MDBList.Lists) == 0 {
+			td.MDBList.Lists = append(td.MDBList.Lists, TemplateDataMDBListList{})
+		}
 
 		return td
 	}, template.FuncMap{}, "configure_config.html", "list.html")
