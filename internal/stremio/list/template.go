@@ -25,11 +25,8 @@ type TemplateDataMDBListList struct {
 }
 
 type TemplateDataMDBList struct {
-	APIKey string
-	Error  struct {
-		APIKey string
-	}
-	Lists []TemplateDataMDBListList
+	APIKey configure.Config
+	Lists  []TemplateDataMDBListList
 
 	CanAddList    bool
 	CanRemoveList bool
@@ -54,7 +51,7 @@ type TemplateData struct {
 
 func (td *TemplateData) HasMDBListError() bool {
 	if len(td.MDBList.Lists) > 0 {
-		if td.MDBList.Error.APIKey != "" {
+		if td.MDBList.APIKey.Error != "" {
 			return true
 		}
 
@@ -83,8 +80,16 @@ func getTemplateData(ud *UserData, udError userDataError, w http.ResponseWriter,
 			NavTitle:    "List",
 		},
 		MDBList: TemplateDataMDBList{
-			APIKey: ud.MDBListAPIkey,
-			Lists:  []TemplateDataMDBListList{},
+			APIKey: configure.Config{
+				Key:          "mdblist_api_key",
+				Type:         "password",
+				Default:      ud.MDBListAPIkey,
+				Title:        "MDBList API Key",
+				Description:  `<a href="https://mdblist.com/preferences/#api_key_uid" target="_blank">API Key</a>`,
+				Autocomplete: "off",
+				Error:        udError.mdblist.api_key,
+			},
+			Lists: []TemplateDataMDBListList{},
 		},
 		RPDBAPIKey: configure.Config{
 			Key:         "rpdb_api_key",
@@ -103,8 +108,6 @@ func getTemplateData(ud *UserData, udError userDataError, w http.ResponseWriter,
 	if ud.Shuffle {
 		td.Shuffle.Default = "checked"
 	}
-
-	td.MDBList.Error.APIKey = udError.mdblist.api_key
 
 	if len(ud.MDBListLists) > 0 {
 		if ud.MDBListAPIkey != "" && len(ud.mdblistListURLs) == 0 {

@@ -51,9 +51,7 @@
 
     <div>
       <div class="relative mb-8">
-        <label for="mdblist_api_key">API Key</label>
-        <input type="password" id="mdblist_api_key" name="mdblist_api_key" value="{{.MDBList.APIKey}}" {{if ne .MDBList.Error.APIKey ""}}aria-invalid="true"{{end}}>
-        <small><span class="error">{{.MDBList.Error.APIKey}}</span>{{if ne .MDBList.Error.APIKey ""}} | {{end}}<span class="description"><a href="https://mdblist.com/preferences/#api_key_uid" target="_blank">API Key</a></span></small>
+        {{template "configure_config.html" .MDBList.APIKey}}
 
         <input type="hidden" name="mdblist_lists_length" value="{{ .MDBList.Lists | len }}" />
 
@@ -61,7 +59,7 @@
         <div class="relative border border-dashed rounded-sm my-4 p-4" style="border-color: gray">
           <label for="mdblist_lists[{{$idx}}].url">List URL</label>
           <input type="url" id="mdblist_lists[{{$idx}}].url" name="mdblist_lists[{{$idx}}].url" value="{{$list.URL}}" {{if ne $list.Error.URL ""}}aria-invalid="true"{{end}} />
-          <small>{{if ne $list.Error.URL ""}}<span class="error">{{$list.Error.URL}}</span> | {{end}}<span class="description"></span></small>
+          <small><span class="error">{{$list.Error.URL}}</span><span class="description"></span></small>
         </div>
         {{end}}
 
