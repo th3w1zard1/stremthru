@@ -11,6 +11,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
 	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 	stremio_template "github.com/MunifTanjim/stremthru/internal/stremio/template"
+	stremio_userdata "github.com/MunifTanjim/stremthru/internal/stremio/userdata"
 )
 
 var IsPublicInstance = config.IsPublicInstance
@@ -44,6 +45,8 @@ type TemplateData struct {
 	CanAuthorize bool
 	IsAuthed     bool
 	AuthError    string
+
+	stremio_userdata.TemplateDataUserData
 }
 
 func (td *TemplateData) HasListError() bool {
@@ -148,6 +151,23 @@ func getTemplateData(ud *UserData, udError userDataError, w http.ResponseWriter,
 		td.IsAuthed = config.ProxyAuthPassword.GetPassword(cookie.User()) == cookie.Pass()
 	}
 
+	if udManager.IsSaved(ud) {
+		td.SavedUserDataKey = udManager.GetId(ud)
+	}
+	if td.IsAuthed {
+		if options, err := stremio_userdata.GetOptions("list"); err != nil {
+			LogError(r, "failed to list saved userdata options", err)
+		} else {
+			td.SavedUserDataOptions = options
+		}
+	} else if td.SavedUserDataKey != "" {
+		if sud, err := stremio_userdata.Get[UserData]("list", td.SavedUserDataKey); err != nil {
+			LogError(r, "failed to get saved userdata", err)
+		} else {
+			td.SavedUserDataOptions = []configure.ConfigOption{{Label: sud.Name, Value: td.SavedUserDataKey}}
+		}
+	}
+
 	return td
 }
 
@@ -163,8 +183,19 @@ var executeTemplate = func() stremio_template.Executor[TemplateData] {
 			td.Lists = append(td.Lists, TemplateDataList{})
 		}
 
+		td.IsRedacted = !td.IsAuthed && td.SavedUserDataKey != ""
+		if td.IsRedacted {
+			redacted := "*******"
+			if td.MDBListAPIKey.Default != "" {
+				td.MDBListAPIKey.Default = redacted
+			}
+			if td.RPDBAPIKey.Default != "" {
+				td.RPDBAPIKey.Default = redacted
+			}
+		}
+
 		return td
-	}, template.FuncMap{}, "configure_config.html", "list.html")
+	}, template.FuncMap{}, "configure_config.html", "configure_submit_button.html", "saved_userdata_field.html", "list.html")
 }()
 
 func getPage(td *TemplateData) (bytes.Buffer, error) {

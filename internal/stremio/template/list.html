@@ -17,6 +17,7 @@
 {{if .CanAuthorize}}
 <div class="flex flex-row flex-wrap align-center justify-between mb-8">
   <div>
+    {{template "saved_userdata_field.html" .}}
   </div>
   <div>
     <button
@@ -41,6 +42,7 @@
 
 <form
   id="configuration" action="configure" method="post" hx-boost="true"
+  {{if .IsRedacted}}inert{{end}}
 >
   <div id="lists" class="relative border border-dashed rounded-sm mb-4 p-4" style="border-color: gray">
     <header class="w-full flex flex-row justify-between absolute px-4" style="top: -0.75rem; left: 0;">
@@ -117,7 +119,7 @@
 
   {{template "configure_config.html" .Shuffle}}
 
-  <button type="submit">Install</button>
+  {{template "configure_submit_button.html" .}}
 </form>
 
 {{if ne .ManifestURL ""}}

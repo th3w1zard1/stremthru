@@ -22,7 +22,7 @@ type UserData struct {
 
 	encoded string `json:"-"` // correctly configured
 
-	mdblistById map[int]mdblist.MDBListList
+	mdblistById map[int]mdblist.MDBListList `json:"-"`
 }
 
 var udManager = stremio_userdata.NewManager[UserData](&stremio_userdata.ManagerConfig{
@@ -78,9 +78,7 @@ func (uderr userDataError) Error() string {
 }
 
 func getUserData(r *http.Request) (*UserData, error) {
-	ud := &UserData{
-		mdblistById: map[int]mdblist.MDBListList{},
-	}
+	ud := &UserData{}
 	ud.SetEncoded(r.PathValue("userData"))
 
 	if IsMethod(r, http.MethodGet) || IsMethod(r, http.MethodHead) {
@@ -217,6 +215,9 @@ func getUserData(r *http.Request) (*UserData, error) {
 }
 
 func (ud *UserData) FetchMDBListList(list *mdblist.MDBListList) error {
+	if ud.mdblistById == nil {
+		ud.mdblistById = map[int]mdblist.MDBListList{}
+	}
 	if list.Id != 0 {
 		if l, ok := ud.mdblistById[list.Id]; ok {
 			*list = l

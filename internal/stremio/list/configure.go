@@ -87,6 +87,61 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			} else if td.MDBListAPIKey.Error == "" {
 				td.MDBListAPIKey.Error = "Missing API Key"
 			}
+		case "set-userdata-key":
+			if td.IsAuthed {
+				key := r.Form.Get("userdata_key")
+				if key == "" {
+					ud.SetEncoded("")
+					err := udManager.Sync(ud)
+					if err != nil {
+						LogError(r, "failed to unselect userdata", err)
+					} else {
+						stremio_shared.RedirectToConfigurePage(w, r, "list", ud, false)
+						return
+					}
+				} else {
+					err := udManager.Load(key, ud)
+					if err != nil {
+						LogError(r, "failed to load userdata", err)
+					} else {
+						stremio_shared.RedirectToConfigurePage(w, r, "list", ud, false)
+						return
+					}
+				}
+			}
+		case "save-userdata":
+			if td.IsAuthed && !udManager.IsSaved(ud) && ud.HasRequiredValues() {
+				name := r.Form.Get("userdata_name")
+				err := udManager.Save(ud, name)
+				if err != nil {
+					LogError(r, "failed to save userdata", err)
+				} else {
+					stremio_shared.RedirectToConfigurePage(w, r, "list", ud, true)
+					return
+				}
+			}
+		case "copy-userdata":
+			if td.IsAuthed && udManager.IsSaved(ud) {
+				name := r.Form.Get("userdata_name")
+				ud.SetEncoded("")
+				err := udManager.Save(ud, name)
+				if err != nil {
+					LogError(r, "failed to copy userdata", err)
+				} else {
+					stremio_shared.RedirectToConfigurePage(w, r, "list", ud, true)
+					return
+				}
+			}
+		case "delete-userdata":
+			if td.IsAuthed && udManager.IsSaved(ud) {
+				err := udManager.Delete(ud)
+				if err != nil {
+					LogError(r, "failed to delete userdata", err)
+				} else {
+					stremio_shared.RedirectToConfigurePage(w, r, "list", ud, true)
+					return
+				}
+			}
 		}
 
 		page, err := getPage(td)
