@@ -425,9 +425,11 @@ func UpsertList(list *MDBListList) (err error) {
 		return err
 	}
 
-	itemIds := []int{}
+	itemIds := make([]int, 0, len(list.Items))
 	for i := range list.Items {
-		itemIds = append(itemIds, list.Items[i].Id)
+		if id := list.Items[i].Id; id != 0 {
+			itemIds = append(itemIds, id)
+		}
 	}
 
 	err = setListItems(tx, list.Id, itemIds)
@@ -473,12 +475,18 @@ var query_upsert_items_after_values = fmt.Sprintf(
 )
 
 func upsertItems(tx *db.Tx, items []MDBListItem) error {
-	count := len(items)
-	if count == 0 {
+	filteredItems := make([]MDBListItem, 0, len(items))
+	for i := range items {
+		if item := &items[i]; item.Id != 0 {
+			filteredItems = append(filteredItems, *item)
+		}
+	}
+
+	if len(filteredItems) == 0 {
 		return nil
 	}
 
-	for cItems := range slices.Chunk(items, 500) {
+	for cItems := range slices.Chunk(filteredItems, 500) {
 		count := len(cItems)
 
 		query := query_upsert_items +
