@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/db"
+	"github.com/MunifTanjim/stremthru/internal/imdb_title"
 	"github.com/MunifTanjim/stremthru/internal/util"
 )
 
@@ -110,28 +111,26 @@ func (files *genreList) Scan(value any) error {
 }
 
 type MDBListItem struct {
-	Id             int       `json:"id"`
-	Rank           int       `json:"rank"`
+	IMDBId         string    `json:"imdb_id"`
 	Adult          bool      `json:"adult"`
 	Title          string    `json:"title"`
 	Poster         string    `json:"poster"`
-	ImdbId         string    `json:"imdb_id"`
-	TvdbId         int       `json:"tvdb_id"`
 	Language       string    `json:"language"`
 	Mediatype      MediaType `json:"mediatype"`
 	ReleaseYear    int       `json:"release_year"`
 	SpokenLanguage string    `json:"spoken_language"`
 	Genre          genreList `json:"-"`
+
+	Rank   int    `json:"-"`
+	TmdbId string `json:"-"`
+	TvdbId string `json:"-"`
 }
 
 type ItemColumnStruct struct {
-	Id             string
-	Rank           string
+	IMDBId         string
 	Adult          string
 	Title          string
 	Poster         string
-	ImdbId         string
-	TvdbId         string
 	Language       string
 	Mediatype      string
 	ReleaseYear    string
@@ -139,13 +138,10 @@ type ItemColumnStruct struct {
 }
 
 var ItemColumn = ItemColumnStruct{
-	Id:             "id",
-	Rank:           "rank",
+	IMDBId:         "imdb_id",
 	Adult:          "adult",
 	Title:          "title",
 	Poster:         "poster",
-	ImdbId:         "imdb_id",
-	TvdbId:         "tvdb_id",
 	Language:       "language",
 	Mediatype:      "mediatype",
 	ReleaseYear:    "release_year",
@@ -153,13 +149,10 @@ var ItemColumn = ItemColumnStruct{
 }
 
 var ItemColumns = []string{
-	ItemColumn.Id,
-	ItemColumn.Rank,
+	ItemColumn.IMDBId,
 	ItemColumn.Adult,
 	ItemColumn.Title,
 	ItemColumn.Poster,
-	ItemColumn.ImdbId,
-	ItemColumn.TvdbId,
 	ItemColumn.Language,
 	ItemColumn.Mediatype,
 	ItemColumn.ReleaseYear,
@@ -171,27 +164,31 @@ const ListItemTableName = "mdblist_list_item"
 type MDBListListItem struct {
 	ListId int `json:"list_id"`
 	ItemId int `json:"item_id"`
+	Rank   int `json:"rank"`
 }
 
 type ListItemColumnStruct struct {
 	ListId string
 	ItemId string
+	Rank   string
 }
 
 var ListItemColumn = ListItemColumnStruct{
 	ListId: "list_id",
 	ItemId: "item_id",
+	Rank:   "rank",
 }
 
 var ListItemColumns = []string{
 	ListItemColumn.ListId,
 	ListItemColumn.ItemId,
+	ListItemColumn.Rank,
 }
 
 const ItemGenreTableName = "mdblist_item_genre"
 
 type MDBListItemGenre struct {
-	ItemId int    `json:"item_id"`
+	ItemId string `json:"item_id"`
 	Genre  string `json:"genre"`
 }
 
@@ -304,20 +301,20 @@ func GetListByName(userName, slug string) (*MDBListList, error) {
 }
 
 var query_get_list_items = fmt.Sprintf(
-	`SELECT %s, %s(ig.%s) AS genre FROM %s li JOIN %s i ON i.%s = li.%s LEFT JOIN %s ig ON i.%s = ig.%s WHERE li.%s = ? GROUP BY i.%s ORDER BY i.%s ASC`,
+	`SELECT %s, %s(ig.%s) AS genre FROM %s li JOIN %s i ON i.%s = li.%s LEFT JOIN %s ig ON i.%s = ig.%s WHERE li.%s = ? GROUP BY i.%s ORDER BY li.%s ASC`,
 	db.JoinPrefixedColumnNames("i.", ItemColumns...),
 	db.FnJSONGroupArray,
 	ItemGenreColumn.Genre,
 	ListItemTableName,
 	ItemTableName,
-	ItemColumn.Id,
+	ItemColumn.IMDBId,
 	ListItemColumn.ItemId,
 	ItemGenreTableName,
-	ItemColumn.Id,
+	ItemColumn.IMDBId,
 	ItemGenreColumn.ItemId,
 	ListItemColumn.ListId,
-	ItemColumn.Id,
-	ItemColumn.Rank,
+	ItemColumn.IMDBId,
+	ListItemColumn.Rank,
 )
 
 func GetListItems(listId int) ([]MDBListItem, error) {
@@ -331,13 +328,10 @@ func GetListItems(listId int) ([]MDBListItem, error) {
 	for rows.Next() {
 		var item MDBListItem
 		if err := rows.Scan(
-			&item.Id,
-			&item.Rank,
+			&item.IMDBId,
 			&item.Adult,
 			&item.Title,
 			&item.Poster,
-			&item.ImdbId,
-			&item.TvdbId,
 			&item.Language,
 			&item.Mediatype,
 			&item.ReleaseYear,
@@ -425,14 +419,7 @@ func UpsertList(list *MDBListList) (err error) {
 		return err
 	}
 
-	itemIds := make([]int, 0, len(list.Items))
-	for i := range list.Items {
-		if id := list.Items[i].Id; id != 0 {
-			itemIds = append(itemIds, id)
-		}
-	}
-
-	err = setListItems(tx, list.Id, itemIds)
+	err = setListItems(tx, list.Id, list.Items)
 	if err != nil {
 		return err
 	}
@@ -450,20 +437,14 @@ var query_upsert_items_placeholder = fmt.Sprintf(
 	util.RepeatJoin("?", len(ItemColumns), ","),
 )
 var query_upsert_items_after_values = fmt.Sprintf(
-	` ON CONFLICT (%s) DO UPDATE SET %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s`,
-	ItemColumn.Id,
-	ItemColumn.Rank,
-	ItemColumn.Rank,
+	` ON CONFLICT (%s) DO UPDATE SET %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s, %s = EXCLUDED.%s`,
+	ItemColumn.IMDBId,
 	ItemColumn.Adult,
 	ItemColumn.Adult,
 	ItemColumn.Title,
 	ItemColumn.Title,
 	ItemColumn.Poster,
 	ItemColumn.Poster,
-	ItemColumn.ImdbId,
-	ItemColumn.ImdbId,
-	ItemColumn.TvdbId,
-	ItemColumn.TvdbId,
 	ItemColumn.Language,
 	ItemColumn.Language,
 	ItemColumn.Mediatype,
@@ -475,18 +456,11 @@ var query_upsert_items_after_values = fmt.Sprintf(
 )
 
 func upsertItems(tx *db.Tx, items []MDBListItem) error {
-	filteredItems := make([]MDBListItem, 0, len(items))
-	for i := range items {
-		if item := &items[i]; item.Id != 0 {
-			filteredItems = append(filteredItems, *item)
-		}
-	}
-
-	if len(filteredItems) == 0 {
+	if len(items) == 0 {
 		return nil
 	}
 
-	for cItems := range slices.Chunk(filteredItems, 500) {
+	for cItems := range slices.Chunk(items, 500) {
 		count := len(cItems)
 
 		query := query_upsert_items +
@@ -496,17 +470,14 @@ func upsertItems(tx *db.Tx, items []MDBListItem) error {
 		columnCount := len(ItemColumns)
 		args := make([]any, count*columnCount)
 		for i, item := range cItems {
-			args[i*columnCount] = item.Id
-			args[i*columnCount+1] = item.Rank
-			args[i*columnCount+2] = item.Adult
-			args[i*columnCount+3] = item.Title
-			args[i*columnCount+4] = item.Poster
-			args[i*columnCount+5] = item.ImdbId
-			args[i*columnCount+6] = item.TvdbId
-			args[i*columnCount+7] = item.Language
-			args[i*columnCount+8] = item.Mediatype
-			args[i*columnCount+9] = item.ReleaseYear
-			args[i*columnCount+10] = item.SpokenLanguage
+			args[i*columnCount+0] = item.IMDBId
+			args[i*columnCount+1] = item.Adult
+			args[i*columnCount+2] = item.Title
+			args[i*columnCount+3] = item.Poster
+			args[i*columnCount+4] = item.Language
+			args[i*columnCount+5] = item.Mediatype
+			args[i*columnCount+6] = item.ReleaseYear
+			args[i*columnCount+7] = item.SpokenLanguage
 		}
 
 		_, err := tx.Exec(query, args...)
@@ -515,7 +486,11 @@ func upsertItems(tx *db.Tx, items []MDBListItem) error {
 		}
 
 		for _, item := range cItems {
-			err = setItemGenre(tx, item.Id, item.Genre)
+			err = setItemGenre(tx, item.IMDBId, item.Genre)
+			if err != nil {
+				return err
+			}
+			err = imdb_title.RecordMappingFromMDBList(tx, item.IMDBId, item.TmdbId, item.TvdbId)
 			if err != nil {
 				return err
 			}
@@ -542,11 +517,11 @@ var query_cleanup_item_genre = fmt.Sprintf(
 	ItemGenreColumn.Genre,
 )
 
-func setItemGenre(tx *db.Tx, itemId int, genres []Genre) error {
+func setItemGenre(tx *db.Tx, itemTId string, genres []Genre) error {
 	count := len(genres)
 
 	cleanupArgs := make([]any, 1+count)
-	cleanupArgs[0] = itemId
+	cleanupArgs[0] = itemTId
 	for i, genre := range genres {
 		cleanupArgs[1+i] = genre
 	}
@@ -564,7 +539,7 @@ func setItemGenre(tx *db.Tx, itemId int, genres []Genre) error {
 		query_set_item_genre_after_values
 	args := make([]any, count*2)
 	for i, genre := range genres {
-		args[i*2] = itemId
+		args[i*2] = itemTId
 		args[i*2+1] = genre
 	}
 
@@ -576,14 +551,19 @@ func setItemGenre(tx *db.Tx, itemId int, genres []Genre) error {
 }
 
 var query_set_list_items_before_values = fmt.Sprintf(
-	`INSERT INTO %s (%s, %s) VALUES `,
+	`INSERT INTO %s (%s, %s, %s) VALUES `,
 	ListItemTableName,
 	ListItemColumn.ListId,
 	ListItemColumn.ItemId,
+	ListItemColumn.Rank,
 )
-var query_set_list_items_values_placeholder = "(?, ?)"
+var query_set_list_items_values_placeholder = "(?,?,?)"
 var query_set_list_items_after_values = fmt.Sprintf(
-	` ON CONFLICT DO NOTHING`,
+	` ON CONFLICT (%s, %s) DO UPDATE SET %s = EXCLUDED.%s`,
+	ListItemColumn.ListId,
+	ListItemColumn.ItemId,
+	ListItemColumn.Rank,
+	ListItemColumn.Rank,
 )
 var query_cleanup_list_items = fmt.Sprintf(
 	`DELETE FROM %s WHERE %s = ? AND %s NOT IN `,
@@ -592,13 +572,13 @@ var query_cleanup_list_items = fmt.Sprintf(
 	ListItemColumn.ItemId,
 )
 
-func setListItems(tx *db.Tx, listId int, itemIds []int) error {
-	count := len(itemIds)
+func setListItems(tx *db.Tx, listId int, items []MDBListItem) error {
+	count := len(items)
 
 	cleanupArgs := make([]any, 1+count)
 	cleanupArgs[0] = listId
-	for i, itemId := range itemIds {
-		cleanupArgs[1+i] = itemId
+	for i := range items {
+		cleanupArgs[1+i] = items[i].IMDBId
 	}
 	cleanupQuery := query_cleanup_list_items + "(" + util.RepeatJoin("?", count, ",") + ")"
 	if _, err := tx.Exec(cleanupQuery, cleanupArgs...); err != nil {
@@ -612,10 +592,12 @@ func setListItems(tx *db.Tx, listId int, itemIds []int) error {
 	query := query_set_list_items_before_values +
 		util.RepeatJoin(query_set_list_items_values_placeholder, count, ",") +
 		query_set_list_items_after_values
-	args := make([]any, count*2)
-	for i, itemId := range itemIds {
-		args[i*2] = listId
-		args[i*2+1] = itemId
+	args := make([]any, count*3)
+	for i := range items {
+		item := &items[i]
+		args[i*3+0] = listId
+		args[i*3+1] = item.IMDBId
+		args[i*3+2] = item.Rank
 	}
 
 	if _, err := tx.Exec(query, args...); err != nil {

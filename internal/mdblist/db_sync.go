@@ -114,18 +114,19 @@ func (l *MDBListList) Fetch(apiKey string) error {
 		for i := range res.Data {
 			item := &res.Data[i]
 			l.Items = append(l.Items, MDBListItem{
-				Id:             item.Id,
-				Rank:           item.Rank,
+				IMDBId:         item.ImdbId,
 				Adult:          item.Adult == 1,
 				Title:          item.Title,
 				Poster:         item.Poster,
-				ImdbId:         item.ImdbId,
-				TvdbId:         item.TvdbId,
 				Language:       item.Language,
 				Mediatype:      item.Mediatype,
 				ReleaseYear:    item.ReleaseYear,
 				SpokenLanguage: item.SpokenLanguage,
 				Genre:          item.Genre,
+
+				Rank:   item.Rank,
+				TmdbId: strconv.Itoa(item.Id),
+				TvdbId: strconv.Itoa(item.TvdbId),
 			})
 		}
 		hasMore = len(res.Data) == limit

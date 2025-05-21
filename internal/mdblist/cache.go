@@ -8,7 +8,7 @@ import (
 
 var listCache = cache.NewCache[MDBListList](&cache.CacheConfig{
 	Lifetime:      6 * time.Hour,
-	Name:          "mdblist:list",
+	Name:          "mdblist:list:v2",
 	LocalCapacity: 1024,
 })
 

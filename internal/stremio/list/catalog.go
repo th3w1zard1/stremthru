@@ -75,11 +75,11 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 
 			poster := item.Poster
 			if rpdbPosterBaseUrl != "" {
-				poster = rpdbPosterBaseUrl + item.ImdbId + ".jpg?fallback=true"
+				poster = rpdbPosterBaseUrl + item.IMDBId + ".jpg?fallback=true"
 			}
 
 			meta := stremio.MetaPreview{
-				Id:          item.ImdbId,
+				Id:          item.IMDBId,
 				Type:        mediaTypeToResourceType(item.Mediatype),
 				Name:        item.Title,
 				Poster:      poster,
