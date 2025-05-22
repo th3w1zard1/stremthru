@@ -141,8 +141,10 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		if files, ok := filesByHashes[hash]; ok {
 			for i := range files {
 				f := &files[i]
-				if f.SId == id {
-					file = f
+				if core.HasVideoExtension(f.Name) {
+					if f.SId == id {
+						file = f
+					}
 				}
 			}
 		}
