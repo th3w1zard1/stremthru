@@ -6,8 +6,10 @@ import (
 	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/MunifTanjim/stremthru/internal/anilist"
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/imdb_title"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
@@ -110,6 +112,11 @@ func getIMDBMetaFromMDBList(imdbIds []string, mdblistAPIKey string) (map[string]
 	return byId, nil
 }
 
+type catalogItem struct {
+	stremio.MetaPreview
+	item any
+}
+
 func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	if !IsMethod(r, http.MethodGet) {
 		shared.ErrorMethodNotAllowed(r).Send(w, r)
@@ -126,9 +133,36 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 
 	service, id := parseCatalogId(catalogId)
 
-	items := []stremio.MetaPreview{}
+	rpdbPosterBaseUrl := ""
+	if ud.RPDBAPIKey != "" {
+		rpdbPosterBaseUrl = "https://api.ratingposterdb.com/" + ud.RPDBAPIKey + "/imdb/poster-default/"
+	}
 
+	catalogItems := []catalogItem{}
 	switch service {
+	case "anilist":
+		list := anilist.AniListList{Id: id}
+		if err := ud.FetchAniListList(&list, false); err != nil {
+			SendError(w, r, err)
+			return
+		}
+
+		for i := range list.Medias {
+			media := &list.Medias[i]
+
+			poster := media.Banner
+
+			meta := stremio.MetaPreview{
+				Type:        "anime",
+				Name:        media.Title,
+				Description: media.Description,
+				Poster:      poster,
+				PosterShape: stremio.MetaPosterShapePoster,
+				Genres:      media.Genres,
+				ReleaseInfo: strconv.Itoa(media.StartYear),
+			}
+			catalogItems = append(catalogItems, catalogItem{meta, *media})
+		}
 	case "mdblist":
 		id, err := strconv.Atoi(id)
 		if err != nil {
@@ -139,11 +173,6 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		if err := ud.FetchMDBListList(&list); err != nil {
 			SendError(w, r, err)
 			return
-		}
-
-		rpdbPosterBaseUrl := ""
-		if ud.RPDBAPIKey != "" {
-			rpdbPosterBaseUrl = "https://api.ratingposterdb.com/" + ud.RPDBAPIKey + "/imdb/poster-default/"
 		}
 
 		for i := range list.Items {
@@ -163,7 +192,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 				Genres:      item.Genre,
 				ReleaseInfo: strconv.Itoa(item.ReleaseYear),
 			}
-			items = append(items, meta)
+			catalogItems = append(catalogItems, catalogItem{meta, item})
 		}
 	default:
 		shared.ErrorBadRequest(r, "invalid id").Send(w, r)
@@ -173,42 +202,77 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 	extra := getExtra(r)
 
 	if extra.Genre != "" {
-		filteredItems := []stremio.MetaPreview{}
-		for i := range items {
-			item := &items[i]
+		filteredItems := []catalogItem{}
+		for i := range catalogItems {
+			item := &catalogItems[i]
 			if slices.Contains(item.Genres, extra.Genre) {
 				filteredItems = append(filteredItems, *item)
 			}
 		}
-		items = filteredItems
+		catalogItems = filteredItems
 	}
 
 	limit := 100
-	totalItems := len(items)
-	items = items[min(extra.Skip, totalItems):min(extra.Skip+limit, totalItems)]
+	totalItems := len(catalogItems)
+	catalogItems = catalogItems[min(extra.Skip, totalItems):min(extra.Skip+limit, totalItems)]
 
-	imdbIds := []string{}
-	for i := range items {
-		imdbIds = append(imdbIds, items[i].Id)
-	}
+	items := []stremio.MetaPreview{}
 
-	metaById, err := getIMDBMetaFromMDBList(imdbIds, ud.MDBListAPIkey)
-	if err != nil {
-		SendError(w, r, err)
-		return
-	}
+	switch service {
+	case "anilist":
+		medias := make([]anilist.AniListMedia, len(catalogItems))
+		for i := range catalogItems {
+			item := &catalogItems[i]
+			medias[i] = item.item.(anilist.AniListMedia)
+		}
+		if err := anilist.EnsureIdMap(medias); err != nil {
+			SendError(w, r, err)
+			return
+		}
 
-	for i := range items {
-		item := &items[i]
-		if m, ok := metaById[item.Id]; ok {
-			item.Description = m.Description
-			item.IMDBRating = strconv.FormatFloat(float64(m.Rating)/10, 'f', 1, 32)
-			if trailer, err := url.Parse(m.Trailer); err == nil && trailer.Host == "youtube.com" {
-				item.Trailers = append(item.Trailers, stremio.MetaTrailer{
-					Source: trailer.Query().Get("v"),
-					Type:   "Trailer",
-				})
+		for i := range catalogItems {
+			item := &catalogItems[i]
+			media := medias[i]
+
+			if media.IdMap == nil || media.IdMap.Kitsu == "" {
+				continue
 			}
+
+			item.Id = "kitsu:" + media.IdMap.Kitsu
+			if rpdbPosterBaseUrl != "" && media.IdMap.IMDB != "" {
+				item.Poster = rpdbPosterBaseUrl + media.IdMap.IMDB + ".jpg?fallback=true"
+			}
+
+			items = append(items, item.MetaPreview)
+		}
+	case "mdblist":
+		imdbIds := []string{}
+		for i := range catalogItems {
+			id := catalogItems[i].Id
+			if strings.HasPrefix(id, "tt") {
+				imdbIds = append(imdbIds, id)
+			}
+		}
+
+		metaById, err := getIMDBMetaFromMDBList(imdbIds, ud.MDBListAPIkey)
+		if err != nil {
+			SendError(w, r, err)
+			return
+		}
+
+		for i := range catalogItems {
+			item := &catalogItems[i]
+			if m, ok := metaById[item.Id]; ok {
+				item.Description = m.Description
+				item.IMDBRating = strconv.FormatFloat(float64(m.Rating)/10, 'f', 1, 32)
+				if trailer, err := url.Parse(m.Trailer); err == nil && trailer.Host == "youtube.com" {
+					item.Trailers = append(item.Trailers, stremio.MetaTrailer{
+						Source: trailer.Query().Get("v"),
+						Type:   "Trailer",
+					})
+				}
+			}
+			items = append(items, item.MetaPreview)
 		}
 	}
 

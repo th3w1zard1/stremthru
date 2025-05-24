@@ -79,3 +79,26 @@ func (t *DateOnly) Scan(value any) error {
 	}
 	return nil
 }
+
+type NullString struct {
+	String string
+}
+
+func (nv NullString) Value() (driver.Value, error) {
+	if nv.String == "" {
+		return nil, nil
+	}
+	return nv.String, nil
+}
+
+func (nv *NullString) Scan(value any) error {
+	switch v := value.(type) {
+	case string:
+		nv.String = v
+	case nil:
+		nv.String = ""
+	default:
+		return errors.New("failed to convert value")
+	}
+	return nil
+}

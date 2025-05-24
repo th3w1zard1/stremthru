@@ -216,6 +216,9 @@ Supports `sqlite` and `postgresql`.
 
 Comma separated list of features to enable/disable.
 
+Use `-` prefix to disable opt-out feature, and `+` prefix to enable opt-in feature.
+Otherwise only the specified features will be enabled.
+
 ## Endpoints
 
 ### Authentication

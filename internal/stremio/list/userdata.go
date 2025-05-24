@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MunifTanjim/stremthru/internal/anilist"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
 	stremio_userdata "github.com/MunifTanjim/stremthru/internal/stremio/userdata"
 )
@@ -23,7 +25,8 @@ type UserData struct {
 
 	encoded string `json:"-"` // correctly configured
 
-	mdblistById map[int]mdblist.MDBListList `json:"-"`
+	mdblistById map[int]mdblist.MDBListList    `json:"-"`
+	anilistById map[string]anilist.AniListList `json:"-"`
 }
 
 var udManager = stremio_userdata.NewManager[UserData](&stremio_userdata.ManagerConfig{
@@ -31,7 +34,7 @@ var udManager = stremio_userdata.NewManager[UserData](&stremio_userdata.ManagerC
 })
 
 func (ud UserData) HasRequiredValues() bool {
-	return ud.MDBListAPIkey != "" && len(ud.Lists) != 0
+	return len(ud.Lists) != 0
 }
 
 func (ud *UserData) GetEncoded() string {
@@ -125,6 +128,7 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 		}
 
 		isMDBListEnabled := ud.MDBListAPIkey != ""
+		isAniListEnabled := config.Feature.IsEnabled("anime")
 
 		if isMDBListEnabled {
 			userParams := mdblist.GetMyLimitsParams{}
@@ -169,6 +173,36 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 			}
 
 			switch listUrl.Hostname() {
+			case "anilist.co":
+				if !isAniListEnabled {
+					udErr.list_urls[idx] = "Unsupported List URL"
+					continue
+				}
+
+				list := anilist.AniListList{}
+				if strings.HasPrefix(listUrl.Path, "/user/") {
+					parts := strings.SplitN(strings.TrimPrefix(listUrl.Path, "/user/"), "/", 3)
+					if len(parts) != 3 || parts[1] != "animelist" {
+						udErr.list_urls[idx] = "Invalid AniList URL"
+						continue
+					}
+					userName, listName := parts[0], parts[2]
+					if userName == "" || listName == "" {
+						udErr.list_urls[idx] = "Invalid AniList URL"
+						continue
+					}
+					list.Id = userName + ":" + listName
+				} else {
+					udErr.list_urls[idx] = "Unsupported AniList URL"
+					continue
+				}
+
+				err := ud.FetchAniListList(&list, true)
+				if err != nil {
+					udErr.list_urls[idx] = "Failed to fetch List: " + err.Error()
+					continue
+				}
+				ud.Lists[idx] = "anilist:" + list.Id
 			case "mdblist.com":
 				if !isMDBListEnabled {
 					udErr.list_urls[idx] = "MDBList API Key is required"
@@ -238,5 +272,27 @@ func (ud *UserData) FetchMDBListList(list *mdblist.MDBListList) error {
 		return err
 	}
 	ud.mdblistById[list.Id] = *list
+	return nil
+}
+
+func (ud *UserData) FetchAniListList(list *anilist.AniListList, scheduleIdMapSync bool) error {
+	if ud.anilistById == nil {
+		ud.anilistById = map[string]anilist.AniListList{}
+	}
+	if list.Id != "" {
+		if l, ok := ud.anilistById[list.Id]; ok {
+			*list = l
+			return nil
+		}
+	}
+	if err := list.Fetch(); err != nil {
+		return err
+	}
+
+	if scheduleIdMapSync {
+		anilist.ScheduleIdMapSync(list.Medias)
+	}
+
+	ud.anilistById[list.Id] = *list
 	return nil
 }

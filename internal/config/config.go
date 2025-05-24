@@ -158,6 +158,7 @@ const (
 	FeatureStremioStore    string = "stremio_store"
 	FeatureStremioTorz     string = "stremio_torz"
 	FeatureStremioWrap     string = "stremio_wrap"
+	FeatureAnime           string = "anime"
 )
 
 var features = []string{
@@ -168,6 +169,7 @@ var features = []string{
 	FeatureStremioStore,
 	FeatureStremioWrap,
 	FeatureStremioTorz,
+	FeatureAnime,
 }
 
 type FeatureConfig struct {
@@ -394,21 +396,35 @@ var config = func() Config {
 
 	databaseUri := getEnv("STREMTHRU_DATABASE_URI")
 
-	feature := FeatureConfig{}
+	feature := FeatureConfig{
+		disabled: []string{FeatureAnime},
+	}
 	for _, name := range strings.FieldsFunc(strings.TrimSpace(getEnv("STREMTHRU_FEATURE")), func(c rune) bool {
 		return c == ','
 	}) {
-		if strings.HasPrefix(name, "-") {
+		switch {
+		case strings.HasPrefix(name, "-"):
 			name = strings.TrimPrefix(name, "-")
 			if slices.Contains(feature.enabled, name) {
-				log.Fatalf("feature conflict, trying to disable already enabled feature: %v", name)
+				log.Fatalf("feature conflict, trying to disable already enabled feature: -%s", name)
 			} else {
 				feature.disabled = append(feature.disabled, name)
 			}
-		} else if slices.Contains(feature.disabled, name) {
-			log.Fatalf("feature conflict, trying to enable already disabled feature: %v", name)
-		} else {
-			feature.enabled = append(feature.enabled, name)
+		case strings.HasPrefix(name, "+"):
+			name = strings.TrimPrefix(name, "+")
+			if slices.Contains(feature.disabled, name) {
+				feature.disabled = slices.DeleteFunc(feature.disabled, func(feat string) bool {
+					return feat == name
+				})
+			} else {
+				log.Fatalf("feature conflict, trying to force enable a not disabled feature: +%s", name)
+			}
+		default:
+			if slices.Contains(feature.disabled, name) {
+				log.Fatalf("feature conflict, trying to enable already disabled feature: %s", name)
+			} else {
+				feature.enabled = append(feature.enabled, name)
+			}
 		}
 	}
 

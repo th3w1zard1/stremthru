@@ -3,8 +3,10 @@ module github.com/MunifTanjim/stremthru
 go 1.24.1
 
 require (
+	github.com/alitto/pond/v2 v2.3.4
 	github.com/elastic/go-freelru v0.15.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/hasura/go-graphql-client v0.14.3
 	github.com/redis/go-redis/v9 v9.0.0-rc.4
 	github.com/zeebo/xxh3 v1.0.2
 	golang.org/x/sync v0.10.0
@@ -12,6 +14,7 @@ require (
 
 require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/coder/websocket v1.8.13 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/google/go-cmp v0.6.0 // indirect

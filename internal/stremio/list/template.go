@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/MunifTanjim/stremthru/internal/anilist"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
 	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
@@ -132,6 +133,14 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 				list.Error.URL = "Failed to Parse List ID: " + listId
 			} else {
 				switch service {
+				case "anilist":
+					l := anilist.AniListList{Id: id}
+					if err := ud.FetchAniListList(&l, false); err != nil {
+						log.Error("failed to fetch list", "error", err, "id", listId)
+						list.Error.URL = "Failed to Fetch List: " + err.Error()
+					} else {
+						list.URL = l.GetURL()
+					}
 				case "mdblist":
 					lId, err := strconv.Atoi(id)
 					if err != nil {

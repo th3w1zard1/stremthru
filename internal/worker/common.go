@@ -5,7 +5,10 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/kv"
+	"github.com/MunifTanjim/stremthru/internal/logger"
 )
+
+var log = logger.Scoped("worker")
 
 type IdQueue struct {
 	m            sync.Map
@@ -33,11 +36,16 @@ type WorkerQueueItem[T any] struct {
 type WorkerQueue[T any] struct {
 	m            sync.Map
 	getKey       func(item T) string
+	getGroupKey  func(item T) string
 	transform    func(item *T) *T
 	debounceTime time.Duration
+	disabled     bool
 }
 
 func (q *WorkerQueue[T]) Queue(item T) {
+	if q.disabled {
+		return
+	}
 	item = *q.transform(&item)
 	q.m.Swap(q.getKey(item), WorkerQueueItem[T]{
 		v: item,
@@ -59,6 +67,31 @@ func (q *WorkerQueue[T]) process(f func(item T)) {
 		}
 		return true
 	})
+}
+
+func (q *WorkerQueue[T]) processGroup(f func(groupKey string, items []T) error) {
+	byGroupKey := map[string][]T{}
+	q.m.Range(func(k, v any) bool {
+		_, keyOk := k.(string)
+		val, valOk := v.(WorkerQueueItem[T])
+		if keyOk && valOk && val.t.Before(time.Now()) {
+			groupKey := q.getGroupKey(val.v)
+			if _, ok := byGroupKey[groupKey]; !ok {
+				byGroupKey[groupKey] = []T{}
+			}
+			byGroupKey[groupKey] = append(byGroupKey[groupKey], val.v)
+		}
+		return true
+	})
+	for groupKey, items := range byGroupKey {
+		if err := f(groupKey, items); err != nil {
+			log.Error("WorkerQueue processGroup failed", "error", err)
+		} else {
+			for i := range items {
+				q.delete(items[i])
+			}
+		}
+	}
 }
 
 type Error struct {

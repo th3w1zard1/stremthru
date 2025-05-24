@@ -157,6 +157,16 @@ func InitWorkers() func() {
 		workers = append(workers, worker)
 	}
 
+	if worker := InitMapAnimeIdWorker(&WorkerConfig{
+		ShouldWait: func() (bool, string) {
+			return false, ""
+		},
+		OnStart: func() {},
+		OnEnd:   func() {},
+	}); worker != nil {
+		workers = append(workers, worker)
+	}
+
 	return func() {
 		for _, worker := range workers {
 			worker.scheduler.Stop()

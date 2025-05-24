@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/anilist"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
 	"github.com/MunifTanjim/stremthru/internal/shared"
@@ -41,6 +42,28 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 				return nil, core.NewError("invalid list id: " + listId)
 			}
 			switch service {
+			case "anilist":
+				list := anilist.AniListList{Id: idStr}
+				if err := list.Fetch(); err != nil {
+					return nil, err
+				}
+				catalog := stremio.Catalog{
+					Type: "anime",
+					Id:   "st.list.anilist." + idStr,
+					Name: list.GetUserName() + "/" + list.GetName(),
+					Extra: []stremio.CatalogExtra{
+						{
+							Name: "skip",
+						},
+					},
+				}
+				if hasListNames {
+					if name := ud.ListNames[idx]; name != "" {
+						catalog.Name = name
+					}
+				}
+				catalogs = append(catalogs, catalog)
+
 			case "mdblist":
 				id, err := strconv.Atoi(idStr)
 				if err != nil {
