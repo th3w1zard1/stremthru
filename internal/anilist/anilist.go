@@ -83,6 +83,7 @@ type fetchMediasQuery struct {
 			Type  string
 			Title struct {
 				English string
+				Romaji  string
 			}
 			Description string
 			BannerImage string
@@ -142,6 +143,9 @@ func FetchMedias(mediaIds []int) ([]Media, error) {
 				IsAdult:     m.IsAdult,
 				Genres:      m.Genres,
 				StartYear:   m.StartDate.Year,
+			}
+			if media.Title == "" {
+				media.Title = m.Title.Romaji
 			}
 			medias = append(medias, media)
 		}
