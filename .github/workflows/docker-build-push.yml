@@ -59,6 +59,12 @@ jobs:
               TAGS="${TAGS} ${tag}"
             done
             ;;
+          dev)
+            TAGS="edge"
+            for tag in $(git tag --points-at | grep "^[0-9]*\.[0-9]*\.[0-9]*$" | xargs); do
+              TAGS="${TAGS} ${tag}"
+            done
+            ;;
           *)
             echo "Invalid Input Ref: ${INPUT_REF}"
             exit 1
