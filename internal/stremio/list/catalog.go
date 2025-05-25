@@ -150,7 +150,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		for i := range list.Medias {
 			media := &list.Medias[i]
 
-			poster := media.Banner
+			poster := media.Cover
 
 			meta := stremio.MetaPreview{
 				Type:        "anime",
