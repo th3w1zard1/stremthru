@@ -50,7 +50,7 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 				catalog := stremio.Catalog{
 					Type: "anime",
 					Id:   "st.list.anilist." + idStr,
-					Name: list.GetUserName() + "/" + list.GetName(),
+					Name: list.GetDisplayName(),
 					Extra: []stremio.CatalogExtra{
 						{
 							Name:    "genre",

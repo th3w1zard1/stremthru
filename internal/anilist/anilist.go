@@ -3,6 +3,7 @@ package anilist
 import (
 	"context"
 	"slices"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/hasura/go-graphql-client"
@@ -11,24 +12,24 @@ import (
 var client = graphql.NewClient(
 	"https://graphql.anilist.co/graphql",
 	config.GetHTTPClient(config.TUNNEL_TYPE_AUTO),
-).WithDebug(true)
+).WithDebug(config.Environment == config.EnvDev)
 
-type getAnimeListQuery struct {
-	MediaListCollection struct {
-		Lists []struct {
-			Name         string
-			IsCustomList bool
-			Entries      []struct {
-				Score     int
-				MediaList struct {
-					Media struct {
-						Id int
-					}
-				} `graphql:"... on MediaList"`
-			}
-		}
-	} `graphql:"MediaListCollection(userName: $userName, type: ANIME)"`
-}
+type MediaSeason string
+
+const (
+	MediaSeasonWinter MediaSeason = "WINTER"
+	MediaSeasonSpring MediaSeason = "SPRING"
+	MediaSeasonSummer MediaSeason = "SUMMER"
+	MediaSeasonFall   MediaSeason = "FALL"
+)
+
+type MediaSort string
+
+const (
+	MediaSortTrendingDesc   MediaSort = "TRENDING_DESC"
+	MediaSortPopularityDesc MediaSort = "POPULARITY_DESC"
+	MediaSortScoreDesc      MediaSort = "SCORE_DESC"
+)
 
 type ListMedia struct {
 	Id    int
@@ -47,17 +48,36 @@ func (l List) GetId() string {
 	return l.UserName + ":" + l.Name
 }
 
-func FetchLists(userName string) ([]List, error) {
-	var q getAnimeListQuery
+type getUserAnimeListQuery struct {
+	MediaListCollection struct {
+		Lists []struct {
+			Name         string
+			IsCustomList bool
+			Entries      []struct {
+				Score     int
+				MediaList struct {
+					Media struct {
+						Id int
+					}
+				} `graphql:"... on MediaList"`
+			}
+		}
+	} `graphql:"MediaListCollection(userName: $userName, type: ANIME)"`
+}
+
+func FetchUserList(userName, name string) (*List, error) {
+	var q getUserAnimeListQuery
 	err := client.Query(context.Background(), &q, map[string]any{
 		"userName": userName,
 	})
 	if err != nil {
 		return nil, err
 	}
-	lists := make([]List, len(q.MediaListCollection.Lists))
 	for i := range q.MediaListCollection.Lists {
 		l := &q.MediaListCollection.Lists[i]
+		if l.Name != name {
+			continue
+		}
 		list := List{
 			UserName:       userName,
 			Name:           l.Name,
@@ -70,9 +90,143 @@ func FetchLists(userName string) ([]List, error) {
 			list.MediaIds[i] = mediaId
 			list.ScoreByMediaId[mediaId] = l.Entries[i].Score
 		}
-		lists[i] = list
+		return &list, nil
 	}
-	return lists, nil
+	return nil, nil
+}
+
+const searchAnimeListMaxPage = 4
+const searchAnimeListPerPage = 50
+const searchAnimeListQuery = `query (
+  $page: Int!
+  $season: MediaSeason
+  $seasonYear: Int
+  $sort: [MediaSort]
+) {
+  Page(page: $page, perPage: 50) {
+		media(type: ANIME, season: $season, seasonYear: $seasonYear, sort: $sort) {
+      id
+    }
+  }
+}`
+
+type SearchAnimeListData struct {
+	Page struct {
+		Media []struct {
+			Id int `json:"id"`
+		} `json:"media"`
+	} `json:"Page"`
+}
+
+func getSeason(month time.Month) MediaSeason {
+	switch month {
+	case time.December, time.January, time.February:
+		return MediaSeasonWinter
+	case time.March, time.April, time.May:
+		return MediaSeasonSpring
+	case time.June, time.July, time.August:
+		return MediaSeasonSummer
+	case time.September, time.October, time.November:
+		return MediaSeasonFall
+	}
+	panic("unreachable")
+}
+
+type searchListMeta struct {
+	getInput func(page int) map[string]any
+	name     string
+}
+
+var searchListQueryInputByName = map[string]searchListMeta{
+	"trending": {
+		name: "Trending",
+		getInput: func(page int) map[string]any {
+			return map[string]any{
+				"page": page,
+				"sort": []MediaSort{MediaSortTrendingDesc, MediaSortPopularityDesc},
+			}
+		},
+	},
+	"this-season": {
+		name: "Popular This Season",
+		getInput: func(page int) map[string]any {
+			t := time.Now()
+			return map[string]any{
+				"page":       page,
+				"season":     getSeason(t.Month()),
+				"seasonYear": t.Year(),
+				"sort":       []MediaSort{MediaSortPopularityDesc, MediaSortScoreDesc},
+			}
+		},
+	},
+	"next-season": {
+		name: "Upcoming Next Season",
+		getInput: func(page int) map[string]any {
+			t := time.Now().AddDate(0, 3, 0)
+			return map[string]any{
+				"page":       page,
+				"season":     getSeason(t.Month()),
+				"seasonYear": t.Year(),
+				"sort":       []MediaSort{MediaSortPopularityDesc, MediaSortScoreDesc},
+			}
+		},
+	},
+	"popular": {
+		name: "All Time Popular",
+		getInput: func(page int) map[string]any {
+			return map[string]any{
+				"page": page,
+				"sort": []MediaSort{MediaSortPopularityDesc},
+			}
+		},
+	},
+	"top-100": {
+		name: "Top 100",
+		getInput: func(page int) map[string]any {
+			return map[string]any{
+				"page": page,
+				"sort": []MediaSort{MediaSortScoreDesc},
+			}
+		},
+	},
+}
+
+func IsValidSearchList(name string) bool {
+	_, ok := searchListQueryInputByName[name]
+	return ok
+}
+
+func FetchSearchList(name string) (*List, error) {
+	meta, ok := searchListQueryInputByName[name]
+	if !ok {
+		return nil, nil
+	}
+	totalItems := searchAnimeListMaxPage * searchAnimeListPerPage
+	list := List{
+		UserName:       "~",
+		Name:           name,
+		MediaIds:       make([]int, 0, totalItems),
+		ScoreByMediaId: make(map[int]int, totalItems),
+	}
+	for pageIdx := range searchAnimeListMaxPage {
+		page := pageIdx + 1
+		log.Debug("fetching search list page", "name", name, "page", page)
+		var data SearchAnimeListData
+		err := client.Exec(context.Background(), searchAnimeListQuery, &data, meta.getInput(page))
+		if err != nil {
+			return nil, err
+		}
+		medias := data.Page.Media
+		for mIdx := range medias {
+			mediaId := medias[mIdx].Id
+			list.MediaIds = append(list.MediaIds, mediaId)
+			list.ScoreByMediaId[mediaId] = totalItems - page*searchAnimeListPerPage + mIdx
+		}
+		if len(medias) < searchAnimeListPerPage {
+			break
+		}
+	}
+	return &list, nil
 }
 
 type fetchMediasQuery struct {

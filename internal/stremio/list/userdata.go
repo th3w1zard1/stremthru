@@ -192,6 +192,13 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 						continue
 					}
 					list.Id = userName + ":" + listName
+				} else if strings.HasPrefix(listUrl.Path, "/search/anime/") {
+					name := strings.TrimPrefix(listUrl.Path, "/search/anime/")
+					if !anilist.IsValidSearchList(name) {
+						udErr.list_urls[idx] = "Unsupported AniList URL"
+						continue
+					}
+					list.Id = "~:" + name
 				} else {
 					udErr.list_urls[idx] = "Unsupported AniList URL"
 					continue

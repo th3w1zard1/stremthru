@@ -13,7 +13,7 @@ import (
 )
 
 var listCache = cache.NewCache[AniListList](&cache.CacheConfig{
-	Lifetime:      12 * time.Hour,
+	Lifetime:      6 * time.Hour,
 	Name:          "mdblist:list:v2",
 	LocalCapacity: 1024,
 })
@@ -143,17 +143,15 @@ func (l *AniListList) Fetch() error {
 	}
 
 	var list *List
+	var err error
 	log.Debug("fetching list by id", "id", l.Id)
-	lists, err := FetchLists(l.GetUserName())
+	if l.GetUserName() == "~" {
+		list, err = FetchSearchList(l.GetName())
+	} else {
+		list, err = FetchUserList(l.GetUserName(), l.GetName())
+	}
 	if err != nil {
 		return err
-	}
-	for i := range lists {
-		item := &lists[i]
-		if item.GetId() == l.Id {
-			list = item
-			break
-		}
 	}
 
 	if list == nil {

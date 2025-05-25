@@ -30,6 +30,9 @@ func (l *AniListList) GetURL() string {
 	if !ok {
 		return ""
 	}
+	if userName == "~" {
+		return "https://anilist.co/search/anime/" + name
+	}
 	return "https://anilist.co/user/" + userName + "/animelist/" + name
 }
 
@@ -41,6 +44,16 @@ func (l *AniListList) GetName() string {
 func (l *AniListList) GetUserName() string {
 	userName, _, _ := strings.Cut(l.Id, ":")
 	return userName
+}
+
+func (l *AniListList) GetDisplayName() string {
+	userName, name, _ := strings.Cut(l.Id, ":")
+	if userName == "~" {
+		if meta, ok := searchListQueryInputByName[name]; ok {
+			return "Anilist / " + meta.name
+		}
+	}
+	return userName + " / " + name
 }
 
 func (l *AniListList) IsStale() bool {
@@ -307,7 +320,7 @@ func getMedias(mediaIds []int, scoreByMediaId map[int]int) ([]AniListMedia, erro
 		return nil, err
 	}
 
-	slices.SortFunc(items, func(a, b AniListMedia) int {
+	slices.SortStableFunc(items, func(a, b AniListMedia) int {
 		return b.Score - a.Score
 	})
 
@@ -468,6 +481,9 @@ var query_cleanup_media_genre = fmt.Sprintf(
 
 func setMediaGenre(tx db.Executor, mediaId int, genres []string) error {
 	count := len(genres)
+	if count == 0 {
+		return nil
+	}
 
 	cleanupArgs := make([]any, 1+count)
 	cleanupArgs[0] = mediaId
