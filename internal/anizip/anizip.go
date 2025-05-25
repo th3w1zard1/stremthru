@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -119,17 +120,17 @@ type GetMappingsData struct {
 	} `json:"titles"`
 	Mappings struct {
 		Type        string `json:"type"` // TV
-		AnimePlanet string `json:"animeplanet_id"`
-		Kitsu       int    `json:"kitsu_id"`
-		MAL         int    `json:"mal_id"`
+		AniDB       int    `json:"anidb_id"`
 		AniList     int    `json:"anilist_id"`
 		AniSearch   int    `json:"anisearch_id"`
-		AniDB       int    `json:"anidb_id"`
-		NotifyMoe   string `json:"notifymoe_id"`
-		LiveChart   int    `json:"livechart_id"`
-		TVDB        int    `json:"thetvdb_id"`
+		AnimePlanet string `json:"animeplanet_id"`
 		IMDB        string `json:"imdb_id"`
+		Kitsu       int    `json:"kitsu_id"`
+		LiveChart   int    `json:"livechart_id"`
+		MAL         int    `json:"mal_id"`
+		NotifyMoe   string `json:"notifymoe_id"`
 		TMDB        string `json:"themoviedb_id"`
+		TVDB        int    `json:"thetvdb_id"`
 	} `json:"mappings"`
 }
 
@@ -142,10 +143,10 @@ type GetMappingsParams struct {
 func (c APIClient) GetMappings(params *GetMappingsParams) (*GetMappingsData, error) {
 	params.Query = &url.Values{}
 	switch params.Service {
-	case "tvdb":
-		params.Service = "thetvdb"
 	case "tmdb":
 		params.Service = "themoviedb"
+	case "tvdb":
+		params.Service = "thetvdb"
 	}
 	params.Query.Set(params.Service+"_id", params.Id)
 
@@ -153,6 +154,34 @@ func (c APIClient) GetMappings(params *GetMappingsParams) (*GetMappingsData, err
 	time.Sleep(500 * time.Millisecond)
 	res, err := c.Request("GET", "/mappings", params, &response)
 	if err != nil || res.StatusCode != 200 {
+		if res.StatusCode == 404 {
+			idInt, _ := strconv.Atoi(params.Id)
+			switch params.Service {
+			case "anidb":
+				response.Mappings.AniDB = idInt
+			case "anilist":
+				response.Mappings.AniList = idInt
+			case "anisearch":
+				response.Mappings.AniSearch = idInt
+			case "animeplanet":
+				response.Mappings.AnimePlanet = params.Id
+			case "imdb":
+				response.Mappings.IMDB = params.Id
+			case "kitsu":
+				response.Mappings.Kitsu = idInt
+			case "livechart":
+				response.Mappings.LiveChart = idInt
+			case "mal":
+				response.Mappings.MAL = idInt
+			case "notifymoe":
+				response.Mappings.NotifyMoe = params.Id
+			case "themoviedb":
+				response.Mappings.TMDB = params.Id
+			case "thetvdb":
+				response.Mappings.TVDB = idInt
+			}
+			return &response, nil
+		}
 		return nil, errors.Join(core.NewAPIError("failed to get mappings"), err)
 	}
 	return &response, nil
