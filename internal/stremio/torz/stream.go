@@ -217,7 +217,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			}
 			stream.URL = steamUrl.String()
 			cachedStreams = append(cachedStreams, *stream)
-		} else {
+		} else if !ud.CachedOnly {
 			stores := ud.GetStores()
 			for i := range stores {
 				s := &stores[i]
