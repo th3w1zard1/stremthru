@@ -37,6 +37,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	endpoint.AddRootEndpoint(mux)
+	endpoint.AddAuthEndpoints(mux)
 	endpoint.AddHealthEndpoints(mux)
 	endpoint.AddProxyEndpoints(mux)
 	endpoint.AddStoreEndpoints(mux)

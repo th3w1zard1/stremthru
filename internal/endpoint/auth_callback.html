@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%2210 0 100 100%22><text y=%22.90em%22 font-size=%2290%22>✨</text></svg>"></link>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <title>{{.Title}}</title>
+    <meta name="description" content="✨ Companion for Stremio ✨" />
+
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 48px;
+      }
+
+      .container {
+        max-width: 500px;
+      }
+
+      .text-center {
+        text-align: center;
+      }
+    </style>
+  </head>
+
+  <body class="container">
+    <header class="text-center">
+      <h3>
+        {{.Title}}
+        <small>
+          <sup>v{{.Version}}</sup>
+        </small>
+      </h3>
+      <div>
+        <p>✨ Companion for Stremio ✨</p>
+      </div>
+    </header>
+
+    <main class="text-center">
+      <h2>{{.Provider}} Auth Code</h2>
+
+      {{if eq .Error ""}}
+      <pre style="font-size: 1rem; padding: 1rem 0;"><code id="auth_code" style="padding: 0;">{{.Code}}</code></pre>
+      <button type="button" onclick="navigator.clipboard.writeText(document.querySelector('code#auth_code').innerText);">
+        Copy
+      </button>
+      {{else}}
+      <span style="color: var(--pico-del-color);">
+        {{.Error}}
+      </span>
+      {{end}}
+      
+    </main>
+
+    <footer>
+      <section class="text-center">
+        <small>
+          <a href="https://github.com/MunifTanjim/stremthru" class="secondary" target="_blank">⭐️ GitHub</a>
+          ·
+          <a href="https://buymeacoffee.com/muniftanjim" class="secondary" target="_blank">💜 Donate</a>
+        </small>
+      </section>
+    </footer>
+  </body>
+</html>

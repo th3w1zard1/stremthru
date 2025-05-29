@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql/driver"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -100,5 +101,36 @@ func (nv *NullString) Scan(value any) error {
 	default:
 		return errors.New("failed to convert value")
 	}
+	return nil
+}
+
+type CommaSeperatedString []string
+
+func (css CommaSeperatedString) Value() (driver.Value, error) {
+	if len(css) == 0 {
+		return "", nil
+	}
+	return "," + strings.Join(css, ",") + ",", nil
+}
+
+func (css *CommaSeperatedString) Scan(value any) error {
+	if value == nil {
+		*css = []string{}
+		return nil
+	}
+	var str string
+	switch v := value.(type) {
+	case string:
+		str = v
+	case []byte:
+		str = string(v)
+	default:
+		return errors.New("failed to convert value to string")
+	}
+	if str == "" {
+		*css = []string{}
+		return nil
+	}
+	*css = strings.Split(strings.Trim(str, ","), ",")
 	return nil
 }

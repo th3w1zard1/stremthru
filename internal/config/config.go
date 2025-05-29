@@ -47,6 +47,7 @@ var defaultValueByEnv = map[string]map[string]string{
 		"STREMTHRU_DATA_DIR": os.TempDir(),
 	},
 	"": {
+		"STREMTHRU_BASE_URL":                       "http://localhost:8080",
 		"STREMTHRU_CONTENT_PROXY_CONNECTION_LIMIT": "*:0",
 		"STREMTHRU_DATABASE_URI":                   "sqlite://./data/stremthru.db",
 		"STREMTHRU_DATA_DIR":                       "./data",
@@ -617,6 +618,9 @@ func PrintConfig(state *AppState) {
 	}
 	l.Println()
 
+	l.Printf("   Base URL: %s\n", BaseURL.String())
+	l.Println()
+
 	if !IsPublicInstance {
 		l.Println(" Users:")
 		for user := range ProxyAuthPassword {
@@ -725,6 +729,29 @@ func PrintConfig(state *AppState) {
 			disabled = " (disabled)"
 		}
 		l.Println("   - " + feature + disabled)
+	}
+	l.Println()
+
+	l.Println(" Integrations:")
+	for _, integration := range []string{"anilist.co", "trakt.tv"} {
+		switch integration {
+		case "anilist.co":
+			disabled := ""
+			if !Feature.IsEnabled(FeatureAnime) {
+				disabled = " (disabled)"
+			}
+			l.Println("   - " + integration + disabled)
+		case "trakt.tv":
+			disabled := ""
+			if !Integration.Trakt.IsEnabled() {
+				disabled = " (disabled)"
+			}
+			l.Println("   - " + integration + disabled)
+			if disabled == "" {
+				l.Println("           client_id: " + Integration.Trakt.ClientId[0:3] + "..." + Integration.Trakt.ClientId[len(Integration.Trakt.ClientId)-3:])
+				l.Println("       client_secret: " + Integration.Trakt.ClientSecret[0:3] + "..." + Integration.Trakt.ClientSecret[len(Integration.Trakt.ClientSecret)-3:])
+			}
+		}
 	}
 	l.Println()
 
