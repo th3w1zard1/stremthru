@@ -22,6 +22,8 @@ WORKDIR /app
 
 COPY --from=builder /workspace/stremthru ./stremthru
 
+RUN mkdir -p /app/data
+
 VOLUME ["/app/data"]
 
 EXPOSE 8080
