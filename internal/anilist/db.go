@@ -360,7 +360,7 @@ var query_upsert_list = fmt.Sprintf(
 	db.CurrentTimestamp,
 )
 
-func UpsertList(list *AniListList) error {
+func UpsertList(list *AniListList) (err error) {
 	tx, err := db.Begin()
 	if err != nil {
 		return err

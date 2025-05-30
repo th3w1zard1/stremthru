@@ -3,6 +3,7 @@ package anilist
 import (
 	"errors"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/anime"
@@ -119,7 +120,12 @@ func ScheduleIdMapSync(medias []AniListMedia) {
 	}
 }
 
+var listFetchMutex sync.Mutex
+
 func (l *AniListList) Fetch() error {
+	listFetchMutex.Lock()
+	defer listFetchMutex.Unlock()
+
 	isMissing := false
 
 	listCacheKey := l.Id
