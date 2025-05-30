@@ -14,6 +14,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/imdb_title"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
 	"github.com/MunifTanjim/stremthru/internal/shared"
+	"github.com/MunifTanjim/stremthru/internal/trakt"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
 
@@ -105,7 +106,7 @@ func getIMDBMetaFromMDBList(imdbIds []string, mdblistAPIKey string) (map[string]
 		byId[meta.TId] = meta
 	}
 
-	go imdb_title.BulkRecordMappingFromMDBList(newMappings)
+	go imdb_title.BulkRecordMapping(newMappings)
 	if err = imdb_title.UpsertMetas(newMetas); err != nil {
 		return nil, err
 	}
@@ -163,6 +164,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 			}
 			catalogItems = append(catalogItems, catalogItem{meta, *media})
 		}
+
 	case "mdblist":
 		id, err := strconv.Atoi(id)
 		if err != nil {
@@ -194,6 +196,47 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 			}
 			catalogItems = append(catalogItems, catalogItem{meta, item})
 		}
+
+	case "trakt":
+		list := trakt.TraktList{Id: id}
+		if err := ud.FetchTraktList(&list); err != nil {
+			SendError(w, r, err)
+			return
+		}
+
+		for i := range list.Items {
+			item := &list.Items[i]
+			meta := stremio.MetaPreview{
+				Name:        item.Title,
+				Description: item.Overview,
+				Poster:      item.Poster,
+				PosterShape: stremio.MetaPosterShapePoster,
+				Genres:      item.Genres,
+				ReleaseInfo: strconv.Itoa(item.Year),
+				IMDBRating:  strconv.FormatFloat(float64(item.Rating)/10, 'f', 1, 32),
+			}
+			switch item.Type {
+			case trakt.ItemTypeMovie:
+				meta.Type = stremio.ContentTypeMovie
+			case trakt.ItemTypeShow:
+				meta.Type = stremio.ContentTypeSeries
+			default:
+				continue
+			}
+			if meta.Poster != "" {
+				meta.Poster = "https://" + meta.Poster
+			}
+			if item.Trailer != "" {
+				if trailer, err := url.Parse(item.Trailer); err == nil && trailer.Host == "youtube.com" {
+					meta.Trailers = append(meta.Trailers, stremio.MetaTrailer{
+						Source: trailer.Query().Get("v"),
+						Type:   "Trailer",
+					})
+				}
+			}
+			catalogItems = append(catalogItems, catalogItem{meta, item})
+		}
+
 	default:
 		shared.ErrorBadRequest(r, "invalid id").Send(w, r)
 		return
@@ -245,6 +288,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 
 			items = append(items, item.MetaPreview)
 		}
+
 	case "mdblist":
 		imdbIds := []string{}
 		for i := range catalogItems {
@@ -272,6 +316,35 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 					})
 				}
 			}
+			items = append(items, item.MetaPreview)
+		}
+
+	case "trakt":
+		traktIds := make([]string, len(catalogItems))
+		for i := range catalogItems {
+			item := &catalogItems[i]
+			traktIds[i] = strconv.Itoa(item.item.(*trakt.TraktItem).Id)
+		}
+
+		imdbIdByTraktId, err := imdb_title.GetIMDBIdByTraktId(traktIds)
+		if err != nil {
+			SendError(w, r, err)
+			return
+		}
+
+		for i := range catalogItems {
+			item := &catalogItems[i]
+			traktId := traktIds[i]
+			if imdbId, ok := imdbIdByTraktId[traktId]; ok {
+				item.MetaPreview.Id = imdbId
+
+				if rpdbPosterBaseUrl != "" {
+					item.MetaPreview.Poster = rpdbPosterBaseUrl + imdbId + ".jpg?fallback=true"
+				}
+			} else {
+				continue
+			}
+
 			items = append(items, item.MetaPreview)
 		}
 	}

@@ -82,8 +82,8 @@ func NewAPIClient(conf *APIClientConfig) *APIClient {
 type Ctx = request.Ctx
 
 type ResponseError struct {
-	Err     string `json:"error"`
-	ErrDesc string `json:"error_description"`
+	Err     string `json:"error,omitempty"`
+	ErrDesc string `json:"error_description,omitempty"`
 }
 
 func (e *ResponseError) Error() string {

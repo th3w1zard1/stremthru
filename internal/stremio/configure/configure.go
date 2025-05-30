@@ -11,6 +11,7 @@ import (
 type ConfigType string
 
 const (
+	ConfigTypeHidden   ConfigType = "hidden"
 	ConfigTypeText     ConfigType = "text"
 	ConfigTypeNumber   ConfigType = "number"
 	ConfigTypePassword ConfigType = "password"
@@ -38,6 +39,8 @@ type Config struct {
 	Title        string
 	Description  template.HTML
 	Options      []ConfigOption
+	Disabled     bool
+	Hidden       bool
 	Required     bool
 	Autocomplete string
 	Error        string

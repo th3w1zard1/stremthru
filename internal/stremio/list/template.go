@@ -9,14 +9,18 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/anilist"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
+	"github.com/MunifTanjim/stremthru/internal/oauth"
 	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
 	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 	stremio_template "github.com/MunifTanjim/stremthru/internal/stremio/template"
 	stremio_userdata "github.com/MunifTanjim/stremthru/internal/stremio/userdata"
+	"github.com/MunifTanjim/stremthru/internal/trakt"
+	"github.com/google/uuid"
 )
 
 var IsPublicInstance = config.IsPublicInstance
 var MaxPublicInstanceListCount = 5
+var TraktEnabled = config.Integration.Trakt.IsEnabled()
 
 type Base = stremio_template.BaseData
 
@@ -40,6 +44,9 @@ type TemplateData struct {
 
 	RPDBAPIKey configure.Config
 
+	TraktEnabled bool
+	TraktTokenId configure.Config
+
 	Shuffle configure.Config
 
 	ManifestURL string
@@ -53,16 +60,16 @@ type TemplateData struct {
 }
 
 func (td *TemplateData) HasListError() bool {
-	if len(td.Lists) > 0 {
-		if td.MDBListAPIKey.Error != "" {
+	if len(td.Lists) == 0 {
+		return true
+	}
+	for i := range td.Lists {
+		if td.Lists[i].Error.URL != "" {
 			return true
 		}
-
-		for i := range td.Lists {
-			if td.Lists[i].Error.URL != "" {
-				return true
-			}
-		}
+	}
+	if td.MDBListAPIKey.Error != "" {
+		return true
 	}
 	return false
 }
@@ -99,11 +106,31 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 			Description:  `Rating Poster Database <a href="https://ratingposterdb.com/api-key/" target="blank">API Key</a>`,
 			Autocomplete: "off",
 		},
+		TraktEnabled: TraktEnabled,
+		TraktTokenId: configure.Config{
+			Key:     "trakt_token_id",
+			Title:   "Auth Code",
+			Type:    configure.ConfigTypePassword,
+			Default: ud.TraktTokenId,
+			Error:   udError.trakt_token_id,
+			Action: configure.ConfigAction{
+				Visible: ud.TraktTokenId == "",
+				Label:   "Authorize",
+				OnClick: template.JS(`window.open("` + oauth.TraktOAuthConfig.AuthCodeURL(uuid.NewString()) + `", "_blank")`),
+			},
+		},
 		Shuffle: configure.Config{
 			Key:   "shuffle",
 			Type:  configure.ConfigTypeCheckbox,
 			Title: "Shuffle List Items",
 		},
+		Script: ``,
+	}
+
+	if TraktEnabled {
+		if ud.traktToken != nil {
+			td.TraktTokenId.Title += " (" + ud.traktToken.UserName + ")"
+		}
 	}
 
 	if ud.Shuffle {
@@ -148,6 +175,15 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 					}
 					l := mdblist.MDBListList{Id: lId}
 					if err := ud.FetchMDBListList(&l); err != nil {
+						log.Error("failed to fetch list", "error", err, "id", listId)
+						list.Error.URL = "Failed to Fetch List: " + err.Error()
+					} else {
+						list.URL = l.GetURL()
+					}
+
+				case "trakt":
+					l := trakt.TraktList{Id: id}
+					if err := ud.FetchTraktList(&l); err != nil {
 						log.Error("failed to fetch list", "error", err, "id", listId)
 						list.Error.URL = "Failed to Fetch List: " + err.Error()
 					} else {

@@ -95,3 +95,20 @@ func (c APIClient) RetrieveSettings(params *RetrieveSettingsParams) (APIResponse
 	res, err := c.Request("GET", "/users/settings", params, &response)
 	return newAPIResponse(res, response), err
 }
+
+type FetchPersonalListData struct {
+	ResponseError
+	List
+}
+
+type FetchPersonalListParams struct {
+	Ctx
+	UserId string
+	ListId string
+}
+
+func (c APIClient) FetchPersonalList(params *FetchPersonalListParams) (APIResponse[List], error) {
+	response := FetchPersonalListData{}
+	res, err := c.Request("GET", "/users/"+params.UserId+"/lists/"+params.ListId, params, &response)
+	return newAPIResponse(res, response.List), err
+}

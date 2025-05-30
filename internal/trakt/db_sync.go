@@ -1,0 +1,215 @@
+package trakt
+
+import (
+	"errors"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/MunifTanjim/stremthru/internal/cache"
+	"github.com/MunifTanjim/stremthru/internal/config"
+)
+
+var listCache = cache.NewCache[TraktList](&cache.CacheConfig{
+	Lifetime:      6 * time.Hour,
+	Name:          "trakt:list",
+	LocalCapacity: 1024,
+})
+
+var listIdBySlugCache = cache.NewCache[string](&cache.CacheConfig{
+	Lifetime:      12 * time.Hour,
+	Name:          "trakt:list-id-by-slug",
+	LocalCapacity: 2048,
+})
+
+func (l *TraktList) Fetch(tokenId string) error {
+	isMissing := false
+
+	listCacheKey := l.Id
+	if l.Id == "" {
+		if l.UserId == "" || l.Slug == "" {
+			return errors.New("either id, or user_id and slug must be provided")
+		}
+		listIdBySlugCacheKey := l.UserId + "/" + l.Slug
+		if !listIdBySlugCache.Get(listIdBySlugCacheKey, &l.Id) {
+			if listId, err := GetListIdBySlug(l.UserId, l.Slug); err != nil {
+				return err
+			} else if listId == "" {
+				isMissing = true
+			} else {
+				l.Id = listId
+				log.Debug("found list id by slug", "id", l.Id, "slug", l.UserId+"/"+l.Slug)
+				listIdBySlugCache.Add(listIdBySlugCacheKey, l.Id)
+			}
+		}
+	}
+
+	if !isMissing {
+		var cachedL TraktList
+		if !listCache.Get(listCacheKey, &cachedL) {
+			if list, err := GetListById(l.Id); err != nil {
+				return err
+			} else if list == nil {
+				isMissing = true
+			} else {
+				*l = *list
+				log.Debug("found list by id", "id", l.Id, "is_stale", l.IsStale())
+				listCache.Add(listCacheKey, *l)
+			}
+		} else {
+			*l = cachedL
+		}
+	}
+
+	if !isMissing && !l.IsStale() {
+		return nil
+	}
+
+	client := GetAPIClient(tokenId)
+
+	var list *List
+	if strings.HasPrefix(l.Id, "~:") {
+		log.Debug("fetching dynamic list by id", "id", l.Id)
+		meta := GetDynamicListMeta(l.Id)
+		if meta == nil {
+			return errors.New("invalid id")
+		}
+		now := time.Now()
+		slug := strings.TrimPrefix(l.Id, "~:")
+		list = &List{
+			Name:      meta.Name,
+			Privacy:   "public",
+			ShareLink: "https://trakt.tv/" + slug,
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+		list.Ids.Slug = slug
+	} else if l.Id != "" {
+		log.Debug("fetching list by id", "id", l.Id)
+		listId, _ := strconv.Atoi(l.Id)
+		res, err := client.FetchList(&FetchListParams{
+			ListId: listId,
+		})
+		if err != nil {
+			return err
+		}
+		list = &res.Data
+	} else if l.UserId != "" && l.Slug != "" {
+		log.Debug("fetching list by slug", "slug", l.UserId+"/"+l.Slug)
+		res, err := client.FetchPersonalList(&FetchPersonalListParams{
+			UserId: l.UserId,
+			ListId: l.Slug,
+		})
+		if err != nil {
+			return err
+		}
+		list = &res.Data
+	} else {
+		return errors.New("either id, or user_id and slug must be provided")
+	}
+
+	if list == nil {
+		return errors.New("list not found")
+	}
+
+	if list.Privacy != "public" && config.IsPublicInstance {
+		return errors.New("private list not supported on public instance")
+	}
+
+	if list.Ids.Trakt == 0 {
+		l.Id = "~:" + list.Ids.Slug
+	} else {
+		l.Id = strconv.Itoa(list.Ids.Trakt)
+	}
+	l.UserId = list.User.Ids.Slug
+	l.UserName = list.User.Name
+	l.Slug = list.User.Name
+	l.Name = list.Name
+	l.Slug = list.Ids.Slug
+	l.Description = list.Description
+	l.Private = list.Privacy != "public"
+	l.Likes = list.Likes
+	l.Items = nil
+
+	log.Debug("fetching list items", "id", l.Id)
+	var res APIResponse[FetchListItemsData]
+	var err error
+	if strings.HasPrefix(l.Id, "~:") {
+		res, err = client.fetchDynamicListItems(&fetchDynamicListItemsParams{
+			id: l.Id,
+		})
+	} else {
+		res, err = client.FetchListItems(&FetchListItemsParams{
+			ListId:   list.Ids.Trakt,
+			Extended: "full,images",
+		})
+	}
+	if err != nil {
+		return err
+	}
+	seenMap := map[int]struct{}{}
+	for i := range res.Data {
+		item := &res.Data[i]
+
+		var data listItemCommon
+		switch item.Type {
+		case ItemTypeMovie:
+			data = item.Movie.listItemCommon
+		case ItemTypeShow:
+			data = item.Show.listItemCommon
+		case ItemTypeEpisode, ItemTypeSeason:
+			if item.Show == nil {
+				continue
+			}
+			data = item.Show.listItemCommon
+		default:
+			continue
+		}
+
+		if _, seen := seenMap[data.Ids.Trakt]; seen {
+			continue
+		}
+		seenMap[data.Ids.Trakt] = struct{}{}
+
+		lItem := TraktItem{
+			Id:        data.Ids.Trakt,
+			Type:      item.Type,
+			Title:     data.Title,
+			Year:      data.Year,
+			Overview:  data.Overview,
+			Runtime:   data.Runtime,
+			Trailer:   data.Trailer,
+			Rating:    int(data.Rating * 10),
+			MPARating: data.Certification,
+
+			Idx:    i,
+			Genres: data.Genres,
+			Ids:    data.Ids,
+		}
+
+		switch lItem.Type {
+		case ItemTypeEpisode, ItemTypeSeason:
+			lItem.Type = ItemTypeShow
+		}
+
+		if len(data.Images.Poster) > 0 {
+			lItem.Poster = data.Images.Poster[0]
+		}
+
+		if len(data.Images.Fanart) > 0 {
+			lItem.Fanart = data.Images.Fanart[0]
+		}
+
+		l.Items = append(l.Items, lItem)
+	}
+
+	if err := UpsertList(l); err != nil {
+		return err
+	}
+
+	if err := listCache.Add(listCacheKey, *l); err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -44,7 +44,7 @@ var TraktTokenSourceConfig = TokenSourceConfig{
 			User struct {
 				Username string `json:"username"`
 				Ids      struct {
-					UUID string `json:"uuid"`
+					Slug string `json:"slug"`
 				} `json:"ids"`
 			} `json:"user"`
 		}
@@ -53,7 +53,7 @@ var TraktTokenSourceConfig = TokenSourceConfig{
 			return "", "", err
 		}
 
-		return response.User.Ids.UUID, response.User.Username, nil
+		return response.User.Ids.Slug, response.User.Username, nil
 	},
 	PrepareToken: func(tok *oauth2.Token, id, userId string, userName string) *oauth2.Token {
 		return tok.WithExtra(map[string]any{

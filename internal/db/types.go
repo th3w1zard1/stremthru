@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -133,4 +134,23 @@ func (css *CommaSeperatedString) Scan(value any) error {
 	}
 	*css = strings.Split(strings.Trim(str, ","), ",")
 	return nil
+}
+
+type JSONStringList []string
+
+func (list JSONStringList) Value() (driver.Value, error) {
+	return json.Marshal(list)
+}
+
+func (list *JSONStringList) Scan(value any) error {
+	var bytes []byte
+	switch v := value.(type) {
+	case string:
+		bytes = []byte(v)
+	case []byte:
+		bytes = v
+	default:
+		return errors.New("failed to convert value to []byte")
+	}
+	return json.Unmarshal(bytes, list)
 }

@@ -9,7 +9,9 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/anilist"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
+	"github.com/MunifTanjim/stremthru/internal/oauth"
 	stremio_userdata "github.com/MunifTanjim/stremthru/internal/stremio/userdata"
+	"github.com/MunifTanjim/stremthru/internal/trakt"
 )
 
 type UserData struct {
@@ -18,8 +20,12 @@ type UserData struct {
 	list_urls    []string `json:"-"`
 	MDBListLists []int    `json:"mdblist_lists,omitempty"` // deprecated
 
-	MDBListAPIkey string `json:"mdblist_api_key"`
-	RPDBAPIKey    string `json:"rpdb_api_key,omitempty"`
+	MDBListAPIkey string `json:"mdblist_api_key,omitempty"`
+
+	TraktTokenId string            `json:"trakt_token_id,omitempty"`
+	traktToken   *oauth.OAuthToken `json:"-"`
+
+	RPDBAPIKey string `json:"rpdb_api_key,omitempty"`
 
 	Shuffle bool `json:"shuffle,omitempty"`
 
@@ -27,6 +33,7 @@ type UserData struct {
 
 	mdblistById map[int]mdblist.MDBListList    `json:"-"`
 	anilistById map[string]anilist.AniListList `json:"-"`
+	traktById   map[string]trakt.TraktList     `json:"-"`
 }
 
 var udManager = stremio_userdata.NewManager[UserData](&stremio_userdata.ManagerConfig{
@@ -53,7 +60,8 @@ type userDataError struct {
 	mdblist struct {
 		api_key string
 	}
-	list_urls []string
+	list_urls      []string
+	trakt_token_id string
 }
 
 func (uderr userDataError) HasError() bool {
@@ -112,7 +120,10 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 			return nil, err
 		}
 
+		udErr := userDataError{}
+
 		ud.MDBListAPIkey = r.Form.Get("mdblist_api_key")
+		ud.TraktTokenId = r.Form.Get("trakt_token_id")
 
 		lists_length := 0
 		if v := r.Form.Get("lists_length"); v != "" {
@@ -129,14 +140,40 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 
 		isMDBListEnabled := ud.MDBListAPIkey != ""
 		isAniListEnabled := config.Feature.IsEnabled("anime")
+		isTraktTvConfigured := TraktEnabled && ud.TraktTokenId != ""
 
 		if isMDBListEnabled {
 			userParams := mdblist.GetMyLimitsParams{}
 			userParams.APIKey = ud.MDBListAPIkey
 			if _, userErr := mdblistClient.GetMyLimits(&userParams); userErr != nil {
-				err := userDataError{}
-				err.mdblist.api_key = "Invalid API Key: " + userErr.Error()
-				return ud, err
+				udErr.mdblist.api_key = "Invalid API Key: " + userErr.Error()
+			}
+		}
+
+		if isTraktTvConfigured {
+			otok, err := oauth.GetOAuthTokenById(ud.TraktTokenId)
+			if err != nil {
+				ud.TraktTokenId = ""
+				udErr.trakt_token_id = "Failed to retrieve token: " + err.Error()
+			} else if otok != nil && otok.IsExpired() {
+				traktClient := trakt.GetAPIClient(otok.Id)
+				settings, err := traktClient.RetrieveSettings(&trakt.RetrieveSettingsParams{})
+				if err != nil || settings.Data.User.Ids.Slug != otok.UserId {
+					otok.AccessToken = ""
+					otok.RefreshToken = ""
+					err = oauth.SaveOAuthToken(otok)
+					if err != nil {
+						log.Error("failed to delete trakt token", "error", err, "id", otok.Id)
+					}
+					otok = nil
+				}
+			}
+			if otok == nil {
+				ud.TraktTokenId = ""
+				udErr.trakt_token_id = "Invalid or Revoked"
+				isTraktTvConfigured = false
+			} else {
+				ud.traktToken = otok
 			}
 		}
 
@@ -146,7 +183,6 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 		}
 
 		ud.list_urls = make([]string, 0, lists_length)
-		udErr := userDataError{}
 		udErr.list_urls = make([]string, 0, lists_length)
 
 		idx := -1
@@ -245,6 +281,43 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 					continue
 				}
 				ud.Lists[idx] = "mdblist:" + strconv.Itoa(list.Id)
+
+			case "trakt.tv":
+				if !isTraktTvConfigured {
+					udErr.list_urls[idx] = "Trakt.tv Auth Code is required"
+					continue
+				}
+
+				list := trakt.TraktList{}
+				switch {
+				case strings.HasPrefix(listUrl.Path, "/users/"):
+					parts := strings.SplitN(strings.TrimPrefix(listUrl.Path, "/users/"), "/", 3)
+					if len(parts) != 3 || parts[1] != "lists" {
+						udErr.list_urls[idx] = "Invalid Trakt.tv URL"
+						continue
+					}
+					userId, slug := parts[0], parts[2]
+					if userId == "" || slug == "" {
+						udErr.list_urls[idx] = "Invalid Trakt.tv URL"
+						continue
+					}
+					list.UserId = userId
+					list.Slug = slug
+
+				case trakt.GetDynamicListMeta(listUrl.Path) != nil:
+					list.Id = "~:" + strings.TrimPrefix(listUrl.Path, "/")
+
+				default:
+					udErr.list_urls[idx] = "Unsupported Trakt.tv URL"
+				}
+
+				err := ud.FetchTraktList(&list)
+				if err != nil {
+					udErr.list_urls[idx] = "Failed to fetch List: " + err.Error()
+					continue
+				}
+				ud.Lists[idx] = "trakt:" + list.Id
+
 			default:
 				udErr.list_urls[idx] = "Unsupported List URL"
 			}
@@ -301,5 +374,23 @@ func (ud *UserData) FetchAniListList(list *anilist.AniListList, scheduleIdMapSyn
 	}
 
 	ud.anilistById[list.Id] = *list
+	return nil
+}
+
+func (ud *UserData) FetchTraktList(list *trakt.TraktList) error {
+	if ud.traktById == nil {
+		ud.traktById = map[string]trakt.TraktList{}
+	}
+	if list.Id != "" {
+		if l, ok := ud.traktById[list.Id]; ok {
+			*list = l
+			return nil
+		}
+	}
+	if err := list.Fetch(ud.TraktTokenId); err != nil {
+		return err
+	}
+
+	ud.traktById[list.Id] = *list
 	return nil
 }

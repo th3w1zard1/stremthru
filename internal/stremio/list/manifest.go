@@ -10,6 +10,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
 	"github.com/MunifTanjim/stremthru/internal/shared"
+	"github.com/MunifTanjim/stremthru/internal/trakt"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
 
@@ -90,6 +91,37 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 							Name: "skip",
 						},
 					},
+				}
+				if hasListNames {
+					if name := ud.ListNames[idx]; name != "" {
+						catalog.Name = name
+					}
+				}
+				catalogs = append(catalogs, catalog)
+
+			case "trakt":
+				list := trakt.TraktList{Id: idStr}
+				if err := list.Fetch(ud.TraktTokenId); err != nil {
+					return nil, err
+				}
+				catalog := stremio.Catalog{
+					Type: "other",
+					Id:   "st.list.trakt." + idStr,
+					Name: list.Name,
+					Extra: []stremio.CatalogExtra{
+						{
+							Name: "skip",
+						},
+					},
+				}
+				if strings.HasPrefix(idStr, "~:") {
+					meta := trakt.GetDynamicListMeta(idStr)
+					switch meta.ItemType {
+					case trakt.ItemTypeMovie:
+						catalog.Type = string(stremio.ContentTypeMovie)
+					case trakt.ItemTypeShow:
+						catalog.Type = string(stremio.ContentTypeSeries)
+					}
 				}
 				if hasListNames {
 					if name := ud.ListNames[idx]; name != "" {

@@ -158,7 +158,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ud.GetEncoded() != "" {
+	if ud.GetEncoded() != "" || IsMethod(r, http.MethodPost) {
 		if len(td.Lists) == 0 {
 			list := TemplateDataList{}
 			list.Error.URL = "Missing List URL"
