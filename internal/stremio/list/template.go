@@ -108,11 +108,12 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 		},
 		TraktEnabled: TraktEnabled,
 		TraktTokenId: configure.Config{
-			Key:     "trakt_token_id",
-			Title:   "Auth Code",
-			Type:    configure.ConfigTypePassword,
-			Default: ud.TraktTokenId,
-			Error:   udError.trakt_token_id,
+			Key:          "trakt_token_id",
+			Title:        "Auth Code",
+			Type:         configure.ConfigTypePassword,
+			Default:      ud.TraktTokenId,
+			Error:        udError.trakt_token_id,
+			Autocomplete: "off",
 			Action: configure.ConfigAction{
 				Visible: ud.TraktTokenId == "",
 				Label:   "Authorize",

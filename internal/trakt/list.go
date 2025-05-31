@@ -12,10 +12,19 @@ import (
 	"github.com/MunifTanjim/stremthru/core"
 )
 
+type ListPrivacy = string
+
+const (
+	ListPrivacyPublic  ListPrivacy = "public"
+	ListPrivacyFriends ListPrivacy = "friends"
+	ListPrivacyLink    ListPrivacy = "link"
+	ListPrivacyPrivate ListPrivacy = "private"
+)
+
 type List struct {
 	Name           string    `json:"name"`
 	Description    string    `json:"description"`
-	Privacy        string    `json:"privacy"` // public
+	Privacy        string    `json:"privacy"` // public / friends / link / private
 	ShareLink      string    `json:"share_link"`
 	Type           string    `json:"type"` // personal
 	DisplayNumbers bool      `json:"display_numbers"`
@@ -107,7 +116,7 @@ type ListItemMovie struct {
 	DuringCredits bool   `json:"during_credits,omitempty"`
 }
 
-type LitsItemShow struct {
+type ListItemShow struct {
 	listItemCommon
 	FirstAired *time.Time `json:"first_aired,omitempty"`
 	Airs       *struct {
@@ -135,17 +144,17 @@ type ListItem struct {
 	Note     string         `json:"note,omitempty"`
 	Type     ItemType       `json:"type"`
 	Movie    *ListItemMovie `json:"movie,omitempty"`
-	Show     *LitsItemShow  `json:"show,omitempty"`
+	Show     *ListItemShow  `json:"show,omitempty"`
 }
 
-type FetchListItemsData []ListItem
+type FetchListItemsData = []ListItem
 
-type fetchListItemsData struct {
+type listResponseData[T any] struct {
 	ResponseError
-	data FetchListItemsData
+	data []T
 }
 
-func (d *fetchListItemsData) UnmarshalJSON(data []byte) error {
+func (d *listResponseData[T]) UnmarshalJSON(data []byte) error {
 	var rerr ResponseError
 
 	if err := json.Unmarshal(data, &rerr); err == nil {
@@ -153,7 +162,7 @@ func (d *fetchListItemsData) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	var items FetchListItemsData
+	var items []T
 	err := json.Unmarshal(data, &items)
 	if err == nil {
 		d.data = items
@@ -180,7 +189,7 @@ func (c APIClient) FetchListItems(params *FetchListItemsParams) (APIResponse[Fet
 		params.Query.Set("extended", params.Extended)
 	}
 
-	response := fetchListItemsData{}
+	response := listResponseData[ListItem]{}
 	path := "/lists/" + strconv.Itoa(params.ListId) + "/items"
 	if len(params.Type) > 0 {
 		path += "/" + strings.Join(params.Type, ",")
@@ -198,12 +207,13 @@ func (c APIClient) FetchListItems(params *FetchListItemsParams) (APIResponse[Fet
 }
 
 type dynamicListMeta struct {
-	Endpoint     string
-	Name         string
-	NoPagination bool
-	HasPeriod    bool
-	ItemType     ItemType
-	Period       string
+	Endpoint       string
+	Name           string
+	NoPagination   bool
+	HasPeriod      bool
+	ItemType       ItemType
+	Period         string
+	IsUserSpecific bool
 }
 
 var dynamicListMetaById = map[string]dynamicListMeta{
@@ -239,6 +249,13 @@ var dynamicListMetaById = map[string]dynamicListMeta{
 		HasPeriod: true,
 		Name:      "Most Collected",
 		ItemType:  ItemTypeShow,
+	},
+	"shows/recommendations": {
+		Endpoint:       "/recommendations/shows",
+		NoPagination:   true,
+		Name:           "Recommended",
+		ItemType:       ItemTypeShow,
+		IsUserSpecific: true,
 	},
 	"movies/trending": {
 		Endpoint: "/movies/trending",
@@ -279,10 +296,19 @@ var dynamicListMetaById = map[string]dynamicListMeta{
 		Name:         "Weekend Box Office",
 		ItemType:     ItemTypeMovie,
 	},
+	"movies/recommendations": {
+		Endpoint:       "/recommendations/movies",
+		NoPagination:   true,
+		Name:           "Recommended",
+		ItemType:       ItemTypeMovie,
+		IsUserSpecific: true,
+	},
 }
 
+type FetchMovieRecommendationData []ListItemMovie
+
 func GetDynamicListMeta(id string) *dynamicListMeta {
-	id = strings.TrimPrefix(strings.TrimPrefix(id, "~:"), "/")
+	id = strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(id, "~:"), "u:"), "/")
 	parts := strings.Split(id, "/")
 	if len(parts) < 2 || len(parts) > 3 {
 		return nil
@@ -341,19 +367,50 @@ func (c APIClient) fetchDynamicListItems(params *fetchDynamicListItemsParams) (A
 		p.Query.Set("page", strconv.Itoa(page))
 		p.Query.Set("limit", strconv.Itoa(limit))
 
-		response := fetchListItemsData{}
-		res, err = c.Request("GET", path, p, &response)
-		if err != nil {
-			break
+		switch meta.Endpoint {
+		case dynamicListMetaById["movies/recommendations"].Endpoint:
+			response := listResponseData[ListItemMovie]{}
+			res, err = c.Request("GET", path, p, &response)
+			if err != nil {
+				break
+			}
+
+			for i := range response.data {
+				item := ListItem{}
+				item.Type = meta.ItemType
+				item.Movie = &response.data[i]
+				items = append(items, item)
+			}
+
+		case dynamicListMetaById["shows/recommendations"].Endpoint:
+			response := listResponseData[ListItemShow]{}
+			res, err = c.Request("GET", path, p, &response)
+			if err != nil {
+				break
+			}
+
+			for i := range response.data {
+				item := ListItem{}
+				item.Type = meta.ItemType
+				item.Show = &response.data[i]
+				items = append(items, item)
+			}
+
+		default:
+			response := listResponseData[ListItem]{}
+			res, err = c.Request("GET", path, p, &response)
+			if err != nil {
+				break
+			}
+
+			for i := range response.data {
+				item := &response.data[i]
+				item.Type = meta.ItemType
+				items = append(items, *item)
+			}
 		}
 
-		for i := range response.data {
-			item := &response.data[i]
-			item.Type = meta.ItemType
-			items = append(items, *item)
-		}
-
-		hasMore = page < maxPage && res.Header.Get("X-Pagination-Page") != res.Header.Get("X-Pagination-Page-Count")
+		hasMore = !meta.NoPagination && page < maxPage && res.Header.Get("X-Pagination-Page") != res.Header.Get("X-Pagination-Page-Count")
 		page++
 	}
 

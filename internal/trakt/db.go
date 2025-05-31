@@ -37,6 +37,14 @@ func (l *TraktList) GetURL() string {
 	return "https://trakt.tv/users/" + l.UserId + "/lists/" + l.Slug
 }
 
+func (l *TraktList) IsDynamic() bool {
+	return strings.HasPrefix(l.Id, "~:")
+}
+
+func (l *TraktList) IsUserSpecific() bool {
+	return strings.HasPrefix(l.Id, "~:u:")
+}
+
 func (l *TraktList) IsStale() bool {
 	return time.Now().After(l.UpdatedAt.Add(12 * time.Hour))
 }
@@ -337,34 +345,35 @@ func UpsertList(list *TraktList) (err error) {
 		err = errors.Join(tErr, err)
 	}()
 
-	_, err = tx.Exec(
-		query_upsert_list,
-		list.Id,
-		list.UserId,
-		list.UserName,
-		list.Name,
-		list.Slug,
-		list.Description,
-		list.Private,
-		list.Likes,
-	)
-	if err != nil {
-		println("A")
-		return err
+	if !list.Private {
+		_, err = tx.Exec(
+			query_upsert_list,
+			list.Id,
+			list.UserId,
+			list.UserName,
+			list.Name,
+			list.Slug,
+			list.Description,
+			list.Private,
+			list.Likes,
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	list.UpdatedAt = db.Timestamp{Time: time.Now()}
 
 	err = upsertItems(tx, list.Items)
 	if err != nil {
-		println("B")
 		return err
 	}
 
-	err = setListItems(tx, list.Id, list.Items)
-	if err != nil {
-		println("C")
-		return err
+	if !list.Private {
+		err = setListItems(tx, list.Id, list.Items)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -498,7 +507,6 @@ func setItemGenre(tx db.Executor, itemId int, itemType ItemType, genres []string
 	}
 
 	if _, err := tx.Exec(query, args...); err != nil {
-		println("Y")
 		return err
 	}
 

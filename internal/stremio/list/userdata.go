@@ -304,11 +304,18 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 					list.UserId = userId
 					list.Slug = slug
 
-				case trakt.GetDynamicListMeta(listUrl.Path) != nil:
-					list.Id = "~:" + strings.TrimPrefix(listUrl.Path, "/")
-
 				default:
-					udErr.list_urls[idx] = "Unsupported Trakt.tv URL"
+					meta := trakt.GetDynamicListMeta(listUrl.Path)
+					if meta == nil {
+						udErr.list_urls[idx] = "Unsupported Trakt.tv URL"
+						continue
+					}
+
+					prefix := "~:"
+					if meta.IsUserSpecific {
+						prefix += "u:"
+					}
+					list.Id = prefix + strings.TrimPrefix(listUrl.Path, "/")
 				}
 
 				err := ud.FetchTraktList(&list)
@@ -317,9 +324,6 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 					continue
 				}
 				ud.Lists[idx] = "trakt:" + list.Id
-
-			default:
-				udErr.list_urls[idx] = "Unsupported List URL"
 			}
 		}
 

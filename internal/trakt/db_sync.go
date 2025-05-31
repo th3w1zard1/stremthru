@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/cache"
-	"github.com/MunifTanjim/stremthru/internal/config"
 )
 
 var listCache = cache.NewCache[TraktList](&cache.CacheConfig{
@@ -25,7 +24,6 @@ var listIdBySlugCache = cache.NewCache[string](&cache.CacheConfig{
 func (l *TraktList) Fetch(tokenId string) error {
 	isMissing := false
 
-	listCacheKey := l.Id
 	if l.Id == "" {
 		if l.UserId == "" || l.Slug == "" {
 			return errors.New("either id, or user_id and slug must be provided")
@@ -44,17 +42,25 @@ func (l *TraktList) Fetch(tokenId string) error {
 		}
 	}
 
+	isDynamic, isUserSpecific := l.IsDynamic(), l.IsUserSpecific()
+
+	listCacheKey := l.Id
+	if isUserSpecific {
+		listCacheKey = tokenId + ":" + listCacheKey
+	}
 	if !isMissing {
 		var cachedL TraktList
 		if !listCache.Get(listCacheKey, &cachedL) {
-			if list, err := GetListById(l.Id); err != nil {
-				return err
-			} else if list == nil {
-				isMissing = true
-			} else {
-				*l = *list
-				log.Debug("found list by id", "id", l.Id, "is_stale", l.IsStale())
-				listCache.Add(listCacheKey, *l)
+			if !isUserSpecific {
+				if list, err := GetListById(l.Id); err != nil {
+					return err
+				} else if list == nil {
+					isMissing = true
+				} else {
+					*l = *list
+					log.Debug("found list by id", "id", l.Id, "is_stale", l.IsStale())
+					listCache.Add(listCacheKey, *l)
+				}
 			}
 		} else {
 			*l = cachedL
@@ -68,7 +74,7 @@ func (l *TraktList) Fetch(tokenId string) error {
 	client := GetAPIClient(tokenId)
 
 	var list *List
-	if strings.HasPrefix(l.Id, "~:") {
+	if isDynamic {
 		log.Debug("fetching dynamic list by id", "id", l.Id)
 		meta := GetDynamicListMeta(l.Id)
 		if meta == nil {
@@ -76,9 +82,14 @@ func (l *TraktList) Fetch(tokenId string) error {
 		}
 		now := time.Now()
 		slug := strings.TrimPrefix(l.Id, "~:")
+		privacy := ListPrivacyPublic
+		if isUserSpecific {
+			slug = strings.TrimPrefix(slug, "u:")
+			privacy = ListPrivacyPrivate
+		}
 		list = &List{
 			Name:      meta.Name,
-			Privacy:   "public",
+			Privacy:   privacy,
 			ShareLink: "https://trakt.tv/" + slug,
 			CreatedAt: now,
 			UpdatedAt: now,
@@ -112,12 +123,12 @@ func (l *TraktList) Fetch(tokenId string) error {
 		return errors.New("list not found")
 	}
 
-	if list.Privacy != "public" && config.IsPublicInstance {
-		return errors.New("private list not supported on public instance")
-	}
-
-	if list.Ids.Trakt == 0 {
-		l.Id = "~:" + list.Ids.Slug
+	if isDynamic {
+		prefix := "~:"
+		if isUserSpecific {
+			prefix += "u:"
+		}
+		l.Id = prefix + list.Ids.Slug
 	} else {
 		l.Id = strconv.Itoa(list.Ids.Trakt)
 	}
@@ -127,14 +138,14 @@ func (l *TraktList) Fetch(tokenId string) error {
 	l.Name = list.Name
 	l.Slug = list.Ids.Slug
 	l.Description = list.Description
-	l.Private = list.Privacy != "public"
+	l.Private = list.Privacy != ListPrivacyPublic
 	l.Likes = list.Likes
 	l.Items = nil
 
 	log.Debug("fetching list items", "id", l.Id)
 	var res APIResponse[FetchListItemsData]
 	var err error
-	if strings.HasPrefix(l.Id, "~:") {
+	if isDynamic {
 		res, err = client.fetchDynamicListItems(&fetchDynamicListItemsParams{
 			id: l.Id,
 		})
