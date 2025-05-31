@@ -71,6 +71,10 @@ sequenceDiagram
 
 Configuration is done using environment variables.
 
+#### `STREMTHRU_BASE_URL`
+
+Base URL for StremThru.
+
 #### `STREMTHRU_PORT`
 
 Port to listen on, default `8080`.
@@ -218,6 +222,20 @@ Comma separated list of features to enable/disable.
 
 Use `-` prefix to disable opt-out feature, and `+` prefix to enable opt-in feature.
 Otherwise only the specified features will be enabled.
+
+#### Trakt.tv Integration
+
+Trakt.tv integration needs an [OAuth App](https://trakt.tv/oauth/applications).
+
+The Redirect URI should point to the `/auth/trakt.tv/callback` endpoint of [`STREMTHRU_BASE_URL`](#stremthru_base_url).
+
+##### `STREMTHRU_INTEGRATION_TRAKT_CLIENT_ID`
+
+Client ID for Trakt.tv OAuth App.
+
+##### `STREMTHRU_INTEGRATION_TRAKT_CLIENT_SECRET`
+
+Client Secret for Trakt.tv OAuth App.
 
 ## Endpoints
 
