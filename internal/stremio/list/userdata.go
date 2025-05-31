@@ -126,6 +126,9 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 		ud.MDBListAPIkey = r.Form.Get("mdblist_api_key")
 		ud.TraktTokenId = r.Form.Get("trakt_token_id")
 
+		ud.RPDBAPIKey = r.Form.Get("rpdb_api_key")
+		ud.Shuffle = r.Form.Get("shuffle") == "on"
+
 		lists_length := 0
 		if v := r.Form.Get("lists_length"); v != "" {
 			if lists_length, err = strconv.Atoi(v); err != nil {
@@ -328,9 +331,6 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 		if udErr.HasError() {
 			return ud, udErr
 		}
-
-		ud.RPDBAPIKey = r.Form.Get("rpdb_api_key")
-		ud.Shuffle = r.Form.Get("shuffle") == "on"
 	}
 
 	if IsPublicInstance && len(ud.Lists) > MaxPublicInstanceListCount {
