@@ -40,10 +40,80 @@
 </div>
 {{end}}
 
+<div class="relative border border-dashed rounded-sm mb-4 p-4" style="border-color: gray">
+  <p class="mb-2">
+    Supported Services
+  </p>
+  <div class="mb-4">
+    {{range .SupportedServices}}
+    <button
+      class="outline secondary mr-2"
+      style="font-size: 0.75rem; padding: 0.25em 0.4rem;"
+      hx-ext="htmx-modal"
+      data-modal="#supported_service_modal"
+      data-modal-on-open="onOpenSupportedService"
+      data-name="{{.Name}}"
+      data-hostname="{{.Hostname}}"
+      data-urls="{{range .URLs}}{{.Pattern}}{{"\n"}}{{range .Examples}}{{.}}{{"\n"}}{{end}}{{"\n"}}{{end}}"
+    >
+      <img src="{{.Icon}}" height="16" width="16" />
+      {{.Hostname}}
+    </button>
+    {{end}}
+  </div>
+
+  <dialog id="supported_service_modal">
+    <article>
+      <header>
+        <button aria-label="Close" rel="prev" data-modal-close></button>
+        <h3>
+          <span id="supported_service_name"></span>
+        </h3>
+      </header>
+      <div>
+        <p>
+          <strong>Site: </strong><a id="supported_service_site" href="" target="_blank"></a>
+        </p>
+        <div>
+          <strong>Supported URLs</strong>
+          <ul id="supported_service_urls" class="p-1">
+            <li data-type="supported_service_url_template" style="display: none;">
+              <code data-field="pattern"></code>
+              <ul data-field="examples" class="p-1 ml-4"></ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </article>
+  </dialog>
+</div>
+
 <form
   id="configuration" action="configure" method="post" hx-boost="true"
   {{if .IsRedacted}}inert{{end}}
 >
+  <div id="mdblist" class="relative border border-dashed rounded-sm mb-4 p-4" style="border-color: gray">
+    <header class="w-full flex flex-row justify-between absolute px-4" style="top: -0.75rem; left: 0;">
+      <span class="px-2" style="background-color: var(--pico-background-color);">
+        MDBList
+      </span>
+    </header>
+
+    {{template "configure_config.html" .MDBListAPIKey}}
+  </div>
+
+  {{if .TraktEnabled}}
+  <div id="trakt" class="relative border border-dashed rounded-sm mb-4 p-4" style="border-color: gray">
+    <header class="w-full flex flex-row justify-between absolute px-4" style="top: -0.75rem; left: 0;">
+      <span class="px-2" style="background-color: var(--pico-background-color);">
+        Trakt.tv
+      </span>
+    </header>
+
+    {{template "configure_config.html" .TraktTokenId}}
+  </div>
+  {{end}}
+
   <div id="lists" class="relative border border-dashed rounded-sm mb-4 p-4" style="border-color: gray">
     <header class="w-full flex flex-row justify-between absolute px-4" style="top: -0.75rem; left: 0;">
       <span class="px-2" style="background-color: var(--pico-background-color);">
@@ -127,21 +197,15 @@
     </div>
   </div>
 
-  {{template "configure_config.html" .MDBListAPIKey}}
-
-  {{if .TraktEnabled}}
-  <div id="trakt" class="relative border border-dashed rounded-sm mb-4 p-4" style="border-color: gray">
+  <div id="rpdb" class="relative border border-dashed rounded-sm mb-4 p-4" style="border-color: gray">
     <header class="w-full flex flex-row justify-between absolute px-4" style="top: -0.75rem; left: 0;">
       <span class="px-2" style="background-color: var(--pico-background-color);">
-        Trakt.tv
+        RPDB
       </span>
     </header>
 
-    {{template "configure_config.html" .TraktTokenId}}
+    {{template "configure_config.html" .RPDBAPIKey}}
   </div>
-  {{end}}
-
-  {{template "configure_config.html" .RPDBAPIKey}}
 
   {{template "configure_config.html" .Shuffle}}
 
@@ -207,6 +271,44 @@
       onClose();
       htmx.trigger(trigger, "confirmed");
     }, { once: true });
+  }
+
+  function onOpenSupportedService(e, { modal, onClose, trigger }) {
+    modal.querySelector("#supported_service_name").textContent = trigger.dataset.name;
+
+    modal.querySelector("#supported_service_site").href = "https://" + trigger.dataset.hostname;
+    modal.querySelector("#supported_service_site").textContent = trigger.dataset.hostname;
+
+    const hostname = trigger.dataset.hostname;
+    const urls = decodeURIComponent(trigger.dataset.urls.trim()).split("\n\n").filter(Boolean).map((line) => {
+      const [pattern, ...examples] = line.split("\n");
+      return {
+        pattern: pattern,
+        examples: examples.length ? examples : [pattern],
+      };
+    });
+
+    const urlsList = modal.querySelector("ul#supported_service_urls");
+    urlsList.querySelectorAll(`[data-type="supported_service_url"]`).forEach((node) => {
+      node.parentNode.removeChild(node);
+    });
+
+    if (urls.length) {
+      const itemTemplate = urlsList.querySelector(`[data-type="supported_service_url_template"]`);
+      urls.forEach((url) => {
+        const item = itemTemplate.cloneNode(true);
+        item.style.display = "block";
+        item.dataset.type = "supported_service_url";
+
+        item.querySelector("[data-field='pattern']").textContent = url.pattern;
+        const examples = url.examples.map((example) => {
+          return `<li><a href="https://${hostname}${example}" target="_blank">${example}</a></li>`
+        }); 
+        item.querySelector("[data-field='examples']").innerHTML = examples.join("\n");
+
+        urlsList.appendChild(item);
+      });
+    }
   }
 
   function copyManifestUrl() {

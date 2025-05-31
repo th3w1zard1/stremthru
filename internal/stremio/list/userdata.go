@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/internal/anilist"
-	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
 	"github.com/MunifTanjim/stremthru/internal/oauth"
 	stremio_userdata "github.com/MunifTanjim/stremthru/internal/stremio/userdata"
@@ -140,7 +139,6 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 		}
 
 		isMDBListEnabled := ud.MDBListAPIkey != ""
-		isAniListEnabled := config.Feature.IsEnabled("anime")
 		isTraktTvConfigured := TraktEnabled && ud.TraktTokenId != ""
 
 		if isMDBListEnabled {
@@ -192,7 +190,7 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 
 			switch listUrl.Hostname() {
 			case "anilist.co":
-				if !isAniListEnabled {
+				if !AniListEnabled {
 					udErr.list_urls[idx] = "Unsupported List URL"
 					continue
 				}

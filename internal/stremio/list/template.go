@@ -21,6 +21,7 @@ import (
 var IsPublicInstance = config.IsPublicInstance
 var MaxPublicInstanceListCount = 5
 var TraktEnabled = config.Integration.Trakt.IsEnabled()
+var AniListEnabled = config.Feature.IsEnabled("anime")
 
 type Base = stremio_template.BaseData
 
@@ -31,6 +32,18 @@ type TemplateDataList struct {
 		URL  string
 		Name string
 	}
+}
+
+type supportedServiceUrl struct {
+	Pattern  string
+	Examples []string
+}
+
+type supportedService struct {
+	Name     string
+	Hostname string
+	Icon     string
+	URLs     []supportedServiceUrl
 }
 
 type TemplateData struct {
@@ -55,6 +68,8 @@ type TemplateData struct {
 	CanAuthorize bool
 	IsAuthed     bool
 	AuthError    string
+
+	SupportedServices []supportedService
 
 	stremio_userdata.TemplateDataUserData
 }
@@ -93,8 +108,8 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 			Key:          "mdblist_api_key",
 			Type:         "password",
 			Default:      ud.MDBListAPIkey,
-			Title:        "MDBList API Key",
-			Description:  `<a href="https://mdblist.com/preferences/#api_key_uid" target="_blank">API Key</a>`,
+			Title:        "API Key",
+			Description:  `MDBList <a href="https://mdblist.com/preferences/#api_key_uid" target="_blank">API Key</a>`,
 			Autocomplete: "off",
 			Error:        udError.mdblist.api_key,
 		},
@@ -102,7 +117,7 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 			Key:          "rpdb_api_key",
 			Type:         configure.ConfigTypePassword,
 			Default:      ud.RPDBAPIKey,
-			Title:        "RPDB API Key",
+			Title:        "API Key",
 			Description:  `Rating Poster Database <a href="https://ratingposterdb.com/api-key/" target="blank">API Key</a>`,
 			Autocomplete: "off",
 		},
@@ -123,7 +138,7 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 		Shuffle: configure.Config{
 			Key:   "shuffle",
 			Type:  configure.ConfigTypeCheckbox,
-			Title: "Shuffle List Items",
+			Title: "Shuffle Items for All Lists",
 		},
 		Script: ``,
 	}
@@ -231,6 +246,122 @@ var executeTemplate = func() stremio_template.Executor[TemplateData] {
 		td.CanAuthorize = !IsPublicInstance
 		td.CanAddList = td.IsAuthed || len(td.Lists) < MaxPublicInstanceListCount
 		td.CanRemoveList = len(td.Lists) > 1
+
+		td.SupportedServices = []supportedService{}
+		if AniListEnabled {
+			td.SupportedServices = append(td.SupportedServices, supportedService{
+				Name:     "AniList",
+				Hostname: "anilist.co",
+				Icon:     "https://anilist.co/img/icons/favicon-32x32.png",
+				URLs: []supportedServiceUrl{
+					{
+						Pattern:  "/user/{user_name}/animelist/{list_name}",
+						Examples: []string{"/user/Kyokino/animelist/Films"},
+					},
+					{Pattern: "/search/anime/trending"},
+					{Pattern: "/search/anime/this-season"},
+					{Pattern: "/search/anime/next-season"},
+					{Pattern: "/search/anime/popular"},
+					{Pattern: "/search/anime/top-100"},
+				},
+			})
+		}
+		td.SupportedServices = append(td.SupportedServices, supportedService{
+			Name:     "MDBList",
+			Hostname: "mdblist.com",
+			Icon:     "https://mdblist.com/static/favicon-32x32.png",
+			URLs: []supportedServiceUrl{
+				{
+					Pattern: "/?list={list_id}",
+					Examples: []string{
+						"/?list=14",
+					},
+				},
+				{
+					Pattern: "/lists/{user_name}/{list_slug}",
+					Examples: []string{
+						"/lists/garycrawfordgc/latest-tv-shows",
+					},
+				},
+			},
+		})
+		if TraktEnabled {
+			td.SupportedServices = append(td.SupportedServices, supportedService{
+				Name:     "Trakt.tv",
+				Hostname: "trakt.tv",
+				Icon:     "https://walter-r2.trakt.tv/hotlink-ok/public/2024/favicon.png",
+				URLs: []supportedServiceUrl{
+					{
+						Pattern: "/users/{user_slug}/favorites",
+						Examples: []string{
+							"/users/sean/favorites",
+						},
+					},
+					{
+						Pattern: "/users/{user_slug}/watchlist",
+						Examples: []string{
+							"/users/garycrawfordgc/watchlist",
+						},
+					},
+					{
+						Pattern: "/users/{user_slug}/lists/{list_slug}",
+						Examples: []string{
+							"/users/garycrawfordgc/lists/latest-releases",
+						},
+					},
+					{Pattern: "/movies/boxoffice"},
+					{
+						Pattern: "/{movies,shows}/anticipated",
+						Examples: []string{
+							"/movies/anticipated",
+							"/shows/anticipated",
+						},
+					},
+					{
+						Pattern: "/{movies,shows}/collected/{period}",
+						Examples: []string{
+							"/movies/collected/daily",
+							"/shows/collected/weekly",
+						},
+					},
+					{
+						Pattern: "/{movies,shows}/favorited/{period}",
+						Examples: []string{
+							"/movies/favorited/weekly",
+							"/shows/favorited/monthly",
+						},
+					},
+					{
+						Pattern: "/{movies,shows}/popular",
+						Examples: []string{
+							"/movies/popular",
+							"/shows/popular",
+						},
+					},
+					{
+						Pattern: "/{movies,shows}/recommendations",
+						Examples: []string{
+							"/movies/recommendations",
+							"/shows/recommendations",
+						},
+					},
+					{
+						Pattern: "/{movies,shows}/trending",
+						Examples: []string{
+							"/movies/trending",
+							"/shows/trending",
+						},
+					},
+					{
+						Pattern: "/{movies,shows}/watched/{period}",
+						Examples: []string{
+							"/movies/watched/monthly",
+							"/shows/watched/all",
+						},
+					},
+				},
+			})
+		}
 
 		if len(td.Lists) == 0 {
 			td.Lists = append(td.Lists, TemplateDataList{})
