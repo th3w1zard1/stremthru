@@ -30,23 +30,56 @@ type TraktList struct {
 	Items []TraktItem `json:"-"`
 }
 
+const ID_PREFIX_DYNAMIC = "~:"
+const ID_PREFIX_USER_FAVORITES = ID_PREFIX_DYNAMIC + "favorites:"
+const ID_PREFIX_USER_WATCHLIST = ID_PREFIX_DYNAMIC + "watchlist:"
+
+const ID_PREFIX_DYNAMIC_USER_SPECIFIC = ID_PREFIX_DYNAMIC + "u:"
+const USER_MOVIES_RECOMMENDATIONS_ID = ID_PREFIX_DYNAMIC_USER_SPECIFIC + "movies/recommendations"
+const USER_SHOWS_RECOMMENDATIONS_ID = ID_PREFIX_DYNAMIC_USER_SPECIFIC + "shows/recommendations"
+
 func (l *TraktList) GetURL() string {
-	if strings.HasPrefix(l.Id, "~:") {
-		return "https://trakt.tv/" + l.Slug
+	if !strings.HasPrefix(l.Id, ID_PREFIX_DYNAMIC) {
+		return "https://trakt.tv/users/" + l.UserId + "/lists/" + l.Slug
 	}
-	return "https://trakt.tv/users/" + l.UserId + "/lists/" + l.Slug
+
+	if l.IsStandard() {
+		slug, _, _ := strings.Cut(strings.TrimPrefix(l.Id, ID_PREFIX_DYNAMIC), ":")
+		return "https://trakt.tv/users/" + l.UserId + "/" + slug
+	}
+
+	return "https://trakt.tv/" + l.Slug
 }
 
 func (l *TraktList) IsDynamic() bool {
-	return strings.HasPrefix(l.Id, "~:")
+	return strings.HasPrefix(l.Id, ID_PREFIX_DYNAMIC)
 }
 
-func (l *TraktList) IsUserSpecific() bool {
-	return strings.HasPrefix(l.Id, "~:u:")
+func (l *TraktList) IsStandard() bool {
+	return strings.HasPrefix(l.Id, ID_PREFIX_USER_FAVORITES) ||
+		strings.HasPrefix(l.Id, ID_PREFIX_USER_WATCHLIST)
+}
+
+func (l *TraktList) IsUserRecommendations() bool {
+	return l.Id == USER_MOVIES_RECOMMENDATIONS_ID ||
+		l.Id == USER_SHOWS_RECOMMENDATIONS_ID
 }
 
 func (l *TraktList) IsStale() bool {
 	return time.Now().After(l.UpdatedAt.Add(12 * time.Hour))
+}
+
+func (l *TraktList) ShouldPersist() bool {
+	if !l.IsDynamic() {
+		return true
+	}
+	if l.IsUserRecommendations() {
+		return false
+	}
+	if l.IsStandard() {
+		return true
+	}
+	return !l.Private
 }
 
 var ListColumn = struct {
@@ -345,7 +378,7 @@ func UpsertList(list *TraktList) (err error) {
 		err = errors.Join(tErr, err)
 	}()
 
-	if !list.Private {
+	if list.ShouldPersist() {
 		_, err = tx.Exec(
 			query_upsert_list,
 			list.Id,
@@ -369,7 +402,7 @@ func UpsertList(list *TraktList) (err error) {
 		return err
 	}
 
-	if !list.Private {
+	if list.ShouldPersist() {
 		err = setListItems(tx, list.Id, list.Items)
 		if err != nil {
 			return err

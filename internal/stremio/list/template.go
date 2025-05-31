@@ -128,9 +128,12 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 		Script: ``,
 	}
 
-	if TraktEnabled {
-		if ud.traktToken != nil {
-			td.TraktTokenId.Title += " (" + ud.traktToken.UserName + ")"
+	if TraktEnabled && td.TraktTokenId.Error == "" {
+		otok, err := ud.getTraktToken()
+		if err != nil {
+			td.TraktTokenId.Error = err.Error()
+		} else if otok != nil {
+			td.TraktTokenId.Title += " (" + otok.UserName + ")"
 		}
 	}
 

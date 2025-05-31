@@ -207,13 +207,18 @@ func (c APIClient) FetchListItems(params *FetchListItemsParams) (APIResponse[Fet
 }
 
 type dynamicListMeta struct {
-	Endpoint       string
-	Name           string
-	NoPagination   bool
-	HasPeriod      bool
-	ItemType       ItemType
-	Period         string
-	IsUserSpecific bool
+	Endpoint string
+	Id       string
+	ItemType ItemType
+	Name     string
+	NoLimit  bool
+	NoPage   bool
+
+	HasPeriod bool
+	Period    string
+
+	HasUserId bool
+	UserId    string
 }
 
 var dynamicListMetaById = map[string]dynamicListMeta{
@@ -233,30 +238,31 @@ var dynamicListMetaById = map[string]dynamicListMeta{
 		ItemType: ItemTypeShow,
 	},
 	"shows/favorited": {
-		Endpoint:  "/shows/favorited",
+		Endpoint:  "/shows/favorited/{period}",
 		HasPeriod: true,
 		Name:      "Most Favorited",
 		ItemType:  ItemTypeShow,
 	},
 	"shows/watched": {
-		Endpoint:  "/shows/watched",
+		Endpoint:  "/shows/watched/{period}",
 		HasPeriod: true,
 		Name:      "Most Watched",
 		ItemType:  ItemTypeShow,
 	},
 	"shows/collected": {
-		Endpoint:  "/shows/collected",
+		Endpoint:  "/shows/collected/{period}",
 		HasPeriod: true,
 		Name:      "Most Collected",
 		ItemType:  ItemTypeShow,
 	},
 	"shows/recommendations": {
-		Endpoint:       "/recommendations/shows",
-		NoPagination:   true,
-		Name:           "Recommended",
-		ItemType:       ItemTypeShow,
-		IsUserSpecific: true,
+		Endpoint: "/recommendations/shows",
+		NoPage:   true,
+		Name:     "Recommended",
+		ItemType: ItemTypeShow,
+		Id:       USER_SHOWS_RECOMMENDATIONS_ID,
 	},
+
 	"movies/trending": {
 		Endpoint: "/movies/trending",
 		Name:     "Trending",
@@ -273,35 +279,50 @@ var dynamicListMetaById = map[string]dynamicListMeta{
 		ItemType: ItemTypeMovie,
 	},
 	"movies/favorited": {
-		Endpoint:  "/movies/favorited",
+		Endpoint:  "/movies/favorited/{period}",
 		HasPeriod: true,
 		Name:      "Most Favorited",
 		ItemType:  ItemTypeMovie,
 	},
 	"movies/watched": {
-		Endpoint:  "/movies/watched",
+		Endpoint:  "/movies/watched/{period}",
 		HasPeriod: true,
 		Name:      "Most Watched",
 		ItemType:  ItemTypeMovie,
 	},
 	"movies/collected": {
-		Endpoint:  "/movies/collected",
+		Endpoint:  "/movies/collected/{period}",
 		HasPeriod: true,
 		Name:      "Most Collected",
 		ItemType:  ItemTypeMovie,
 	},
 	"movies/boxoffice": {
-		Endpoint:     "/movies/boxoffice",
-		NoPagination: true,
-		Name:         "Weekend Box Office",
-		ItemType:     ItemTypeMovie,
+		Endpoint: "/movies/boxoffice",
+		NoPage:   true,
+		Name:     "Weekend Box Office",
+		ItemType: ItemTypeMovie,
 	},
 	"movies/recommendations": {
-		Endpoint:       "/recommendations/movies",
-		NoPagination:   true,
-		Name:           "Recommended",
-		ItemType:       ItemTypeMovie,
-		IsUserSpecific: true,
+		Endpoint: "/recommendations/movies",
+		NoPage:   true,
+		Name:     "Recommended",
+		ItemType: ItemTypeMovie,
+		Id:       USER_MOVIES_RECOMMENDATIONS_ID,
+	},
+
+	"favorites": {
+		Endpoint:  "/users/{user_id}/favorites",
+		NoPage:    true,
+		NoLimit:   true,
+		Name:      "Favorites",
+		HasUserId: true,
+	},
+	"watchlist": {
+		Endpoint:  "/users/{user_id}/watchlist",
+		NoPage:    true,
+		NoLimit:   true,
+		Name:      "Watchlist",
+		HasUserId: true,
 	},
 }
 
@@ -309,6 +330,25 @@ type FetchMovieRecommendationData []ListItemMovie
 
 func GetDynamicListMeta(id string) *dynamicListMeta {
 	id = strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(id, "~:"), "u:"), "/")
+
+	if strings.Contains(id, ":") {
+		parts := strings.Split(id, ":")
+
+		meta, ok := dynamicListMetaById[parts[0]]
+		if !ok {
+			return nil
+		}
+
+		if meta.HasUserId {
+			if len(parts) < 2 {
+				return nil
+			}
+			meta.UserId = parts[1]
+		}
+
+		return &meta
+	}
+
 	parts := strings.Split(id, "/")
 	if len(parts) < 2 || len(parts) > 3 {
 		return nil
@@ -349,7 +389,10 @@ func (c APIClient) fetchDynamicListItems(params *fetchDynamicListItemsParams) (A
 
 	path := meta.Endpoint
 	if meta.HasPeriod {
-		path += "/" + meta.Period
+		path = strings.Replace(path, "{period}", meta.Period, 1)
+	}
+	if meta.HasUserId {
+		path = strings.Replace(path, "{user_id}", meta.UserId, 1)
 	}
 
 	hasMore := true
@@ -364,8 +407,12 @@ func (c APIClient) fetchDynamicListItems(params *fetchDynamicListItemsParams) (A
 		p := Ctx{}
 		p.Query = &url.Values{}
 		p.Query.Set("extended", "full,images")
-		p.Query.Set("page", strconv.Itoa(page))
-		p.Query.Set("limit", strconv.Itoa(limit))
+		if !meta.NoPage {
+			p.Query.Set("page", strconv.Itoa(page))
+		}
+		if !meta.NoLimit {
+			p.Query.Set("limit", strconv.Itoa(limit))
+		}
 
 		switch meta.Endpoint {
 		case dynamicListMetaById["movies/recommendations"].Endpoint:
@@ -405,12 +452,14 @@ func (c APIClient) fetchDynamicListItems(params *fetchDynamicListItemsParams) (A
 
 			for i := range response.data {
 				item := &response.data[i]
-				item.Type = meta.ItemType
+				if meta.ItemType != "" {
+					item.Type = meta.ItemType
+				}
 				items = append(items, *item)
 			}
 		}
 
-		hasMore = !meta.NoPagination && page < maxPage && res.Header.Get("X-Pagination-Page") != res.Header.Get("X-Pagination-Page-Count")
+		hasMore = !meta.NoPage && page < maxPage && res.Header.Get("X-Pagination-Page") != res.Header.Get("X-Pagination-Page-Count")
 		page++
 	}
 

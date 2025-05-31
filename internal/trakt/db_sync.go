@@ -42,16 +42,16 @@ func (l *TraktList) Fetch(tokenId string) error {
 		}
 	}
 
-	isDynamic, isUserSpecific := l.IsDynamic(), l.IsUserSpecific()
+	isDynamic, isStandard, isUserRecommendations := l.IsDynamic(), l.IsStandard(), l.IsUserRecommendations()
 
 	listCacheKey := l.Id
-	if isUserSpecific {
+	if isUserRecommendations {
 		listCacheKey = tokenId + ":" + listCacheKey
 	}
 	if !isMissing {
 		var cachedL TraktList
 		if !listCache.Get(listCacheKey, &cachedL) {
-			if !isUserSpecific {
+			if !isUserRecommendations {
 				if list, err := GetListById(l.Id); err != nil {
 					return err
 				} else if list == nil {
@@ -83,16 +83,20 @@ func (l *TraktList) Fetch(tokenId string) error {
 		now := time.Now()
 		slug := strings.TrimPrefix(l.Id, "~:")
 		privacy := ListPrivacyPublic
-		if isUserSpecific {
+		if isStandard {
+			slug, _, _ = strings.Cut(slug, ":")
+		} else if isUserRecommendations {
 			slug = strings.TrimPrefix(slug, "u:")
 			privacy = ListPrivacyPrivate
 		}
 		list = &List{
 			Name:      meta.Name,
 			Privacy:   privacy,
-			ShareLink: "https://trakt.tv/" + slug,
 			CreatedAt: now,
 			UpdatedAt: now,
+		}
+		if meta.HasUserId {
+			list.User.Ids.Slug = meta.UserId
 		}
 		list.Ids.Slug = slug
 	} else if l.Id != "" {
@@ -123,13 +127,7 @@ func (l *TraktList) Fetch(tokenId string) error {
 		return errors.New("list not found")
 	}
 
-	if isDynamic {
-		prefix := "~:"
-		if isUserSpecific {
-			prefix += "u:"
-		}
-		l.Id = prefix + list.Ids.Slug
-	} else {
+	if l.Id == "" {
 		l.Id = strconv.Itoa(list.Ids.Trakt)
 	}
 	l.UserId = list.User.Ids.Slug

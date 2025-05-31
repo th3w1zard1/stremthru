@@ -114,8 +114,15 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 						},
 					},
 				}
-				if strings.HasPrefix(idStr, "~:") {
+				if list.IsDynamic() {
 					meta := trakt.GetDynamicListMeta(idStr)
+					otok, err := ud.getTraktToken()
+					if err != nil {
+						return nil, err
+					}
+					if meta.HasUserId && meta.UserId != otok.UserId {
+						catalog.Name = meta.UserId + " / " + catalog.Name
+					}
 					switch meta.ItemType {
 					case trakt.ItemTypeMovie:
 						catalog.Type = string(stremio.ContentTypeMovie)

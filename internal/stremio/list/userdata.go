@@ -1,6 +1,7 @@
 package stremio_list
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -151,30 +152,11 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 		}
 
 		if isTraktTvConfigured {
-			otok, err := oauth.GetOAuthTokenById(ud.TraktTokenId)
+			ud.traktToken, err = ud.getTraktToken()
 			if err != nil {
-				ud.TraktTokenId = ""
-				udErr.trakt_token_id = "Failed to retrieve token: " + err.Error()
-			} else if otok != nil && otok.IsExpired() {
-				traktClient := trakt.GetAPIClient(otok.Id)
-				settings, err := traktClient.RetrieveSettings(&trakt.RetrieveSettingsParams{})
-				if err != nil || settings.Data.User.Ids.Slug != otok.UserId {
-					otok.AccessToken = ""
-					otok.RefreshToken = ""
-					err = oauth.SaveOAuthToken(otok)
-					if err != nil {
-						log.Error("failed to delete trakt token", "error", err, "id", otok.Id)
-					}
-					otok = nil
-				}
+				udErr.trakt_token_id = err.Error()
 			}
-			if otok == nil {
-				ud.TraktTokenId = ""
-				udErr.trakt_token_id = "Invalid or Revoked"
-				isTraktTvConfigured = false
-			} else {
-				ud.traktToken = otok
-			}
+			isTraktTvConfigured = ud.TraktTokenId != ""
 		}
 
 		ud.Lists = make([]string, 0, lists_length)
@@ -292,17 +274,29 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 				switch {
 				case strings.HasPrefix(listUrl.Path, "/users/"):
 					parts := strings.SplitN(strings.TrimPrefix(listUrl.Path, "/users/"), "/", 3)
-					if len(parts) != 3 || parts[1] != "lists" {
-						udErr.list_urls[idx] = "Invalid Trakt.tv URL"
+					switch {
+					case len(parts) == 3 && parts[1] == "lists":
+						userSlug, listSlug := parts[0], parts[2]
+						if userSlug == "" || listSlug == "" {
+							udErr.list_urls[idx] = "Invalid Trakt.tv URL"
+							continue
+						}
+						list.UserId = userSlug
+						list.Slug = listSlug
+
+					case len(parts) == 2:
+						switch parts[1] {
+						case "collection", "favorites", "watchlist":
+							list.Id = "~:" + parts[1] + ":" + parts[0]
+							list.UserId = parts[0]
+						default:
+							udErr.list_urls[idx] = "Unsupported Trakt.tv URL"
+							continue
+						}
+					default:
+						udErr.list_urls[idx] = "Unsupported Trakt.tv URL"
 						continue
 					}
-					userId, slug := parts[0], parts[2]
-					if userId == "" || slug == "" {
-						udErr.list_urls[idx] = "Invalid Trakt.tv URL"
-						continue
-					}
-					list.UserId = userId
-					list.Slug = slug
 
 				default:
 					meta := trakt.GetDynamicListMeta(listUrl.Path)
@@ -311,11 +305,10 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 						continue
 					}
 
-					prefix := "~:"
-					if meta.IsUserSpecific {
-						prefix += "u:"
+					list.Id = meta.Id
+					if list.Id == "" {
+						list.Id = "~:" + strings.TrimPrefix(listUrl.Path, "/")
 					}
-					list.Id = prefix + strings.TrimPrefix(listUrl.Path, "/")
 				}
 
 				err := ud.FetchTraktList(&list)
@@ -340,6 +333,41 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 	}
 
 	return ud, nil
+}
+
+func (ud *UserData) getTraktToken() (*oauth.OAuthToken, error) {
+	if ud.TraktTokenId == "" {
+		return nil, nil
+	}
+
+	if ud.traktToken != nil {
+		return ud.traktToken, nil
+	}
+
+	otok, err := oauth.GetOAuthTokenById(ud.TraktTokenId)
+	if err != nil {
+		ud.TraktTokenId = ""
+		return nil, errors.New("failed to retrieve token: " + err.Error())
+	} else if otok != nil && otok.IsExpired() {
+		traktClient := trakt.GetAPIClient(otok.Id)
+		settings, err := traktClient.RetrieveSettings(&trakt.RetrieveSettingsParams{})
+		if err != nil || settings.Data.User.Ids.Slug != otok.UserId {
+			otok.AccessToken = ""
+			otok.RefreshToken = ""
+			err = oauth.SaveOAuthToken(otok)
+			if err != nil {
+				log.Error("failed to delete trakt token", "error", err, "id", otok.Id)
+			}
+			otok = nil
+		}
+	}
+	if otok == nil {
+		ud.TraktTokenId = ""
+		return nil, errors.New("Invalid or Revoked")
+	}
+
+	ud.traktToken = otok
+	return ud.traktToken, nil
 }
 
 func (ud *UserData) FetchMDBListList(list *mdblist.MDBListList) error {
