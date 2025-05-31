@@ -26,9 +26,10 @@ var AniListEnabled = config.Feature.IsEnabled("anime")
 type Base = stremio_template.BaseData
 
 type TemplateDataList struct {
-	URL   string
-	Name  string
-	Error struct {
+	URL     string
+	Name    string
+	Shuffle configure.Config
+	Error   struct {
 		URL  string
 		Name string
 	}
@@ -157,10 +158,20 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 	}
 
 	hasListNames := len(ud.ListNames) > 0
+	hasListShuffle := len(ud.ListShuffle) > 0
 	for i, listId := range ud.Lists {
-		list := TemplateDataList{}
+		list := TemplateDataList{
+			Shuffle: configure.Config{
+				Key:   "lists[" + strconv.Itoa(i) + "].shuffle",
+				Type:  configure.ConfigTypeCheckbox,
+				Title: "Shuffle Items",
+			},
+		}
 		if hasListNames {
 			list.Name = ud.ListNames[i]
+		}
+		if hasListShuffle && ud.ListShuffle[i] == 1 {
+			list.Shuffle.Default = "checked"
 		}
 		if len(ud.list_urls) > i {
 			list.URL = ud.list_urls[i]
@@ -364,7 +375,13 @@ var executeTemplate = func() stremio_template.Executor[TemplateData] {
 		}
 
 		if len(td.Lists) == 0 {
-			td.Lists = append(td.Lists, TemplateDataList{})
+			td.Lists = append(td.Lists, TemplateDataList{
+				Shuffle: configure.Config{
+					Key:   "lists[0].shuffle",
+					Type:  configure.ConfigTypeCheckbox,
+					Title: "Shuffle Items",
+				},
+			})
 		}
 
 		td.IsRedacted = !td.IsAuthed && td.SavedUserDataKey != ""

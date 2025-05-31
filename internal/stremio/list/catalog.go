@@ -349,7 +349,14 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if ud.Shuffle {
+	shouldShuffle := ud.Shuffle
+	if !shouldShuffle && len(ud.ListShuffle) > 0 {
+		if idx := slices.Index(ud.Lists, service+":"+id); idx != -1 {
+			shouldShuffle = ud.ListShuffle[idx] == 1
+		}
+	}
+
+	if shouldShuffle {
 		rand.Shuffle(len(items), func(i, j int) {
 			items[i], items[j] = items[j], items[i]
 		})

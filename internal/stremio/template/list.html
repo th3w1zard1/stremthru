@@ -145,6 +145,8 @@
           <input type="text" id="lists[{{$idx}}].name" name="lists[{{$idx}}].name" value="{{$list.Name}}" {{if ne $list.Error.Name ""}}aria-invalid="true"{{end}} />
           <small><span class="error">{{$list.Error.Name}}</span><span class="description"></span></small>
           {{end}}
+
+          {{template "configure_config.html" $list.Shuffle}}
         </div>
         {{end}}
 
