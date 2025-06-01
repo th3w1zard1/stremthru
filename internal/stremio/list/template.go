@@ -35,6 +35,16 @@ type TemplateDataList struct {
 	}
 }
 
+func newTemplateDataList(index int) TemplateDataList {
+	return TemplateDataList{
+		Shuffle: configure.Config{
+			Key:   "lists[" + strconv.Itoa(index) + "].shuffle",
+			Type:  configure.ConfigTypeCheckbox,
+			Title: "Shuffle Items",
+		},
+	}
+}
+
 type supportedServiceUrl struct {
 	Pattern  string
 	Examples []string
@@ -160,13 +170,7 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 	hasListNames := len(ud.ListNames) > 0
 	hasListShuffle := len(ud.ListShuffle) > 0
 	for i, listId := range ud.Lists {
-		list := TemplateDataList{
-			Shuffle: configure.Config{
-				Key:   "lists[" + strconv.Itoa(i) + "].shuffle",
-				Type:  configure.ConfigTypeCheckbox,
-				Title: "Shuffle Items",
-			},
-		}
+		list := newTemplateDataList(i)
 		if hasListNames {
 			list.Name = ud.ListNames[i]
 		}
@@ -375,13 +379,7 @@ var executeTemplate = func() stremio_template.Executor[TemplateData] {
 		}
 
 		if len(td.Lists) == 0 {
-			td.Lists = append(td.Lists, TemplateDataList{
-				Shuffle: configure.Config{
-					Key:   "lists[0].shuffle",
-					Type:  configure.ConfigTypeCheckbox,
-					Title: "Shuffle Items",
-				},
-			})
+			td.Lists = append(td.Lists, newTemplateDataList(0))
 		}
 
 		td.IsRedacted = !td.IsAuthed && td.SavedUserDataKey != ""
