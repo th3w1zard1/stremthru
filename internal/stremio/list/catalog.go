@@ -187,7 +187,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 
 			meta := stremio.MetaPreview{
 				Id:          item.IMDBId,
-				Type:        mediaTypeToResourceType(item.Mediatype),
+				Type:        mdblistMediaTypeToResourceType(item.Mediatype, "other"),
 				Name:        item.Title,
 				Poster:      poster,
 				PosterShape: stremio.MetaPosterShapePoster,

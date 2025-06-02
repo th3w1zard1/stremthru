@@ -14,14 +14,14 @@ import (
 	"github.com/MunifTanjim/stremthru/stremio"
 )
 
-func mediaTypeToResourceType(mediaType mdblist.MediaType) stremio.ContentType {
+func mdblistMediaTypeToResourceType(mediaType mdblist.MediaType, fallbackMediaType string) stremio.ContentType {
 	switch mediaType {
 	case mdblist.MediaTypeMovie:
 		return stremio.ContentTypeMovie
 	case mdblist.MediaTypeShow:
 		return stremio.ContentTypeSeries
 	default:
-		return "other"
+		return stremio.ContentType(fallbackMediaType)
 	}
 }
 
@@ -79,7 +79,7 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 					return nil, err
 				}
 				catalog := stremio.Catalog{
-					Type: string(mediaTypeToResourceType(list.Mediatype)),
+					Type: string(mdblistMediaTypeToResourceType(list.Mediatype, "MDBList")),
 					Id:   "st.list.mdblist." + idStr,
 					Name: list.Name,
 					Extra: []stremio.CatalogExtra{
@@ -105,7 +105,7 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 					return nil, err
 				}
 				catalog := stremio.Catalog{
-					Type: "other",
+					Type: "Trakt",
 					Id:   "st.list.trakt." + idStr,
 					Name: list.Name,
 					Extra: []stremio.CatalogExtra{
