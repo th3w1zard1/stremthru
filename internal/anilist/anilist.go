@@ -120,13 +120,13 @@ type SearchAnimeListData struct {
 
 func getSeason(month time.Month) MediaSeason {
 	switch month {
-	case time.December, time.January, time.February:
+	case time.January, time.February, time.March:
 		return MediaSeasonWinter
-	case time.March, time.April, time.May:
+	case time.April, time.May, time.June:
 		return MediaSeasonSpring
-	case time.June, time.July, time.August:
+	case time.July, time.August, time.September:
 		return MediaSeasonSummer
-	case time.September, time.October, time.November:
+	case time.October, time.November, time.December:
 		return MediaSeasonFall
 	}
 	panic("unreachable")
