@@ -198,7 +198,7 @@ func GetOAuthTokenByUserId(provider Provider, userId string) (*OAuthToken, error
 }
 
 var query_save_oauth_token = fmt.Sprintf(
-	`INSERT INTO %s (%s) VALUES (%s) ON CONFLICT(%s,%s) DO UPDATE SET %s`,
+	`INSERT INTO %s AS ot (%s) VALUES (%s) ON CONFLICT(%s,%s) DO UPDATE SET %s`,
 	TableName,
 	strings.Join(columns, ","),
 	util.RepeatJoin("?", len(columns), ","),
@@ -211,7 +211,7 @@ var query_save_oauth_token = fmt.Sprintf(
 		fmt.Sprintf("%s = EXCLUDED.%s", Column.RefreshToken, Column.RefreshToken),
 		fmt.Sprintf("%s = EXCLUDED.%s", Column.ExpiresAt, Column.ExpiresAt),
 		fmt.Sprintf("%s = EXCLUDED.%s", Column.Scope, Column.Scope),
-		fmt.Sprintf("%s = %s + 1", Column.Version, Column.Version),
+		fmt.Sprintf("%s = ot.%s + 1", Column.Version, Column.Version),
 		fmt.Sprintf("%s = EXCLUDED.%s", Column.UpdatedAt, Column.UpdatedAt),
 	}, ", "),
 )
