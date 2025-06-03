@@ -691,6 +691,11 @@ func Upsert(items []TorrentInfoInsertData, category TorrentInfoCategory, discard
 			}
 			seenHash[t.Hash] = struct{}{}
 
+			if len(t.Hash) != 40 {
+				count--
+				continue
+			}
+
 			tSource := string(t.Source)
 			for _, f := range t.Files {
 				if f.Name == "" {
