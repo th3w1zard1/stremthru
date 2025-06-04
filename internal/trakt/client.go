@@ -63,10 +63,15 @@ func NewAPIClient(conf *APIClientConfig) *APIClient {
 	}
 	c.OAuth.client = c
 
-	c.httpClient = oauth2.NewClient(
-		context.WithValue(context.Background(), oauth2.HTTPClient, conf.HTTPClient),
-		conf.OAuth.GetTokenSource(c.OAuth.Config),
-	)
+	tokenSource := conf.OAuth.GetTokenSource(c.OAuth.Config)
+	if tokenSource == nil {
+		c.httpClient = conf.HTTPClient
+	} else {
+		c.httpClient = oauth2.NewClient(
+			context.WithValue(context.Background(), oauth2.HTTPClient, conf.HTTPClient),
+			tokenSource,
+		)
+	}
 
 	c.reqQuery = func(query *url.Values, params request.Context) {
 	}

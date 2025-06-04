@@ -29,6 +29,9 @@ func GetAPIClient(tokenId string) *APIClient {
 		Config: oauth.TraktOAuthConfig.Config,
 		GetTokenSource: func(oauthConfig oauth2.Config) oauth2.TokenSource {
 			otok, _ := oauth.GetOAuthTokenById(tokenId)
+			if otok == nil {
+				return nil
+			}
 			return oauth.DatabaseTokenSource(&oauth.DatabaseTokenSourceConfig{
 				OAuth:             &oauth.TraktOAuthConfig.Config,
 				TokenSourceConfig: oauth.TraktTokenSourceConfig,

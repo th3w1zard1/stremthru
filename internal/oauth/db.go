@@ -65,6 +65,9 @@ func (otok *OAuthToken) FromToken(tok *oauth2.Token) *OAuthToken {
 }
 
 func (otok *OAuthToken) ToToken() *oauth2.Token {
+	if otok == nil {
+		return nil
+	}
 	tok := &oauth2.Token{
 		TokenType:    otok.TokenType,
 		AccessToken:  otok.AccessToken,
