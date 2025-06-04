@@ -128,9 +128,11 @@
 
         {{range $idx, $list := .Lists}}
         <div class="relative border border-dashed rounded-sm my-4 p-4" style="border-color: gray">
+          <input type="hidden" id="lists[{{$idx}}].id" name="lists[{{$idx}}].id" value="{{$list.Id}}" />
+
           <div class="relative">
             <label for="lists[{{$idx}}].url">URL</label>
-            <input type="url" id="lists[{{$idx}}].url" name="lists[{{$idx}}].url" value="{{$list.URL}}" {{if ne $list.Error.URL ""}}aria-invalid="true"{{end}} />
+            <input type="url" id="lists[{{$idx}}].url" name="lists[{{$idx}}].url" value="{{$list.URL}}" {{if ne $list.Error.URL ""}}aria-invalid="true"{{end}} {{if $list.Disabled.URL}}disabled{{end}} />
             <small><span class="error">{{$list.Error.URL}}</span><span class="description"></span></small>
 
             <div class="absolute" style="top: 0; right: 0;">

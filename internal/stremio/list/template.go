@@ -26,12 +26,16 @@ var AniListEnabled = config.Feature.IsEnabled("anime")
 type Base = stremio_template.BaseData
 
 type TemplateDataList struct {
+	Id      string
 	URL     string
 	Name    string
 	Shuffle configure.Config
 	Error   struct {
 		URL  string
 		Name string
+	}
+	Disabled struct {
+		URL bool
 	}
 }
 
@@ -141,7 +145,7 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 			Error:        udError.trakt_token_id,
 			Autocomplete: "off",
 			Action: configure.ConfigAction{
-				Visible: ud.TraktTokenId == "",
+				Visible: ud.TraktTokenId == "" || udError.trakt_token_id != "",
 				Label:   "Authorize",
 				OnClick: template.JS(`window.open("` + oauth.TraktOAuthConfig.AuthCodeURL(uuid.NewString()) + `", "_blank")`),
 			},
@@ -158,6 +162,7 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 		otok, err := ud.getTraktToken()
 		if err != nil {
 			td.TraktTokenId.Error = err.Error()
+			td.TraktTokenId.Action.Visible = true
 		} else if otok != nil {
 			td.TraktTokenId.Title += " (" + otok.UserName + ")"
 		}
@@ -171,6 +176,7 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 	hasListShuffle := len(ud.ListShuffle) > 0
 	for i, listId := range ud.Lists {
 		list := newTemplateDataList(i)
+		list.Id = listId
 		if hasListNames {
 			list.Name = ud.ListNames[i]
 		}
@@ -216,12 +222,17 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 					}
 
 				case "trakt":
-					l := trakt.TraktList{Id: id}
-					if err := ud.FetchTraktList(&l); err != nil {
-						log.Error("failed to fetch list", "error", err, "id", listId)
-						list.Error.URL = "Failed to Fetch List: " + err.Error()
+					if td.TraktTokenId.Error == "" {
+						l := trakt.TraktList{Id: id}
+						if err := ud.FetchTraktList(&l); err != nil {
+							log.Error("failed to fetch list", "error", err, "id", listId)
+							list.Error.URL = "Failed to Fetch List: " + err.Error()
+						} else {
+							list.URL = l.GetURL()
+						}
 					} else {
-						list.URL = l.GetURL()
+						list.Disabled.URL = true
+						list.Error.URL = "Trakt.tv authorization needed"
 					}
 				}
 			}

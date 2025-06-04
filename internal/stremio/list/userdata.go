@@ -172,14 +172,15 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 
 		idx := -1
 		for i := range lists_length {
+			listId := r.Form.Get("lists[" + strconv.Itoa(i) + "].id")
 			listUrlStr := r.Form.Get("lists[" + strconv.Itoa(i) + "].url")
-			if listUrlStr == "" {
+			if listId == "" && listUrlStr == "" {
 				continue
 			}
 
 			idx++
 
-			ud.Lists = append(ud.Lists, "")
+			ud.Lists = append(ud.Lists, listId)
 			if isAuthed {
 				ud.ListNames = append(ud.ListNames, r.Form.Get("lists["+strconv.Itoa(i)+"].name"))
 			}
@@ -191,6 +192,10 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 
 			ud.list_urls = append(ud.list_urls, listUrlStr)
 			udErr.list_urls = append(udErr.list_urls, "")
+
+			if listUrlStr == "" {
+				continue
+			}
 
 			listUrl, err := url.Parse(listUrlStr)
 			if err != nil {
