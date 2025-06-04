@@ -2,6 +2,7 @@ package anime
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -116,7 +117,7 @@ func GetIdMapsForAniList(ids []int) ([]AnimeIdMap, error) {
 	query := query_get_id_map + "(" + util.RepeatJoin("?", count, ",") + ")"
 	args := make([]any, count)
 	for i := range ids {
-		args[i] = ids[i]
+		args[i] = strconv.Itoa(ids[i])
 	}
 	rows, err := db.Query(query, args...)
 	if err != nil {
