@@ -267,7 +267,7 @@ func GetListById(id string) (*TraktList, error) {
 }
 
 var query_get_list_items = fmt.Sprintf(
-	`SELECT %s, li.%s, %s(ig.%s) AS genres FROM %s li JOIN %s i ON i.%s = li.%s AND i.%s = li.%s LEFT JOIN %s ig ON i.%s = ig.%s AND i.%s = ig.%s WHERE li.%s = ? GROUP BY i.%s, i.%s ORDER BY min(li.%s) ASC`,
+	`SELECT %s, min(li.%s), %s(ig.%s) AS genres FROM %s li JOIN %s i ON i.%s = li.%s AND i.%s = li.%s LEFT JOIN %s ig ON i.%s = ig.%s AND i.%s = ig.%s WHERE li.%s = ? GROUP BY i.%s, i.%s ORDER BY min(li.%s) ASC`,
 	db.JoinPrefixedColumnNames("i.", ItemColumns...),
 	ListItemColumn.Idx,
 	db.FnJSONGroupArray,
@@ -514,6 +514,10 @@ var query_cleanup_item_genre = fmt.Sprintf(
 func setItemGenre(tx db.Executor, itemId int, itemType ItemType, genres []string) error {
 	count := len(genres)
 
+	if count == 0 {
+		return nil
+	}
+
 	cleanupQuery := query_cleanup_item_genre + "(" + util.RepeatJoin("?", count, ",") + ")"
 	cleanupArgs := make([]any, 2+count)
 	cleanupArgs[0] = itemId
@@ -523,10 +527,6 @@ func setItemGenre(tx db.Executor, itemId int, itemType ItemType, genres []string
 	}
 	if _, err := tx.Exec(cleanupQuery, cleanupArgs...); err != nil {
 		return err
-	}
-
-	if count == 0 {
-		return nil
 	}
 
 	query := query_set_item_genre_before_values +
@@ -572,14 +572,14 @@ var query_cleanup_list_item = fmt.Sprintf(
 func setListItems(tx db.Executor, listId string, items []TraktItem) error {
 	count := len(items)
 
+	if count == 0 {
+		return nil
+	}
+
 	cleanupQuery := query_cleanup_list_item
 	cleanupArgs := []any{listId}
 	if _, err := tx.Exec(cleanupQuery, cleanupArgs...); err != nil {
 		return err
-	}
-
-	if count == 0 {
-		return nil
 	}
 
 	query := query_set_list_item_before_values +
