@@ -3,9 +3,13 @@ package oauth
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/request"
 	"github.com/google/uuid"
@@ -22,7 +26,26 @@ func (e *traktResponseError) Error() string {
 	return string(ret)
 }
 
-func (r *traktResponseError) GetError() error {
+func (e *traktResponseError) Unmarshal(res *http.Response, body []byte, v any) error {
+	contentType := res.Header.Get("Content-Type")
+	switch {
+	case strings.Contains(contentType, "application/json"):
+		return core.UnmarshalJSON(res.StatusCode, body, v)
+	case strings.Contains(contentType, "text/html"):
+		if res.StatusCode >= http.StatusBadRequest {
+			errMsg := strings.TrimSpace(string(body))
+			if errMsg == "" {
+				errMsg = res.Status
+			}
+			return errors.New(errMsg)
+		}
+		fallthrough
+	default:
+		return fmt.Errorf("unexpected content type: %s", contentType)
+	}
+}
+
+func (r *traktResponseError) GetError(res *http.Response) error {
 	if r == nil || r.Err == "" {
 		return nil
 	}

@@ -1,12 +1,8 @@
 package request
 
 import (
-	"errors"
 	"io"
 	"net/http"
-	"strings"
-
-	"github.com/MunifTanjim/stremthru/core"
 )
 
 type APIResponse[T any] struct {
@@ -28,7 +24,8 @@ func NewAPIResponse[T any](res *http.Response, data T) APIResponse[T] {
 }
 
 type ResponseContainer interface {
-	GetError() error
+	GetError(res *http.Response) error
+	Unmarshal(res *http.Response, body []byte, v any) error
 }
 
 func ProcessResponseBody(res *http.Response, err error, v ResponseContainer) error {
@@ -43,18 +40,10 @@ func ProcessResponseBody(res *http.Response, err error, v ResponseContainer) err
 		return err
 	}
 
-	contentType := res.Header.Get("Content-Type")
-
-	switch {
-	case strings.Contains(contentType, "application/json"):
-		err := core.UnmarshalJSON(res.StatusCode, body, v)
-		if err != nil {
-			return err
-		}
-		return v.GetError()
-	case strings.Contains(contentType, "text/html") && res.StatusCode >= http.StatusBadRequest:
-		return errors.New(string(body))
-	default:
-		return errors.New("unsupported content-type: " + contentType)
+	err = v.Unmarshal(res, body, v)
+	if err != nil {
+		return err
 	}
+
+	return v.GetError(res)
 }
