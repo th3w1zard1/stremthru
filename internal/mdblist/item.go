@@ -23,14 +23,14 @@ type Item struct {
 	SpokenLanguage string    `json:"spoken_language"`
 }
 
-type FetchListItemsData []Item
+type FetchListItemsData = []Item
 
-type fetchListItemsData struct {
+type listResponseData[T any] struct {
 	ResponseContainer
-	data FetchListItemsData
+	data []T
 }
 
-func (d *fetchListItemsData) UnmarshalJSON(data []byte) error {
+func (d *listResponseData[T]) UnmarshalJSON(data []byte) error {
 	var rerr ResponseContainer
 
 	if err := json.Unmarshal(data, &rerr); err == nil {
@@ -38,7 +38,7 @@ func (d *fetchListItemsData) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	var items FetchListItemsData
+	var items []T
 	if err := json.Unmarshal(data, &items); err == nil {
 		d.data = items
 		return nil
@@ -47,14 +47,17 @@ func (d *fetchListItemsData) UnmarshalJSON(data []byte) error {
 	return core.NewAPIError("failed to parse response")
 }
 
+type PageSort = string  // rank / score / usort / score_average / released / releasedigital / imdbrating / imdbvotes / last_air_date / imdbpopular / tmdbpopular / rogerebert / rtomatoes / rtaudience / metacritic / myanimelist / letterrating / lettervotes / budget / revenue / runtime / title / added / random
+type PageOrder = string // asc / desc
+
 type FetchListItemsParams struct {
 	Ctx
 	ListId      int
 	Limit       int
 	Offset      int
 	FilterGenre Genre
-	Sort        string // rank / score / usort / score_average / released / releasedigital / imdbrating / imdbvotes / last_air_date / imdbpopular / tmdbpopular / rogerebert / rtomatoes / rtaudience / metacritic / myanimelist / letterrating / lettervotes / budget / revenue / runtime / title / added / random
-	Order       string // asc / desc
+	Sort        PageSort
+	Order       PageOrder // asc / desc
 }
 
 func (c APIClient) FetchListItems(params *FetchListItemsParams) (APIResponse[FetchListItemsData], error) {
@@ -75,7 +78,7 @@ func (c APIClient) FetchListItems(params *FetchListItemsParams) (APIResponse[Fet
 	query.Set("unified", "true")
 	params.Query = &query
 
-	response := &fetchListItemsData{}
+	response := &listResponseData[Item]{}
 	res, err := c.Request("GET", "/lists/"+strconv.Itoa(params.ListId)+"/items", params, response)
 	return newAPIResponse(res, response.data), err
 }

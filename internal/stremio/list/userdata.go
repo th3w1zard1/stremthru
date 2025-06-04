@@ -32,7 +32,7 @@ type UserData struct {
 
 	encoded string `json:"-"` // correctly configured
 
-	mdblistById map[int]mdblist.MDBListList    `json:"-"`
+	mdblistById map[string]mdblist.MDBListList `json:"-"`
 	anilistById map[string]anilist.AniListList `json:"-"`
 	traktById   map[string]trakt.TraktList     `json:"-"`
 }
@@ -250,12 +250,7 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 				query := listUrl.Query()
 				list := mdblist.MDBListList{}
 				if idStr := query.Get("list"); idStr != "" {
-					id, err := strconv.Atoi(idStr)
-					if err != nil {
-						udErr.list_urls[idx] = "Invalid List ID: " + err.Error()
-						continue
-					}
-					list.Id = id
+					list.Id = idStr
 				} else if strings.HasPrefix(listUrl.Path, "/lists/") {
 					username, slug, _ := strings.Cut(strings.TrimPrefix(listUrl.Path, "/lists/"), "/")
 					if username != "" && slug != "" && !strings.Contains(slug, "/") {
@@ -265,6 +260,11 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 						udErr.list_urls[idx] = "Invalid List URL"
 						continue
 					}
+				} else if strings.HasPrefix(listUrl.Path, "/watchlist/") {
+					username := strings.TrimPrefix(listUrl.Path, "/watchlist/")
+					list.Id = "~:watchlist:" + username
+					list.UserName = username
+					list.Slug = "watchlist/" + username
 				} else {
 					udErr.list_urls[idx] = "Invalid List URL"
 					continue
@@ -275,7 +275,7 @@ func getUserData(r *http.Request, isAuthed bool) (*UserData, error) {
 					udErr.list_urls[idx] = "Failed to fetch List: " + err.Error()
 					continue
 				}
-				ud.Lists[idx] = "mdblist:" + strconv.Itoa(list.Id)
+				ud.Lists[idx] = "mdblist:" + list.Id
 
 			case "trakt.tv":
 				if !isTraktTvConfigured {
@@ -386,9 +386,9 @@ func (ud *UserData) getTraktToken() (*oauth.OAuthToken, error) {
 
 func (ud *UserData) FetchMDBListList(list *mdblist.MDBListList) error {
 	if ud.mdblistById == nil {
-		ud.mdblistById = map[int]mdblist.MDBListList{}
+		ud.mdblistById = map[string]mdblist.MDBListList{}
 	}
-	if list.Id != 0 {
+	if list.Id != "" {
 		if l, ok := ud.mdblistById[list.Id]; ok {
 			*list = l
 			return nil

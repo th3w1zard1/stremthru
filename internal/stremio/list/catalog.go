@@ -166,11 +166,6 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case "mdblist":
-		id, err := strconv.Atoi(id)
-		if err != nil {
-			shared.ErrorBadRequest(r, "invalid id").Send(w, r)
-			return
-		}
 		list := mdblist.MDBListList{Id: id}
 		if err := ud.FetchMDBListList(&list); err != nil {
 			SendError(w, r, err)

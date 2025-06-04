@@ -209,11 +209,7 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 						list.URL = l.GetURL()
 					}
 				case "mdblist":
-					lId, err := strconv.Atoi(id)
-					if err != nil {
-						list.Error.URL = "Failed to Parse List ID: " + id
-					}
-					l := mdblist.MDBListList{Id: lId}
+					l := mdblist.MDBListList{Id: id}
 					if err := ud.FetchMDBListList(&l); err != nil {
 						log.Error("failed to fetch list", "error", err, "id", listId)
 						list.Error.URL = "Failed to Fetch List: " + err.Error()

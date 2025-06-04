@@ -12,8 +12,8 @@ var listCache = cache.NewCache[MDBListList](&cache.CacheConfig{
 	LocalCapacity: 1024,
 })
 
-var listIdByNameCache = cache.NewCache[int](&cache.CacheConfig{
+var listIdByNameCache = cache.NewCache[string](&cache.CacheConfig{
 	Lifetime:      12 * time.Hour,
-	Name:          "mdblist:list-id-by-name",
+	Name:          "mdblist:list-id-by-name:v2",
 	LocalCapacity: 2048,
 })

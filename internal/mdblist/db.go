@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/db"
@@ -18,7 +18,7 @@ import (
 const ListTableName = "mdblist_list"
 
 type MDBListList struct {
-	Id          int          `json:"id"`
+	Id          string       `json:"id"`
 	UserId      int          `json:"user_id"`
 	UserName    string       `json:"user_name"`
 	Name        string       `json:"name"`
@@ -33,12 +33,21 @@ type MDBListList struct {
 	Items []MDBListItem `json:"-"`
 }
 
+const ID_PREFIX_USER_WATCHLIST = "~:watchlist:"
+
+func (l *MDBListList) IsWatchlist() bool {
+	return strings.HasPrefix(l.Id, ID_PREFIX_USER_WATCHLIST)
+}
+
 func (l *MDBListList) GetURL() string {
+	if l.IsWatchlist() {
+		return "https://mdblist.com/" + l.Slug
+	}
 	if l.UserName != "" && l.Slug != "" {
 		return "https://mdblist.com/lists/" + l.UserName + "/" + l.Slug
 	}
-	if l.Id != 0 {
-		return "https://mdblist.com/?list=" + strconv.Itoa(l.Id)
+	if l.Id != "" {
+		return "https://mdblist.com/?list=" + l.Id
 	}
 	return ""
 }
@@ -162,9 +171,9 @@ var ItemColumns = []string{
 const ListItemTableName = "mdblist_list_item"
 
 type MDBListListItem struct {
-	ListId int `json:"list_id"`
-	ItemId int `json:"item_id"`
-	Rank   int `json:"rank"`
+	ListId string `json:"list_id"`
+	ItemId int    `json:"item_id"`
+	Rank   int    `json:"rank"`
 }
 
 type ListItemColumnStruct struct {
@@ -215,14 +224,14 @@ var query_get_id_by_name = fmt.Sprintf(
 	ListColumn.Slug,
 )
 
-func GetListIdByName(userName, slug string) (int, error) {
-	var id int
+func GetListIdByName(userName, slug string) (string, error) {
+	var id string
 	row := db.QueryRow(query_get_id_by_name, userName, slug)
 	if err := row.Scan(&id); err != nil {
 		if err == sql.ErrNoRows {
-			return 0, nil
+			return "", nil
 		}
-		return 0, err
+		return "", err
 	}
 	return id, nil
 }
@@ -234,7 +243,7 @@ var query_get_list_by_id = fmt.Sprintf(
 	ListColumn.Id,
 )
 
-func GetListById(id int) (*MDBListList, error) {
+func GetListById(id string) (*MDBListList, error) {
 	var list MDBListList
 	row := db.QueryRow(query_get_list_by_id, id)
 	if err := row.Scan(
@@ -317,7 +326,7 @@ var query_get_list_items = fmt.Sprintf(
 	ListItemColumn.Rank,
 )
 
-func GetListItems(listId int) ([]MDBListItem, error) {
+func GetListItems(listId string) ([]MDBListItem, error) {
 	var items []MDBListItem
 	rows, err := db.Query(query_get_list_items, listId)
 	if err != nil {
@@ -378,7 +387,7 @@ var query_upsert_list = fmt.Sprintf(
 )
 
 func UpsertList(list *MDBListList) (err error) {
-	if list.Id == 0 {
+	if list.Id == "" {
 		return errors.New("list id is missing")
 	}
 
@@ -572,7 +581,7 @@ var query_cleanup_list_items = fmt.Sprintf(
 	ListItemColumn.ItemId,
 )
 
-func setListItems(tx *db.Tx, listId int, items []MDBListItem) error {
+func setListItems(tx *db.Tx, listId string, items []MDBListItem) error {
 	count := len(items)
 
 	cleanupArgs := make([]any, 1+count)

@@ -2,7 +2,6 @@ package stremio_list
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/core"
@@ -70,11 +69,7 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 				catalogs = append(catalogs, catalog)
 
 			case "mdblist":
-				id, err := strconv.Atoi(idStr)
-				if err != nil {
-					return nil, core.NewError("invalid list id: " + listId)
-				}
-				list := mdblist.MDBListList{Id: id}
+				list := mdblist.MDBListList{Id: idStr}
 				if err := list.Fetch(ud.MDBListAPIkey); err != nil {
 					return nil, err
 				}
