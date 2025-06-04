@@ -359,7 +359,7 @@ func GetDynamicListMeta(id string) *dynamicListMeta {
 	}
 	if meta.HasPeriod {
 		if len(parts) < 3 {
-			return nil
+			parts[2] = "weekly"
 		}
 		meta.Period = parts[2]
 		switch meta.Period {
