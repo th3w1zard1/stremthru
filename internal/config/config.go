@@ -740,7 +740,7 @@ func PrintConfig(state *AppState) {
 	l.Println()
 
 	l.Println(" Integrations:")
-	for _, integration := range []string{"anilist.co", "trakt.tv"} {
+	for _, integration := range []string{"anilist.co", "trakt.tv", "kitsu.app"} {
 		switch integration {
 		case "anilist.co":
 			disabled := ""
@@ -748,6 +748,22 @@ func PrintConfig(state *AppState) {
 				disabled = " (disabled)"
 			}
 			l.Println("   - " + integration + disabled)
+		case "kitsu.app":
+			disabled := ""
+			if !Feature.IsEnabled(FeatureAnime) || !Integration.Kitsu.HasDefaultCredentials() {
+				disabled = " (disabled)"
+			}
+			l.Println("   - " + integration + disabled)
+			if disabled == "" {
+				if Integration.Kitsu.ClientId != "" {
+					l.Println("           client_id: " + Integration.Kitsu.ClientId[0:3] + "..." + Integration.Kitsu.ClientId[len(Integration.Trakt.ClientId)-3:])
+				}
+				if Integration.Kitsu.ClientSecret != "" {
+					l.Println("       client_secret: " + Integration.Kitsu.ClientSecret[0:3] + "..." + Integration.Kitsu.ClientSecret[len(Integration.Trakt.ClientSecret)-3:])
+				}
+				l.Println("               email: " + Integration.Kitsu.Email)
+				l.Println("            password: " + "*******")
+			}
 		case "trakt.tv":
 			disabled := ""
 			if !Integration.Trakt.IsEnabled() {

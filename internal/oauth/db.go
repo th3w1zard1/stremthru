@@ -17,6 +17,7 @@ type Provider string
 
 const (
 	ProviderTraktTv Provider = "trakt.tv"
+	ProviderKitsu   Provider = "kitsu.app"
 )
 
 type OAuthToken struct {
