@@ -151,6 +151,50 @@ func ListByIds(tids []string) ([]IMDBTitle, error) {
 	return titles, nil
 }
 
+var query_get_type_by_ids = fmt.Sprintf(
+	`SELECT %s, %s FROM %s WHERE %s IN `,
+	Column.TId,
+	Column.Type,
+	TableName,
+	Column.TId,
+)
+
+func GetTypeByIds(tids []string) (map[string]IMDBTitleType, error) {
+	count := len(tids)
+	typeMap := make(map[string]IMDBTitleType, count)
+
+	if count == 0 {
+		return typeMap, nil
+	}
+
+	query := query_get_type_by_ids + "(" + util.RepeatJoin("?", count, ",") + ")"
+	args := make([]any, count)
+	for i, id := range tids {
+		args[i] = id
+	}
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tid string
+		var titleType string
+		if err := rows.Scan(&tid, &titleType); err != nil {
+			return nil, err
+		}
+		typeMap[tid] = IMDBTitleType(titleType)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return typeMap, nil
+}
+
 var upsert_query_before_values = fmt.Sprintf(
 	`INSERT INTO %s (%s) VALUES `,
 	TableName,

@@ -7,24 +7,10 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/util"
+	"github.com/MunifTanjim/stremthru/internal/worker/worker_queue"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/madflojo/tasks"
 )
-
-type StoreCrawlerQueueItem struct {
-	StoreCode  string
-	StoreToken string
-}
-
-var StoreCrawlerQueue = WorkerQueue[StoreCrawlerQueueItem]{
-	debounceTime: 15 * time.Minute,
-	getKey: func(item StoreCrawlerQueueItem) string {
-		return item.StoreCode + ":" + item.StoreToken
-	},
-	transform: func(item *StoreCrawlerQueueItem) *StoreCrawlerQueueItem {
-		return item
-	},
-}
 
 func InitCrawlStoreWorker(conf *WorkerConfig) *Worker {
 	log := logger.Scoped("worker/store_crawler")
@@ -58,7 +44,7 @@ func InitCrawlStoreWorker(conf *WorkerConfig) *Worker {
 			}
 			worker.onStart()
 
-			StoreCrawlerQueue.process(func(item StoreCrawlerQueueItem) {
+			worker_queue.StoreCrawlerQueue.Process(func(item worker_queue.StoreCrawlerQueueItem) {
 				s := shared.GetStoreByCode(item.StoreCode)
 				if s == nil {
 					return

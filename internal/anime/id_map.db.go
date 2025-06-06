@@ -12,21 +12,36 @@ import (
 
 const IdMapTableName = "anime_id_map"
 
+type AnimeIdMapType = string
+
+const (
+	AnimeIdMapTypeTV      AnimeIdMapType = "TV"
+	AnimeIdMapTypeTVShort AnimeIdMapType = "TV_SHORT"
+	AnimeIdMapTypeMovie   AnimeIdMapType = "MOVIE"
+	AnimeIdMapTypeSpecial AnimeIdMapType = "SPECIAL"
+	AnimeIdMapTypeOVA     AnimeIdMapType = "OVA"
+	AnimeIdMapTypeONA     AnimeIdMapType = "ONA"
+	AnimeIdMapTypeMusic   AnimeIdMapType = "MUSIC"
+	AnimeIdMapTypeManga   AnimeIdMapType = "MANGA"
+	AnimeIdMapTypeNovel   AnimeIdMapType = "NOVEL"
+	AnimeIdMapTypeOneShot AnimeIdMapType = "ONE_SHOT"
+)
+
 type AnimeIdMap struct {
-	Id          int          `json:"id"`
-	Type        string       `json:"type"`
-	AniList     string       `json:"anilist"`
-	AniDB       string       `json:"anidb"`
-	AniSearch   string       `json:"anisearch"`
-	AnimePlanet string       `json:"animeplanet"`
-	IMDB        string       `json:"imdb"`
-	Kitsu       string       `json:"kitsu"`
-	LiveChart   string       `json:"livechart"`
-	MAL         string       `json:"mal"`
-	NotifyMoe   string       `json:"notifymoe"`
-	TMDB        string       `json:"tmdb"`
-	TVDB        string       `json:"tvdb"`
-	UpdatedAt   db.Timestamp `json:"uat"`
+	Id          int            `json:"id"`
+	Type        AnimeIdMapType `json:"type"`
+	AniList     string         `json:"anilist"`
+	AniDB       string         `json:"anidb"`
+	AniSearch   string         `json:"anisearch"`
+	AnimePlanet string         `json:"animeplanet"`
+	IMDB        string         `json:"imdb"`
+	Kitsu       string         `json:"kitsu"`
+	LiveChart   string         `json:"livechart"`
+	MAL         string         `json:"mal"`
+	NotifyMoe   string         `json:"notifymoe"`
+	TMDB        string         `json:"tmdb"`
+	TVDB        string         `json:"tvdb"`
+	UpdatedAt   db.Timestamp   `json:"uat"`
 }
 
 func (idMap *AnimeIdMap) IsZero() bool {
@@ -38,20 +53,20 @@ func (idMap *AnimeIdMap) IsStale() bool {
 }
 
 type rawAnimeIdMap struct {
-	Id          int           `json:"id"`
-	Type        string        `json:"type"`
-	AniList     db.NullString `json:"anilist"`
-	AniDB       db.NullString `json:"anidb"`
-	AniSearch   db.NullString `json:"anisearch"`
-	AnimePlanet db.NullString `json:"animeplanet"`
-	IMDB        db.NullString `json:"imdb"`
-	Kitsu       db.NullString `json:"kitsu"`
-	LiveChart   db.NullString `json:"livechart"`
-	MAL         db.NullString `json:"mal"`
-	NotifyMoe   db.NullString `json:"notifymoe"`
-	TMDB        db.NullString `json:"tmdb"`
-	TVDB        db.NullString `json:"tvdb"`
-	UpdatedAt   db.Timestamp  `json:"uat"`
+	Id          int            `json:"id"`
+	Type        AnimeIdMapType `json:"type"`
+	AniList     db.NullString  `json:"anilist"`
+	AniDB       db.NullString  `json:"anidb"`
+	AniSearch   db.NullString  `json:"anisearch"`
+	AnimePlanet db.NullString  `json:"animeplanet"`
+	IMDB        db.NullString  `json:"imdb"`
+	Kitsu       db.NullString  `json:"kitsu"`
+	LiveChart   db.NullString  `json:"livechart"`
+	MAL         db.NullString  `json:"mal"`
+	NotifyMoe   db.NullString  `json:"notifymoe"`
+	TMDB        db.NullString  `json:"tmdb"`
+	TVDB        db.NullString  `json:"tvdb"`
+	UpdatedAt   db.Timestamp   `json:"uat"`
 }
 
 type IdMapColumnStruct struct {
@@ -168,6 +183,92 @@ func GetIdMapsForAniList(ids []int) ([]AnimeIdMap, error) {
 		return nil, err
 	}
 	return idMaps, nil
+}
+
+var query_get_type_by_anilist_ids = fmt.Sprintf(
+	"SELECT %s, %s FROM %s WHERE %s IN ",
+	IdMapColumn.AniList,
+	IdMapColumn.Type,
+	IdMapTableName,
+	IdMapColumn.AniList,
+)
+
+func GetTypeByAnilistIds(ids []int) (map[int]AnimeIdMapType, error) {
+	count := len(ids)
+	if count == 0 {
+		return nil, nil
+	}
+
+	query := query_get_type_by_anilist_ids + "(" + util.RepeatJoin("?", count, ",") + ")"
+	args := make([]any, count)
+	for i := range ids {
+		args[i] = strconv.Itoa(ids[i])
+	}
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	typeById := make(map[int]AnimeIdMapType, count)
+	for rows.Next() {
+		var id string
+		var animeType AnimeIdMapType
+		if err := rows.Scan(&id, &animeType); err != nil {
+			return nil, err
+		}
+		if id, err := strconv.Atoi(id); err == nil {
+			typeById[id] = animeType
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return typeById, nil
+}
+
+var query_get_type_by_kitsu_ids = fmt.Sprintf(
+	"SELECT %s, %s FROM %s WHERE %s IN ",
+	IdMapColumn.Kitsu,
+	IdMapColumn.Type,
+	IdMapTableName,
+	IdMapColumn.Kitsu,
+)
+
+func GetTypeByKitsuIds(ids []int) (map[int]AnimeIdMapType, error) {
+	count := len(ids)
+	if count == 0 {
+		return nil, nil
+	}
+
+	query := query_get_type_by_kitsu_ids + "(" + util.RepeatJoin("?", count, ",") + ")"
+	args := make([]any, count)
+	for i := range ids {
+		args[i] = strconv.Itoa(ids[i])
+	}
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	typeById := make(map[int]AnimeIdMapType, count)
+	for rows.Next() {
+		var id string
+		var animeType AnimeIdMapType
+		if err := rows.Scan(&id, &animeType); err != nil {
+			return nil, err
+		}
+		if id, err := strconv.Atoi(id); err == nil {
+			typeById[id] = animeType
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return typeById, nil
 }
 
 var query_bulk_record_id_maps_before_values = fmt.Sprintf(

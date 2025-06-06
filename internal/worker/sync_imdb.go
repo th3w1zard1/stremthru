@@ -311,6 +311,7 @@ func InitSyncIMDBWorker(conf *WorkerConfig) *Worker {
 		if err != nil {
 			return Error{"failed to open file", err}
 		}
+		defer f.Close()
 
 		r := csv.NewReader(f)
 		r.Comma = '\t'

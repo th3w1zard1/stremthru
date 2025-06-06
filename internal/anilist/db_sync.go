@@ -10,7 +10,7 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/anizip"
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/db"
-	"github.com/MunifTanjim/stremthru/internal/worker"
+	"github.com/MunifTanjim/stremthru/internal/worker/worker_queue"
 )
 
 var listCache = cache.NewCache[AniListList](&cache.CacheConfig{
@@ -112,7 +112,7 @@ func ScheduleIdMapSync(medias []AniListMedia) {
 	for i := range medias {
 		media := &medias[i]
 		if media.IdMap == nil || media.IdMap.IsStale() {
-			worker.AnimeIdMapperQueue.Queue(worker.AnimeIdMapperQueueItem{
+			worker_queue.AnimeIdMapperQueue.Queue(worker_queue.AnimeIdMapperQueueItem{
 				Service: anime.IdMapColumn.AniList,
 				Id:      strconv.Itoa(media.Id),
 			})

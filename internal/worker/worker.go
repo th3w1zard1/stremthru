@@ -167,6 +167,22 @@ func InitWorkers() func() {
 		workers = append(workers, worker)
 	}
 
+	if worker := InitSyncAnimeAPIWorker(&WorkerConfig{
+		ShouldWait: func() (bool, string) {
+			mutex.Lock()
+			defer mutex.Unlock()
+
+			if running_worker.sync_imdb {
+				return true, "sync_imdb is running"
+			}
+			return false, ""
+		},
+		OnStart: func() {},
+		OnEnd:   func() {},
+	}); worker != nil {
+		workers = append(workers, worker)
+	}
+
 	return func() {
 		for _, worker := range workers {
 			worker.scheduler.Stop()

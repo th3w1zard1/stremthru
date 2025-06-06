@@ -2,6 +2,7 @@ package anilist
 
 import (
 	"context"
+	"net/http"
 	"slices"
 	"time"
 
@@ -12,6 +13,10 @@ import (
 var client = graphql.NewClient(
 	"https://graphql.anilist.co/graphql",
 	config.GetHTTPClient(config.TUNNEL_TYPE_AUTO),
+	graphql.WithRetry(3),
+	graphql.WithRetryBaseDelay(2*time.Second),
+	graphql.WithRetryExponentialRate(2),
+	graphql.WithRetryHTTPStatus([]int{http.StatusTooManyRequests}),
 ).WithDebug(config.Environment == config.EnvDev)
 
 type MediaSeason string
@@ -305,4 +310,64 @@ func FetchMedias(mediaIds []int) ([]Media, error) {
 		}
 	}
 	return medias, nil
+}
+
+type MediaFormat string
+
+const (
+	MediaFormatTV      MediaFormat = "TV"
+	MediaFormatTVShort MediaFormat = "TV_SHORT"
+	MediaFormatMovie   MediaFormat = "MOVIE"
+	MediaFormatSpecial MediaFormat = "SPECIAL"
+	MediaFormatOVA     MediaFormat = "OVA"
+	MediaFormatONA     MediaFormat = "ONA"
+	MediaFormatMusic   MediaFormat = "MUSIC"
+	MediaFormatManga   MediaFormat = "MANGA"
+	MediaFormatNovel   MediaFormat = "NOVEL"
+	MediaFormatOneShot MediaFormat = "ONE_SHOT"
+)
+
+type fetchAnimeMediaFormatInfoQuery struct {
+	Page struct {
+		Media []struct {
+			Id     int
+			IdMal  int
+			Format string
+		} `graphql:"media(type: ANIME, id_in: $ids)"`
+	} `graphql:"Page(page: $page, perPage: 50)"`
+}
+
+type MediaFormatInfo struct {
+	Id     int
+	IdMal  int
+	Format MediaFormat
+}
+
+func FetchAnimeMediaFormatInfo(mediaIds []int) ([]MediaFormatInfo, error) {
+	if len(mediaIds) == 0 {
+		return nil, nil
+	}
+
+	infos := []MediaFormatInfo{}
+	for cIds := range slices.Chunk(mediaIds, 50) {
+		var q fetchAnimeMediaFormatInfoQuery
+		err := client.Query(context.Background(), &q, map[string]any{
+			"page": 1,
+			"ids":  cIds,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for i := range q.Page.Media {
+			m := &q.Page.Media[i]
+			info := MediaFormatInfo{
+				Id:     m.Id,
+				IdMal:  m.IdMal,
+				Format: MediaFormat(m.Format),
+			}
+			infos = append(infos, info)
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return infos, nil
 }

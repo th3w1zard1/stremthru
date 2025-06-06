@@ -14,7 +14,7 @@ import (
 	stremio_store_webdl "github.com/MunifTanjim/stremthru/internal/stremio/store/webdl"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
-	"github.com/MunifTanjim/stremthru/internal/worker"
+	"github.com/MunifTanjim/stremthru/internal/worker/worker_queue"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
@@ -170,7 +170,7 @@ func getCatalogItems(s store.Store, storeToken string, clientIp string, idPrefix
 			hasMore = len(res.Items) == fetch_list_limit && offset < res.TotalItems
 
 			if hasMore && offset >= max_fetch_list_items {
-				worker.StoreCrawlerQueue.Queue(worker.StoreCrawlerQueueItem{
+				worker_queue.StoreCrawlerQueue.Queue(worker_queue.StoreCrawlerQueueItem{
 					StoreCode:  string(s.GetName().Code()),
 					StoreToken: storeToken,
 				})

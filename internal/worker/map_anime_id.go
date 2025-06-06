@@ -7,36 +7,17 @@ import (
 
 	"github.com/MunifTanjim/stremthru/internal/anime"
 	"github.com/MunifTanjim/stremthru/internal/anizip"
-	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/logger"
 	"github.com/MunifTanjim/stremthru/internal/util"
+	"github.com/MunifTanjim/stremthru/internal/worker/worker_queue"
 	"github.com/madflojo/tasks"
 )
-
-type AnimeIdMapperQueueItem struct {
-	Service string
-	Id      string
-}
-
-var AnimeIdMapperQueue = WorkerQueue[AnimeIdMapperQueueItem]{
-	debounceTime: 1 * time.Minute,
-	getKey: func(item AnimeIdMapperQueueItem) string {
-		return item.Service + ":" + item.Id
-	},
-	getGroupKey: func(item AnimeIdMapperQueueItem) string {
-		return item.Service
-	},
-	transform: func(item *AnimeIdMapperQueueItem) *AnimeIdMapperQueueItem {
-		return item
-	},
-	disabled: !config.Feature.IsEnabled("anime"),
-}
 
 var anizipClient = anizip.NewAPIClient(&anizip.APIClientConfig{})
 
 func InitMapAnimeIdWorker(conf *WorkerConfig) *Worker {
-	if AnimeIdMapperQueue.disabled {
+	if worker_queue.AnimeIdMapperQueue.Disabled {
 		return nil
 	}
 
@@ -82,7 +63,7 @@ func InitMapAnimeIdWorker(conf *WorkerConfig) *Worker {
 
 			isRunning = true
 
-			AnimeIdMapperQueue.processGroup(func(service string, items []AnimeIdMapperQueueItem) error {
+			worker_queue.AnimeIdMapperQueue.ProcessGroup(func(service string, items []worker_queue.AnimeIdMapperQueueItem) error {
 				if service != anime.IdMapColumn.AniList {
 					return nil
 				}
