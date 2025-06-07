@@ -132,7 +132,7 @@ func (ri ResultItem) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 		Enclosure: ChannelItemEnclosure{
 			URL:    ri.Link,
 			Length: ri.Size,
-			Type:   "application/x-bittorrent",
+			Type:   "application/x-bittorrent;x-scheme-handler/magnet",
 		},
 	})
 }
