@@ -251,6 +251,14 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 		})
 	}
 
+	if q.Offset > 0 {
+		items = items[min(q.Offset, len(items)):]
+	}
+
+	if q.Limit > 0 {
+		items = items[:min(q.Limit, len(items))]
+	}
+
 	return items, nil
 }
 
