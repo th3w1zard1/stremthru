@@ -134,7 +134,7 @@ func ParseQuery(q url.Values) (Query, error) {
 	query := Query{}
 
 	for key, vals := range q {
-		switch key {
+		switch strings.ToLower(key) {
 		case "t":
 			if len(vals) > 1 {
 				return query, errors.New("Multiple t parameters not allowed")
