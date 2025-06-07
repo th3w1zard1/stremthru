@@ -305,6 +305,12 @@ var executeTemplate = func() stremio_template.Executor[TemplateData] {
 						"/lists/garycrawfordgc/latest-tv-shows",
 					},
 				},
+				{
+					Pattern: "/watchlist/{user_name}",
+					Examples: []string{
+						"/watchlist/garycrawfordgc",
+					},
+				},
 			},
 		})
 		if TraktEnabled {
