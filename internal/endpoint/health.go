@@ -1,6 +1,7 @@
 package endpoint
 
 import (
+	"errors"
 	"maps"
 	"net/http"
 	"os"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/context"
+	"github.com/MunifTanjim/stremthru/internal/server"
 )
 
 type HealthData struct {
@@ -62,10 +64,14 @@ func handleHealthDebug(w http.ResponseWriter, r *http.Request) {
 
 		machineIp := config.IP.GetMachineIP()
 
+		ipMapErrs := []error{}
 		tunnelIpMap, err := config.IP.GetTunnelIPByProxyHost()
 		if err != nil {
-			SendError(w, r, err)
-			return
+			if defaultProxyHost := config.Tunnel.GetDefaultProxyHost(); defaultProxyHost != "" && tunnelIpMap[defaultProxyHost] == "" {
+				SendError(w, r, err)
+				return
+			}
+			ipMapErrs = append(ipMapErrs, err)
 		}
 
 		tunnel := map[string]string{}
@@ -73,14 +79,22 @@ func handleHealthDebug(w http.ResponseWriter, r *http.Request) {
 
 		exposedIpMap, err := config.IP.GetTunnelIPByHostname()
 		if err != nil {
-			SendError(w, r, err)
-			return
+			if exposedIpMap["*"] == "" {
+				SendError(w, r, err)
+				return
+			}
+			ipMapErrs = append(ipMapErrs, err)
 		}
 
 		exposed := map[string]string{}
 		maps.Copy(exposed, exposedIpMap)
 		if os.Getenv("NO_PROXY") == "*" {
 			exposed["*"] = machineIp
+		}
+
+		if ipMapErr := errors.Join(ipMapErrs...); ipMapErr != nil {
+			reqCtx := server.GetReqCtx(r)
+			reqCtx.Log.Warn("Failed to get tunnel ip map", "error", ipMapErr)
 		}
 
 		for storeName := range config.StoreTunnel {

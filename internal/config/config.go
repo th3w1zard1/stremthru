@@ -553,17 +553,19 @@ type AppState struct {
 }
 
 func PrintConfig(state *AppState) {
-	hasTunnel := false
-	if proxy := Tunnel.getProxy("*"); proxy != nil && proxy.Host != "" {
-		hasTunnel = true
-	}
+	hasTunnel := Tunnel.hasProxy()
+	defaultProxyHost := Tunnel.GetDefaultProxyHost()
 
 	machineIP := IP.GetMachineIP()
 	var tunnelIpByProxyHost map[string]string
 	if hasTunnel {
 		ipMap, err := IP.GetTunnelIPByProxyHost()
 		if err != nil {
-			log.Panicf("Failed to resolve Tunnel IP Map: %v\n", err)
+			if defaultProxyHost != "" && ipMap[defaultProxyHost] == "" {
+				log.Panicf("Failed to resolve Tunnel IP Map: %v\n", err)
+			} else {
+				log.Printf("Failed to resolve Tunnel IP Map: %v\n\n", err)
+			}
 		}
 		tunnelIpByProxyHost = ipMap
 	}
@@ -582,7 +584,7 @@ func PrintConfig(state *AppState) {
 
 	if hasTunnel {
 		l.Println(" Tunnel:")
-		if defaultProxy := Tunnel.getProxy("*"); defaultProxy != nil {
+		if defaultProxy := Tunnel.getProxy("*"); defaultProxy != nil && defaultProxy.Host != "" {
 			defaultProxyConfig := ""
 			if noProxy := getEnv("NO_PROXY"); noProxy == "*" {
 				defaultProxyConfig = " (disabled)"
@@ -599,7 +601,9 @@ func PrintConfig(state *AppState) {
 				}
 
 				if proxy.Host == "" {
-					l.Println("     " + hostname + ": (disabled)")
+					if defaultProxyHost != "" {
+						l.Println("     " + hostname + ": (disabled)")
+					}
 				} else {
 					l.Println("     " + hostname + ": " + proxy.Redacted())
 				}
@@ -613,6 +617,9 @@ func PrintConfig(state *AppState) {
 	if hasTunnel {
 		l.Println("  Tunnel IP: ")
 		for proxyHost, tunnelIp := range tunnelIpByProxyHost {
+			if tunnelIp == "" {
+				tunnelIp = "(unresolved)"
+			}
 			l.Println("    [" + proxyHost + "]: " + tunnelIp)
 		}
 	}
