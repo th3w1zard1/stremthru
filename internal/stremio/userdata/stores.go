@@ -21,6 +21,10 @@ func (sc StoreCode) IsStremThru() bool {
 	return !IsPublicInstance && sc == ""
 }
 
+func (sc StoreCode) IsP2P() bool {
+	return sc == "p2p"
+}
+
 type Store struct {
 	Code  StoreCode `json:"c"`
 	Token string    `json:"t"`
@@ -30,10 +34,15 @@ type UserDataStores struct {
 	Stores           []Store         `json:"stores"`
 	stores           []resolvedStore `json:"-"`
 	isStremThruStore bool            `json:"-"`
+	isP2P            bool            `json:"-"`
 }
 
 func (ud *UserDataStores) IsStremThruStore() bool {
 	return ud.isStremThruStore
+}
+
+func (ud *UserDataStores) IsP2P() bool {
+	return ud.isP2P
 }
 
 func (ud *UserDataStores) Prepare(ctx *context.StoreContext) (err error, errField string) {
@@ -66,6 +75,10 @@ func (ud *UserDataStores) Prepare(ctx *context.StoreContext) (err error, errFiel
 		}
 		ud.stores = stores
 		ud.isStremThruStore = true
+	} else if storeCount == 1 && ud.Stores[0].Code.IsP2P() {
+		ud.stores = nil
+		ud.isP2P = true
+		return nil, ""
 	} else {
 		stores := make([]resolvedStore, storeCount)
 		for i := range ud.Stores {

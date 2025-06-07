@@ -23,7 +23,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 		},
 		Upstreams:        []UpstreamAddon{},
 		Stores:           []StoreConfig{},
-		StoreCodeOptions: stremio_shared.GetStoreCodeOptions(),
+		StoreCodeOptions: stremio_shared.GetStoreCodeOptions(false),
 		Configs: []configure.Config{
 			{
 				Key:     "cached",

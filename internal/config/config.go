@@ -152,25 +152,27 @@ const (
 )
 
 const (
+	FeatureAnime           string = "anime"
 	FeatureDMMHashlist     string = "dmm_hashlist"
 	FeatureIMDBTitle       string = "imdb_title"
 	FeatureStremioList     string = "stremio_list"
+	FeatureStremioP2P      string = "stremio_p2p"
 	FeatureStremioSidekick string = "stremio_sidekick"
 	FeatureStremioStore    string = "stremio_store"
 	FeatureStremioTorz     string = "stremio_torz"
 	FeatureStremioWrap     string = "stremio_wrap"
-	FeatureAnime           string = "anime"
 )
 
 var features = []string{
+	FeatureAnime,
 	FeatureDMMHashlist,
 	FeatureIMDBTitle,
 	FeatureStremioList,
+	FeatureStremioP2P,
 	FeatureStremioSidekick,
 	FeatureStremioStore,
-	FeatureStremioWrap,
 	FeatureStremioTorz,
-	FeatureAnime,
+	FeatureStremioWrap,
 }
 
 type FeatureConfig struct {
@@ -398,7 +400,7 @@ var config = func() Config {
 	databaseUri := getEnv("STREMTHRU_DATABASE_URI")
 
 	feature := FeatureConfig{
-		disabled: []string{FeatureAnime},
+		disabled: []string{FeatureAnime, FeatureStremioP2P},
 	}
 	for _, name := range strings.FieldsFunc(strings.TrimSpace(getEnv("STREMTHRU_FEATURE")), func(c rune) bool {
 		return c == ','

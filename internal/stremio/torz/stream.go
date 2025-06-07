@@ -95,8 +95,10 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		magnetByHash[magnet.Hash] = magnet
 	}
 
+	isP2P := ud.IsP2P()
+
 	isCachedByHash := map[string]string{}
-	if len(hashes) > 0 {
+	if !isP2P && len(hashes) > 0 {
 		cmRes := ud.CheckMagnet(&store.CheckMagnetParams{
 			Magnets:  hashes,
 			ClientIP: ctx.ClientIP,
@@ -200,7 +202,23 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	cachedStreams := []stremio.Stream{}
 	uncachedStreams := []stremio.Stream{}
 	for _, wStream := range wrappedStreams {
-		if storeCode, isCached := isCachedByHash[wStream.hash]; isCached && storeCode != "" {
+		if isP2P {
+			fIdx := wStream.r.File.Idx
+			if fIdx == -1 {
+				continue
+			}
+
+			wStream.r.Store.Code = "P2P"
+			wStream.r.Store.Name = "P2P"
+			stream, err := streamTemplate.Execute(&wStream.Stream, wStream.r)
+			if err != nil {
+				SendError(w, r, err)
+				return
+			}
+			stream.InfoHash = wStream.hash
+			stream.FileIndex = fIdx
+			uncachedStreams = append(uncachedStreams, *stream)
+		} else if storeCode, isCached := isCachedByHash[wStream.hash]; isCached && storeCode != "" {
 			storeName := store.StoreCode(strings.ToLower(storeCode)).Name()
 			wStream.r.Store.Code = storeCode
 			wStream.r.Store.Name = string(storeName)

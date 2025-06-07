@@ -70,7 +70,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if !td.HasStoreError() {
+		if !td.HasStoreError() && !ud.IsP2P() {
 			s := ud.GetUser()
 			if s.HasErr {
 				for i, err := range s.Err {
