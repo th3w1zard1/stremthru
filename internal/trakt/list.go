@@ -232,7 +232,7 @@ var dynamicListMetaById = map[string]dynamicListMeta{
 		Name:     "Anticipated",
 		ItemType: ItemTypeShow,
 	},
-	"shows/popoular": {
+	"shows/popular": {
 		Endpoint: "/shows/popular",
 		Name:     "Popular",
 		ItemType: ItemTypeShow,
@@ -273,7 +273,7 @@ var dynamicListMetaById = map[string]dynamicListMeta{
 		Name:     "Anticipated",
 		ItemType: ItemTypeMovie,
 	},
-	"movies/popoular": {
+	"movies/popular": {
 		Endpoint: "/movies/popular",
 		Name:     "Popular",
 		ItemType: ItemTypeMovie,
