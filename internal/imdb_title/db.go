@@ -368,7 +368,7 @@ func sqliteSearchIds(title string, titleType SearchTitleType, year int, extendYe
 	defer rows.Close()
 
 	ids := []string{}
-	if rows.Next() {
+	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
