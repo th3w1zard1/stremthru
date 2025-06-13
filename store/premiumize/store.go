@@ -211,7 +211,7 @@ func (c *StoreClient) getCachedMagnetFiles(apiKey string, magnet string, include
 	return files, nil
 }
 
-func (c *StoreClient) checkMagnet(params *store.CheckMagnetParams, includeLink bool) (*store.CheckMagnetData, error) {
+func (c *StoreClient) checkMagnet(params *store.CheckMagnetParams, includeLinkAndPath bool) (*store.CheckMagnetData, error) {
 	magnetByHash := make(map[string]core.MagnetLink, len(params.Magnets))
 	hashes := make([]string, 0, len(params.Magnets))
 
@@ -231,25 +231,27 @@ func (c *StoreClient) checkMagnet(params *store.CheckMagnetParams, includeLink b
 
 	foundItemByHash := map[string]store.CheckMagnetDataItem{}
 
-	if data, err := buddy.CheckMagnet(c, hashes, params.GetAPIKey(c.client.apiKey), params.ClientIP, params.SId); err != nil {
-		return nil, err
-	} else {
-		for _, item := range data.Items {
-			foundItemByHash[item.Hash] = item
-		}
-	}
-
-	if params.LocalOnly {
-		data := &store.CheckMagnetData{
-			Items: []store.CheckMagnetDataItem{},
-		}
-
-		for _, hash := range hashes {
-			if item, ok := foundItemByHash[hash]; ok {
-				data.Items = append(data.Items, item)
+	if !includeLinkAndPath {
+		if data, err := buddy.CheckMagnet(c, hashes, params.GetAPIKey(c.client.apiKey), params.ClientIP, params.SId); err != nil {
+			return nil, err
+		} else {
+			for _, item := range data.Items {
+				foundItemByHash[item.Hash] = item
 			}
 		}
-		return data, nil
+
+		if params.LocalOnly {
+			data := &store.CheckMagnetData{
+				Items: []store.CheckMagnetDataItem{},
+			}
+
+			for _, hash := range hashes {
+				if item, ok := foundItemByHash[hash]; ok {
+					data.Items = append(data.Items, item)
+				}
+			}
+			return data, nil
+		}
 	}
 
 	for _, hash := range hashes {
@@ -305,7 +307,7 @@ func (c *StoreClient) checkMagnet(params *store.CheckMagnetParams, includeLink b
 					if is_cached {
 						item.Status = store.MagnetStatusCached
 
-						files, err := c.getCachedMagnetFiles(params.APIKey, item.Magnet, includeLink)
+						files, err := c.getCachedMagnetFiles(params.APIKey, item.Magnet, includeLinkAndPath)
 						if err != nil {
 							hasError = true
 							errs[i] = err
@@ -363,12 +365,17 @@ func (c *StoreClient) checkMagnet(params *store.CheckMagnetParams, includeLink b
 					Name: f.Name,
 					Size: f.Size,
 				}
-				tInfo.Files = append(tInfo.Files, file)
-				item.Files = append(item.Files, store.MagnetFile{
+				mFile := store.MagnetFile{
 					Idx:  file.Idx,
 					Name: file.Name,
 					Size: file.Size,
-				})
+				}
+				if includeLinkAndPath {
+					mFile.Path = f.Path
+					mFile.Link = f.Link
+				}
+				tInfo.Files = append(tInfo.Files, file)
+				item.Files = append(item.Files, mFile)
 			}
 		}
 		tInfos = append(tInfos, tInfo)
