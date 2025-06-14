@@ -101,7 +101,8 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 	var query strings.Builder
 	query.WriteString(
 		fmt.Sprintf(
-			"SELECT %s FROM %s ito INNER JOIN %s ti ON ti.%s = ito.%s WHERE ito.%s ",
+			"SELECT ito.%s, %s FROM %s ito INNER JOIN %s ti ON ti.%s = ito.%s WHERE ito.%s ",
+			imdb_torrent.Column.TId,
 			db.JoinPrefixedColumnNames("ti.", torrent_info.Columns...),
 			imdb_torrent.TableName,
 			torrent_info.TableName,
@@ -164,8 +165,11 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 
 	items := []ResultItem{}
 	for rows.Next() {
+		var imdbId string
 		var tInfo torrent_info.TorrentInfo
 		if err := rows.Scan(
+			&imdbId,
+
 			&tInfo.Hash,
 			&tInfo.TorrentTitle,
 
@@ -239,7 +243,7 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 			Audio:       audio,
 			Category:    category,
 			Codec:       tInfo.Codec,
-			IMDB:        q.IMDBId,
+			IMDB:        imdbId,
 			InfoHash:    tInfo.Hash,
 			Language:    strings.Join(tInfo.Languages, ", "),
 			PublishDate: tInfo.CreatedAt.Time,
