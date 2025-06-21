@@ -310,6 +310,9 @@ func normalizeOptionalId(id string) string {
 
 func BulkRecordIdMaps(items []AnimeIdMap, anchorColumnName string) error {
 	count := len(items)
+	if count == 0 {
+		return nil
+	}
 
 	var query strings.Builder
 	query.WriteString(query_bulk_record_id_maps_before_values)
