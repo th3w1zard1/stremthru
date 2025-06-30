@@ -62,17 +62,18 @@ func MatchFileByPattern(files []store.MagnetFile, pattern *regexp.Regexp) *store
 	return nil
 }
 
-var parse_season_episode = ptt.GetPartialParser([]string{"releaseType", "seasons", "episodes"})
+var parse_season_episode = ptt.GetPartialParser([]string{"releaseTypes", "seasons", "episodes"})
 
 var digits_regex = regexp.MustCompile(`\b(\d+)\b`)
 
 type seasonEpisodeData struct {
-	season  int
-	episode int
+	season      int
+	episode     int
+	releaseType string
 }
 
 func getSeasonEpisode(title string, extractDigitsAsEpisodeAgressively bool) seasonEpisodeData {
-	data := seasonEpisodeData{-1, -1}
+	data := seasonEpisodeData{-1, -1, ""}
 	r := parse_season_episode(title)
 	if err := r.Error(); err != nil {
 		log.Error("failed to parse season episode", "title", title, "error", err)
@@ -89,6 +90,9 @@ func getSeasonEpisode(title string, extractDigitsAsEpisodeAgressively bool) seas
 		if len(matches) == 1 {
 			data.episode, _ = strconv.Atoi(matches[0])
 		}
+	}
+	if len(r.ReleaseTypes) > 0 {
+		data.releaseType = r.ReleaseTypes[0]
 	}
 	return data
 }
@@ -128,7 +132,7 @@ func MatchFileByStremId(files []store.MagnetFile, sid string, magnetHash string,
 		for i := range files {
 			f := &files[i]
 			d := getSeasonEpisode(f.Name, true)
-			if (d.episode != -1) && ((d.season == -1 && expectedSeason == 1) || d.season == expectedSeason) {
+			if d.releaseType == "" && (d.episode != -1) && ((d.season == -1 && expectedSeason == 1) || d.season == expectedSeason) {
 				filesForSeason = append(filesForSeason, f)
 				idx := len(filesForSeason) - 1
 				dataByIdx[idx] = d
