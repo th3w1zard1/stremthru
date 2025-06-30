@@ -19,7 +19,7 @@ import (
 )
 
 var IsPublicInstance = config.IsPublicInstance
-var MaxPublicInstanceListCount = 5
+var MaxPublicInstanceListCount = 10
 var TraktEnabled = config.Integration.Trakt.IsEnabled()
 var AniListEnabled = config.Feature.IsEnabled("anime")
 
