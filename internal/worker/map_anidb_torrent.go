@@ -3,6 +3,7 @@ package worker
 import (
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,10 +28,29 @@ type torrentMap struct {
 }
 
 func sortAniDBTitles(titles anidb.AniDBTitles, tInfo torrent_info.TorrentInfo, tYear string) anidb.AniDBTitles {
+	tTitle := strings.ToLower(tInfo.Title)
+	tTorrentTitle := strings.ToLower(tInfo.TorrentTitle)
+	if len(tInfo.ReleaseTypes) == 1 {
+		releaseType := strings.ToLower(tInfo.ReleaseTypes[0])
+		if !strings.Contains(tTorrentTitle, releaseType) {
+			switch releaseType {
+			case "ova":
+				releaseType = "oav"
+			case "oad":
+				releaseType = "oda"
+			default:
+				releaseType = ""
+			}
+		}
+		if releaseType != "" {
+			tTitle += " " + releaseType
+		}
+	}
+
 	slices.SortStableFunc(titles, func(a, b anidb.AniDBTitle) int {
 		if tYear != "" {
 			if a.Year == b.Year {
-				return levenshtein.ComputeDistance(tInfo.Title, a.Value) - levenshtein.ComputeDistance(tInfo.Title, b.Value)
+				return levenshtein.ComputeDistance(tTitle, strings.ToLower(a.Value)) - levenshtein.ComputeDistance(tTitle, strings.ToLower(b.Value))
 			}
 			if a.Year == tYear {
 				return -1
@@ -39,7 +59,7 @@ func sortAniDBTitles(titles anidb.AniDBTitles, tInfo torrent_info.TorrentInfo, t
 				return 1
 			}
 		}
-		return levenshtein.ComputeDistance(tInfo.Title, a.Value) - levenshtein.ComputeDistance(tInfo.Title, b.Value)
+		return levenshtein.ComputeDistance(tTitle, strings.ToLower(a.Value)) - levenshtein.ComputeDistance(tTitle, strings.ToLower(b.Value))
 	})
 
 	return titles

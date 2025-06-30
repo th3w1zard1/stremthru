@@ -164,36 +164,36 @@ func TestPrepareAniDBTorrentsFromTVDBEpisodeMaps(t *testing.T) {
 						},
 					},
 				},
-				// {
-				// 	makeTorrentInfo("[sam] One Punch Man OVA [BD 1080p FLAC]"),
-				// 	[]torrentMap{
-				// 		{
-				// 			anidbId:    "11637",
-				// 			seasonType: "ani",
-				// 			season:     1,
-				// 		},
-				// 		{
-				// 			anidbId:    "11637",
-				// 			seasonType: "tv",
-				// 			season:     0,
-				// 		},
-				// 	},
-				// },
-				// {
-				// 	makeTorrentInfo("[Blaze077] One Punch Man - OVA-  Road To Hero [720p].mkv"),
-				// 	[]torrentMap{
-				// 		{
-				// 			anidbId:    "11637",
-				// 			seasonType: "ani",
-				// 			season:     1,
-				// 		},
-				// 		{
-				// 			anidbId:    "11637",
-				// 			seasonType: "tv",
-				// 			season:     0,
-				// 		},
-				// 	},
-				// },
+				{
+					makeTorrentInfo("[sam] One Punch Man OVA [BD 1080p FLAC]"),
+					[]torrentMap{
+						{
+							anidbId:    "11637",
+							seasonType: "ani",
+							season:     1,
+						},
+						{
+							anidbId:    "11637",
+							seasonType: "tv",
+							season:     0,
+						},
+					},
+				},
+				{
+					makeTorrentInfo("[Blaze077] One Punch Man - OVA-  Road To Hero [720p].mkv"),
+					[]torrentMap{
+						{
+							anidbId:    "11637",
+							seasonType: "ani",
+							season:     1,
+						},
+						{
+							anidbId:    "11637",
+							seasonType: "tv",
+							season:     0,
+						},
+					},
+				},
 			},
 		},
 		{
