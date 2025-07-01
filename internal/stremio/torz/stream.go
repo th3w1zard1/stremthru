@@ -77,7 +77,11 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 
 	eud := ud.GetEncoded()
 
-	buddy.PullTorrentsByStremId(id, "")
+	if config.LazyPeer {
+		go buddy.PullTorrentsByStremId(id, "")
+	} else {
+		buddy.PullTorrentsByStremId(id, "")
+	}
 
 	hashes, err := torrent_info.ListHashesByStremId(id)
 	if err != nil {
