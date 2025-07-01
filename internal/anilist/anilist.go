@@ -59,7 +59,7 @@ type getUserAnimeListQuery struct {
 			Name         string
 			IsCustomList bool
 			Entries      []struct {
-				Score     int
+				Score     int `graphql:"score(format: POINT_100)"`
 				MediaList struct {
 					Media struct {
 						Id int
