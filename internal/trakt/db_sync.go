@@ -21,55 +21,15 @@ var listIdBySlugCache = cache.NewCache[string](&cache.CacheConfig{
 	LocalCapacity: 2048,
 })
 
-func (l *TraktList) Fetch(tokenId string) error {
-	isMissing := false
-
-	if l.Id == "" {
-		if l.UserId == "" || l.Slug == "" {
-			return errors.New("either id, or user_id and slug must be provided")
-		}
-		listIdBySlugCacheKey := l.UserId + "/" + l.Slug
-		if !listIdBySlugCache.Get(listIdBySlugCacheKey, &l.Id) {
-			if listId, err := GetListIdBySlug(l.UserId, l.Slug); err != nil {
-				return err
-			} else if listId == "" {
-				isMissing = true
-			} else {
-				l.Id = listId
-				log.Debug("found list id by slug", "id", l.Id, "slug", l.UserId+"/"+l.Slug)
-				listIdBySlugCache.Add(listIdBySlugCacheKey, l.Id)
-			}
-		}
+func getListCacheKey(l *TraktList, tokenId string) string {
+	if l.IsUserRecommendations() {
+		return tokenId + ":" + l.Id
 	}
+	return l.Id
+}
 
+func syncList(l *TraktList, tokenId string) error {
 	isDynamic, isStandard, isUserRecommendations := l.IsDynamic(), l.IsStandard(), l.IsUserRecommendations()
-
-	listCacheKey := l.Id
-	if isUserRecommendations {
-		listCacheKey = tokenId + ":" + listCacheKey
-	}
-	if !isMissing {
-		var cachedL TraktList
-		if !listCache.Get(listCacheKey, &cachedL) {
-			if !isUserRecommendations {
-				if list, err := GetListById(l.Id); err != nil {
-					return err
-				} else if list == nil {
-					isMissing = true
-				} else {
-					*l = *list
-					log.Debug("found list by id", "id", l.Id, "is_stale", l.IsStale())
-					listCache.Add(listCacheKey, *l)
-				}
-			}
-		} else {
-			*l = cachedL
-		}
-	}
-
-	if !isMissing && !l.IsStale() {
-		return nil
-	}
 
 	client := GetAPIClient(tokenId)
 
@@ -216,7 +176,69 @@ func (l *TraktList) Fetch(tokenId string) error {
 		return err
 	}
 
-	if err := listCache.Add(listCacheKey, *l); err != nil {
+	if err := listCache.Add(getListCacheKey(l, tokenId), *l); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *TraktList) Fetch(tokenId string) error {
+	isMissing := false
+
+	if l.Id == "" {
+		if l.UserId == "" || l.Slug == "" {
+			return errors.New("either id, or user_id and slug must be provided")
+		}
+		listIdBySlugCacheKey := l.UserId + "/" + l.Slug
+		if !listIdBySlugCache.Get(listIdBySlugCacheKey, &l.Id) {
+			if listId, err := GetListIdBySlug(l.UserId, l.Slug); err != nil {
+				return err
+			} else if listId == "" {
+				isMissing = true
+			} else {
+				l.Id = listId
+				log.Debug("found list id by slug", "id", l.Id, "slug", l.UserId+"/"+l.Slug)
+				listIdBySlugCache.Add(listIdBySlugCacheKey, l.Id)
+			}
+		}
+	}
+
+	isUserRecommendations := l.IsUserRecommendations()
+
+	listCacheKey := getListCacheKey(l, tokenId)
+	if !isMissing {
+		var cachedL TraktList
+		if !listCache.Get(listCacheKey, &cachedL) {
+			if !isUserRecommendations {
+				if list, err := GetListById(l.Id); err != nil {
+					return err
+				} else if list == nil {
+					isMissing = true
+				} else {
+					*l = *list
+					log.Debug("found list by id", "id", l.Id, "is_stale", l.IsStale())
+					listCache.Add(listCacheKey, *l)
+				}
+			}
+		} else {
+			*l = cachedL
+		}
+	}
+
+	if !isMissing {
+		if l.IsStale() {
+			staleList := *l
+			go func() {
+				if err := syncList(&staleList, tokenId); err != nil {
+					log.Error("failed to sync stale list", "id", l.Id, "error", err)
+				}
+			}()
+		}
+		return nil
+	}
+
+	if err := syncList(l, tokenId); err != nil {
 		return err
 	}
 

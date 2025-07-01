@@ -11,49 +11,12 @@ import (
 
 var mdblistClient = NewAPIClient(&APIClientConfig{})
 
-func (l *MDBListList) Fetch(apiKey string) error {
-	isMissing := false
-	if l.Id == "" {
-		if l.UserName == "" || l.Slug == "" {
-			return errors.New("either id, or username and slug must be provided")
-		}
-		listIdByNameCacheKey := l.UserName + "/" + l.Slug
-		if !listIdByNameCache.Get(listIdByNameCacheKey, &l.Id) {
-			if listId, err := GetListIdByName(l.UserName, l.Slug); err != nil {
-				return err
-			} else if listId == "" {
-				isMissing = true
-			} else {
-				l.Id = listId
-				log.Debug("found list id by name", "id", l.Id, "name", l.UserName+"/"+l.Slug)
-				listIdByNameCache.Add(listIdByNameCacheKey, l.Id)
-			}
-		}
-	}
+func getListCacheKey(l *MDBListList) string {
+	return l.Id
+}
 
+func syncList(l *MDBListList, apiKey string) error {
 	isWatchlist := l.IsWatchlist()
-
-	if !isMissing {
-		listCacheKey := l.Id
-		var cachedL MDBListList
-		if !listCache.Get(listCacheKey, &cachedL) {
-			if list, err := GetListById(l.Id); err != nil {
-				return err
-			} else if list == nil {
-				isMissing = true
-			} else {
-				*l = *list
-				log.Debug("found list by id", "id", l.Id, "is_stale", l.IsStale())
-				listCache.Add(listCacheKey, *l)
-			}
-		} else {
-			*l = cachedL
-		}
-	}
-
-	if !isMissing && !l.IsStale() {
-		return nil
-	}
 
 	var list *List
 	if isWatchlist {
@@ -192,8 +155,64 @@ func (l *MDBListList) Fetch(apiKey string) error {
 		return err
 	}
 
-	listCacheKey := l.Id
-	if err := listCache.Add(listCacheKey, *l); err != nil {
+	if err := listCache.Add(getListCacheKey(l), *l); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *MDBListList) Fetch(apiKey string) error {
+	isMissing := false
+	if l.Id == "" {
+		if l.UserName == "" || l.Slug == "" {
+			return errors.New("either id, or username and slug must be provided")
+		}
+		listIdByNameCacheKey := l.UserName + "/" + l.Slug
+		if !listIdByNameCache.Get(listIdByNameCacheKey, &l.Id) {
+			if listId, err := GetListIdByName(l.UserName, l.Slug); err != nil {
+				return err
+			} else if listId == "" {
+				isMissing = true
+			} else {
+				l.Id = listId
+				log.Debug("found list id by name", "id", l.Id, "name", l.UserName+"/"+l.Slug)
+				listIdByNameCache.Add(listIdByNameCacheKey, l.Id)
+			}
+		}
+	}
+
+	if !isMissing {
+		listCacheKey := getListCacheKey(l)
+		var cachedL MDBListList
+		if !listCache.Get(listCacheKey, &cachedL) {
+			if list, err := GetListById(l.Id); err != nil {
+				return err
+			} else if list == nil {
+				isMissing = true
+			} else {
+				*l = *list
+				log.Debug("found list by id", "id", l.Id, "is_stale", l.IsStale())
+				listCache.Add(listCacheKey, *l)
+			}
+		} else {
+			*l = cachedL
+		}
+	}
+
+	if !isMissing {
+		if l.IsStale() {
+			staleList := *l
+			go func() {
+				if err := syncList(&staleList, apiKey); err != nil {
+					log.Error("failed to sync stale list", "id", l.Id, "error", err)
+				}
+			}()
+		}
+		return nil
+	}
+
+	if err := syncList(l, apiKey); err != nil {
 		return err
 	}
 

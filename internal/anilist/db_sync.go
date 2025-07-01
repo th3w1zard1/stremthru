@@ -120,33 +120,15 @@ func ScheduleIdMapSync(medias []AniListMedia) {
 	}
 }
 
+func getListCacheKey(l *AniListList) string {
+	return l.Id
+}
+
 var listFetchMutex sync.Mutex
 
-func (l *AniListList) Fetch() error {
+func syncList(l *AniListList) error {
 	listFetchMutex.Lock()
 	defer listFetchMutex.Unlock()
-
-	isMissing := false
-
-	listCacheKey := l.Id
-	var cachedL AniListList
-	if !listCache.Get(listCacheKey, &cachedL) {
-		if list, err := GetListById(l.Id); err != nil {
-			return err
-		} else if list == nil {
-			isMissing = true
-		} else {
-			*l = *list
-			log.Debug("found list by id", "id", l.Id, "is_stale", l.IsStale())
-			listCache.Add(listCacheKey, *l)
-		}
-	} else {
-		*l = cachedL
-	}
-
-	if !isMissing && !l.IsStale() {
-		return nil
-	}
 
 	var list *List
 	var err error
@@ -228,7 +210,45 @@ func (l *AniListList) Fetch() error {
 		return err
 	}
 
-	if err := listCache.Add(listCacheKey, *l); err != nil {
+	if err := listCache.Add(getListCacheKey(l), *l); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *AniListList) Fetch() error {
+	isMissing := false
+
+	listCacheKey := getListCacheKey(l)
+	var cachedL AniListList
+	if !listCache.Get(listCacheKey, &cachedL) {
+		if list, err := GetListById(l.Id); err != nil {
+			return err
+		} else if list == nil {
+			isMissing = true
+		} else {
+			*l = *list
+			log.Debug("found list by id", "id", l.Id, "is_stale", l.IsStale())
+			listCache.Add(listCacheKey, *l)
+		}
+	} else {
+		*l = cachedL
+	}
+
+	if !isMissing {
+		if l.IsStale() {
+			staleList := *l
+			go func() {
+				if err := syncList(&staleList); err != nil {
+					log.Error("failed to sync stale list", "id", l.Id, "error", err)
+				}
+			}()
+		}
+		return nil
+	}
+
+	if err := syncList(l); err != nil {
 		return err
 	}
 
