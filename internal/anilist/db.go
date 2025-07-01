@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/anime"
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/util"
 )
@@ -57,7 +58,7 @@ func (l *AniListList) GetDisplayName() string {
 }
 
 func (l *AniListList) IsStale() bool {
-	return time.Now().After(l.UpdatedAt.Add(12 * time.Hour))
+	return time.Now().After(l.UpdatedAt.Add(config.Integration.AniList.ListStaleTime))
 }
 
 type ListColumnStruct struct {

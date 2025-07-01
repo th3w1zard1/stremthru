@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/imdb_title"
 	"github.com/MunifTanjim/stremthru/internal/util"
@@ -66,7 +67,7 @@ func (l *TraktList) IsUserRecommendations() bool {
 }
 
 func (l *TraktList) IsStale() bool {
-	return time.Now().After(l.UpdatedAt.Add(12 * time.Hour))
+	return time.Now().After(l.UpdatedAt.Add(config.Integration.Trakt.ListStaleTime))
 }
 
 func (l *TraktList) ShouldPersist() bool {

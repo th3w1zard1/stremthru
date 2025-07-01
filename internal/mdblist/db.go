@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/imdb_title"
 	"github.com/MunifTanjim/stremthru/internal/util"
@@ -53,7 +54,7 @@ func (l *MDBListList) GetURL() string {
 }
 
 func (l *MDBListList) IsStale() bool {
-	return time.Now().After(l.UpdatedAt.Add(12 * time.Hour))
+	return time.Now().After(l.UpdatedAt.Add(config.Integration.MDBList.ListStaleTime))
 }
 
 type ListColumnStruct struct {

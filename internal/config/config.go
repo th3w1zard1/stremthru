@@ -47,17 +47,20 @@ var defaultValueByEnv = map[string]map[string]string{
 		"STREMTHRU_DATA_DIR": os.TempDir(),
 	},
 	"": {
-		"STREMTHRU_BASE_URL":                       "http://localhost:8080",
-		"STREMTHRU_CONTENT_PROXY_CONNECTION_LIMIT": "*:0",
-		"STREMTHRU_DATABASE_URI":                   "sqlite://./data/stremthru.db",
-		"STREMTHRU_DATA_DIR":                       "./data",
-		"STREMTHRU_LANDING_PAGE":                   "{}",
-		"STREMTHRU_LOG_FORMAT":                     "json",
-		"STREMTHRU_LOG_LEVEL":                      "INFO",
-		"STREMTHRU_PORT":                           "8080",
-		"STREMTHRU_STORE_CONTENT_PROXY":            "*:true",
-		"STREMTHRU_STORE_TUNNEL":                   "*:true",
-		"STREMTHRU_STORE_CLIENT_USER_AGENT":        "stremthru",
+		"STREMTHRU_BASE_URL":                            "http://localhost:8080",
+		"STREMTHRU_CONTENT_PROXY_CONNECTION_LIMIT":      "*:0",
+		"STREMTHRU_DATABASE_URI":                        "sqlite://./data/stremthru.db",
+		"STREMTHRU_DATA_DIR":                            "./data",
+		"STREMTHRU_LANDING_PAGE":                        "{}",
+		"STREMTHRU_LOG_FORMAT":                          "json",
+		"STREMTHRU_LOG_LEVEL":                           "INFO",
+		"STREMTHRU_PORT":                                "8080",
+		"STREMTHRU_STORE_CONTENT_PROXY":                 "*:true",
+		"STREMTHRU_STORE_TUNNEL":                        "*:true",
+		"STREMTHRU_STORE_CLIENT_USER_AGENT":             "stremthru",
+		"STREMTHRU_INTEGRATION_ANILIST_LIST_STALE_TIME": "12h",
+		"STREMTHRU_INTEGRATION_MDBLIST_LIST_STALE_TIME": "12h",
+		"STREMTHRU_INTEGRATION_TRAKT_LIST_STALE_TIME":   "12h",
 	},
 }
 
@@ -74,6 +77,24 @@ func getEnv(key string) string {
 		}
 	}
 	return ""
+}
+
+func parseDuration(key string, value string, minDuration time.Duration) (time.Duration, error) {
+	if duration, err := time.ParseDuration(value); err != nil {
+		return -1, fmt.Errorf("invalid %s (%s): %v", key, value, err)
+	} else if duration < minDuration {
+		return -1, fmt.Errorf("%s (%s) must be at least %s", key, duration, minDuration.String())
+	} else {
+		return duration, nil
+	}
+}
+
+func mustParseDuration(key string, value string, minDuration time.Duration) time.Duration {
+	duration, err := parseDuration(key, value, minDuration)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return duration
 }
 
 type StoreAuthTokenMap map[string]map[string]string
@@ -751,7 +772,7 @@ func PrintConfig(state *AppState) {
 	l.Println()
 
 	l.Println(" Integrations:")
-	for _, integration := range []string{"anilist.co", "trakt.tv", "kitsu.app"} {
+	for _, integration := range []string{"anilist.co", "kitsu.app", "mdblist.com", "trakt.tv"} {
 		switch integration {
 		case "anilist.co":
 			disabled := ""
@@ -759,6 +780,9 @@ func PrintConfig(state *AppState) {
 				disabled = " (disabled)"
 			}
 			l.Println("   - " + integration + disabled)
+			if disabled == "" {
+				l.Println("       list stale time: " + Integration.AniList.ListStaleTime.String())
+			}
 		case "kitsu.app":
 			disabled := ""
 			if !Feature.IsEnabled(FeatureAnime) || !Integration.Kitsu.HasDefaultCredentials() {
@@ -767,14 +791,17 @@ func PrintConfig(state *AppState) {
 			l.Println("   - " + integration + disabled)
 			if disabled == "" {
 				if Integration.Kitsu.ClientId != "" {
-					l.Println("           client_id: " + Integration.Kitsu.ClientId[0:3] + "..." + Integration.Kitsu.ClientId[len(Integration.Trakt.ClientId)-3:])
+					l.Println("             client_id: " + Integration.Kitsu.ClientId[0:3] + "..." + Integration.Kitsu.ClientId[len(Integration.Trakt.ClientId)-3:])
 				}
 				if Integration.Kitsu.ClientSecret != "" {
-					l.Println("       client_secret: " + Integration.Kitsu.ClientSecret[0:3] + "..." + Integration.Kitsu.ClientSecret[len(Integration.Trakt.ClientSecret)-3:])
+					l.Println("         client_secret: " + Integration.Kitsu.ClientSecret[0:3] + "..." + Integration.Kitsu.ClientSecret[len(Integration.Trakt.ClientSecret)-3:])
 				}
-				l.Println("               email: " + Integration.Kitsu.Email)
-				l.Println("            password: " + "*******")
+				l.Println("                 email: " + Integration.Kitsu.Email)
+				l.Println("              password: " + "*******")
 			}
+		case "mdblist.com":
+			l.Println("   - " + integration)
+			l.Println("       list stale time: " + Integration.MDBList.ListStaleTime.String())
 		case "trakt.tv":
 			disabled := ""
 			if !Integration.Trakt.IsEnabled() {
@@ -782,8 +809,9 @@ func PrintConfig(state *AppState) {
 			}
 			l.Println("   - " + integration + disabled)
 			if disabled == "" {
-				l.Println("           client_id: " + Integration.Trakt.ClientId[0:3] + "..." + Integration.Trakt.ClientId[len(Integration.Trakt.ClientId)-3:])
-				l.Println("       client_secret: " + Integration.Trakt.ClientSecret[0:3] + "..." + Integration.Trakt.ClientSecret[len(Integration.Trakt.ClientSecret)-3:])
+				l.Println("             client_id: " + Integration.Trakt.ClientId[0:3] + "..." + Integration.Trakt.ClientId[len(Integration.Trakt.ClientId)-3:])
+				l.Println("         client_secret: " + Integration.Trakt.ClientSecret[0:3] + "..." + Integration.Trakt.ClientSecret[len(Integration.Trakt.ClientSecret)-3:])
+				l.Println("       list stale time: " + Integration.Trakt.ListStaleTime.String())
 			}
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/url"
 	"strings"
+	"time"
 )
 
 var BaseURL = func() *url.URL {
@@ -14,9 +15,18 @@ var BaseURL = func() *url.URL {
 	return baseUrl
 }()
 
+type integrationConfigAniList struct {
+	ListStaleTime time.Duration
+}
+
+type integrationConfigMDBList struct {
+	ListStaleTime time.Duration
+}
+
 type integrationConfigTrakt struct {
-	ClientId     string
-	ClientSecret string
+	ClientId      string
+	ClientSecret  string
+	ListStaleTime time.Duration
 }
 
 func (c integrationConfigTrakt) IsEnabled() bool {
@@ -35,15 +45,24 @@ func (c integrationConfigKitsu) HasDefaultCredentials() bool {
 }
 
 type IntegrationConfig struct {
-	Trakt integrationConfigTrakt
-	Kitsu integrationConfigKitsu
+	AniList integrationConfigAniList
+	MDBList integrationConfigMDBList
+	Trakt   integrationConfigTrakt
+	Kitsu   integrationConfigKitsu
 }
 
 func parseIntegration() IntegrationConfig {
 	integration := IntegrationConfig{
+		AniList: integrationConfigAniList{
+			ListStaleTime: mustParseDuration("anilist list stale time", getEnv("STREMTHRU_INTEGRATION_ANILIST_LIST_STALE_TIME"), 15*time.Minute),
+		},
+		MDBList: integrationConfigMDBList{
+			ListStaleTime: mustParseDuration("mdblist list stale time", getEnv("STREMTHRU_INTEGRATION_MDBLIST_LIST_STALE_TIME"), 15*time.Minute),
+		},
 		Trakt: integrationConfigTrakt{
-			ClientId:     getEnv("STREMTHRU_INTEGRATION_TRAKT_CLIENT_ID"),
-			ClientSecret: getEnv("STREMTHRU_INTEGRATION_TRAKT_CLIENT_SECRET"),
+			ClientId:      getEnv("STREMTHRU_INTEGRATION_TRAKT_CLIENT_ID"),
+			ClientSecret:  getEnv("STREMTHRU_INTEGRATION_TRAKT_CLIENT_SECRET"),
+			ListStaleTime: mustParseDuration("trakt list stale time", getEnv("STREMTHRU_INTEGRATION_TRAKT_LIST_STALE_TIME"), 15*time.Minute),
 		},
 		Kitsu: integrationConfigKitsu{
 			ClientId:     getEnv("STREMTHRU_INTEGRATION_KITSU_CLIENT_ID"),

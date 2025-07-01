@@ -223,6 +223,18 @@ Comma separated list of features to enable/disable.
 Use `-` prefix to disable opt-out feature, and `+` prefix to enable opt-in feature.
 Otherwise only the specified features will be enabled.
 
+#### AniList Integration
+
+##### `STREMTHRU_INTEGRATION_ANILIST_LIST_STALE_TIME`
+
+Stale time for list. e.g. `12h`.
+
+#### MDBList Integration
+
+##### `STREMTHRU_INTEGRATION_MDBLIST_LIST_STALE_TIME`
+
+Stale time for list. e.g. `12h`.
+
 #### Trakt.tv Integration
 
 Trakt.tv integration needs an [OAuth App](https://trakt.tv/oauth/applications).
@@ -236,6 +248,10 @@ Client ID for Trakt.tv OAuth App.
 ##### `STREMTHRU_INTEGRATION_TRAKT_CLIENT_SECRET`
 
 Client Secret for Trakt.tv OAuth App.
+
+##### `STREMTHRU_INTEGRATION_TRAKT_LIST_STALE_TIME`
+
+Stale time for list. e.g. `12h`.
 
 ## Endpoints
 
