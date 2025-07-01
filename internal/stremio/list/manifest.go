@@ -105,6 +105,10 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 					Name: list.Name,
 					Extra: []stremio.CatalogExtra{
 						{
+							Name:    "genre",
+							Options: trakt.Genres,
+						},
+						{
 							Name: "skip",
 						},
 					},
