@@ -457,8 +457,6 @@ func listFolderFlat(c *StoreClient, apiKey string, folderId string, result []sto
 		}
 
 		if f.Type == FolderItemTypeFolder {
-			result = append(result, *file)
-			idx++
 			result, err = listFolderFlat(c, apiKey, f.Id, result, file, idx)
 			if err != nil {
 				return nil, err
