@@ -87,7 +87,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		}
 
 		http.Redirect(w, r, data.Link, http.StatusFound)
-	} else if idr.isWebDL {
+	} else if idr.isWebDL || videoId == WEBDL_META_ID_INDICATOR {
 		storeName := ctx.Store.GetName()
 		rParams := &stremio_store_webdl.GenerateLinkParams{
 			Link:     link,

@@ -37,7 +37,6 @@ type StreamFileMatcher struct {
 	IdR        *ParsedId
 	IdPrefix   string
 	Store      store.Store
-	StoreCode  string
 	StoreToken string
 	ClientIP   string
 }
@@ -95,6 +94,11 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if strings.HasPrefix(videoIdWithLink, getWebDLsMetaIdPrefix(idr.getStoreCode())) {
+			SendResponse(w, r, 200, res)
+			return
+		}
+
 		ctx, err := ud.GetRequestContext(r, idr)
 		if err != nil || ctx.Store == nil {
 			if err != nil {
@@ -121,7 +125,6 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			IdPrefix:   idPrefix,
 			IdR:        idr,
 			Store:      ctx.Store,
-			StoreCode:  idr.getStoreCode(),
 			StoreToken: ctx.StoreAuthToken,
 			ClientIP:   ctx.ClientIP,
 		})
@@ -187,7 +190,6 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 							IdPrefix:   idPrefix,
 							IdR:        idr,
 							Store:      ctx.Store,
-							StoreCode:  idr.getStoreCode(),
 							StoreToken: ctx.StoreAuthToken,
 							ClientIP:   ctx.ClientIP,
 						})
@@ -199,7 +201,6 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 							IdPrefix:   idPrefix,
 							IdR:        idr,
 							Store:      ctx.Store,
-							StoreCode:  idr.getStoreCode(),
 							StoreToken: ctx.StoreAuthToken,
 							ClientIP:   ctx.ClientIP,
 						})

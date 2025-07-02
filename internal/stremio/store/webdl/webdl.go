@@ -10,11 +10,18 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/request"
 	"github.com/MunifTanjim/stremthru/store"
+	"github.com/MunifTanjim/stremthru/store/premiumize"
 	"github.com/MunifTanjim/stremthru/store/torbox"
 )
 
 var tbClient = torbox.NewAPIClient(&torbox.APIClientConfig{
 	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("torbox")),
+	UserAgent:  config.StoreClientUserAgent,
+})
+
+var pmClient = premiumize.NewAPIClient(&premiumize.APIClientConfig{
+	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("premiumize")),
+	UserAgent:  config.StoreClientUserAgent,
 })
 
 type WebDLFile struct {
@@ -53,6 +60,38 @@ func ListWebDLs(params *ListWebDLsParams, storeName store.StoreName) (*ListWebDL
 	params.Limit = max(1, min(params.Limit, 500))
 
 	switch storeName {
+	case store.StoreNamePremiumize:
+		rParams := &premiumize.ListItemsParams{
+			Ctx: params.Ctx,
+		}
+		res, err := pmClient.ListItems(rParams)
+		if err != nil {
+			return nil, err
+		}
+
+		data := ListWebDLsData{}
+		for i := range res.Data.Files {
+			dl := &res.Data.Files[i]
+			item := WebDL{
+				Id:      dl.Id,
+				Hash:    "",
+				Name:    dl.Name,
+				Size:    dl.Size,
+				Status:  store.MagnetStatusDownloaded,
+				AddedAt: dl.GetCreatedAt(),
+			}
+			file := WebDLFile{
+				Name: dl.Name,
+				Path: dl.Path,
+				Size: dl.Size,
+			}
+			item.Files = append(item.Files, file)
+			data.Items = append(data.Items, item)
+		}
+
+		data.TotalItems = len(data.Items)
+
+		return &data, nil
 	case store.StoreNameTorBox:
 		rParams := &torbox.ListWebDLDownloadParams{
 			Ctx:    params.Ctx,
@@ -180,6 +219,22 @@ type GenerateLinkParams struct {
 
 func GenerateLink(params *GenerateLinkParams, storeName store.StoreName) (*GenerateLinkData, error) {
 	switch storeName {
+	case store.StoreNamePremiumize:
+		res, err := pmClient.GetItem(&premiumize.GetItemParams{
+			Ctx: params.Ctx,
+			Id:  params.Link,
+		})
+		if err != nil {
+			return nil, err
+		}
+		link := res.Data.StreamLink
+		if link == "" {
+			link = res.Data.Link
+		}
+		data := GenerateLinkData{
+			Link: res.Data.Link,
+		}
+		return &data, nil
 	case store.StoreNameTorBox:
 		id, fileId, err := torbox.LockedFileLink(params.Link).Parse()
 		if err != nil {

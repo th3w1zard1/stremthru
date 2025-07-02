@@ -321,21 +321,22 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		hashes[i] = item.hash
 	}
 
-	includeRDDownlodsMetaPreview := ud.EnableWebDL && idr.storeCode == store.StoreCodeRealDebrid
+	includeWebDLsMetaPreview := ud.EnableWebDL && (idr.storeCode == store.StoreCodeRealDebrid || idr.storeCode == store.StoreCodePremiumize)
 
 	count := len(hashes)
-	if includeRDDownlodsMetaPreview {
+	if includeWebDLsMetaPreview {
 		count += 1
 	}
 
 	res.Metas = make([]stremio.MetaPreview, 0, count)
 
-	if includeRDDownlodsMetaPreview {
+	if includeWebDLsMetaPreview {
 		res.Metas = append(res.Metas, stremio.MetaPreview{
-			Id:     getRDWebDLsId(idStoreCode),
-			Type:   ContentTypeOther,
-			Name:   "Web Downloads",
-			Poster: "https://emojiapi.dev/api/v1/inbox_tray/256.png",
+			Id:          getWebDLsMetaId(idStoreCode),
+			Type:        ContentTypeOther,
+			Name:        "Web Downloads",
+			Description: "Web Downloads for " + strings.ToUpper(string(idr.storeCode)),
+			Poster:      "https://emojiapi.dev/api/v1/inbox_tray/256.png",
 		})
 	}
 

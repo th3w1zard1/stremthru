@@ -27,12 +27,14 @@ func getStoreActionIdPrefix(storeCode string) string {
 	return getStoreActionId(storeCode) + ":"
 }
 
-func getRDWebDLsId(storeCode string) string {
-	return getIdPrefix(storeCode) + "webdls"
+const WEBDL_META_ID_INDICATOR = "webdls"
+
+func getWebDLsMetaId(storeCode string) string {
+	return getIdPrefix(storeCode) + WEBDL_META_ID_INDICATOR
 }
 
-func getRDWebDLsIdPrefix(storeCode string) string {
-	return getRDWebDLsId(storeCode) + ":"
+func getWebDLsMetaIdPrefix(storeCode string) string {
+	return getWebDLsMetaId(storeCode) + ":"
 }
 
 type ParsedId struct {

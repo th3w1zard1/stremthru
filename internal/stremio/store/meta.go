@@ -219,11 +219,18 @@ func getMetaPreviewDescriptionForUsenet(hash, name string, largestFilename strin
 }
 
 func getMetaPreviewDescriptionForWebDL(hash, name string, includeSeriesMeta bool) string {
-	description := "[ 📥 " + hash + " ]"
+	description := ""
+
+	if hash != "" {
+		description += " [ 📥 " + hash + " ]"
+	}
 
 	r, err := util.ParseTorrentTitle(name)
 	if err != nil {
 		pttLog.Warn("failed to parse", "error", err, "title", name)
+		if description == "" {
+			description = name
+		}
 		return description
 	}
 
@@ -382,12 +389,13 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	eud, err := ud.GetEncoded()
+	if err != nil {
+		SendError(w, r, err)
+		return
+	}
+
 	if id == getStoreActionId(idStoreCode) {
-		eud, err := ud.GetEncoded()
-		if err != nil {
-			SendError(w, r, err)
-			return
-		}
 
 		res := stremio.MetaHandlerResponse{
 			Meta: getStoreActionMeta(r, idStoreCode, eud),
@@ -397,9 +405,18 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if idr.storeCode == store.StoreCodeRealDebrid && id == getRDWebDLsId(idStoreCode) {
-		res := stremio.MetaHandlerResponse{
-			Meta: getRDWebDLsMeta(r, ctx, idStoreCode),
+	if id == getWebDLsMetaId(idStoreCode) {
+		res := stremio.MetaHandlerResponse{}
+
+		switch idr.storeCode {
+		case store.StoreCodeRealDebrid:
+			res.Meta = getRDWebDLsMeta(r, ctx, idr)
+		case store.StoreCodePremiumize:
+			res.Meta, err = getPMWebDLsMeta(r, ctx, idr, eud)
+			if err != nil {
+				SendError(w, r, err)
+				return
+			}
 		}
 
 		SendResponse(w, r, 200, res)
