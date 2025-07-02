@@ -732,6 +732,9 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 		}
 
 		for _, t := range lt_res.Data.Transfers {
+			if !strings.HasPrefix(t.Src, "magnet:") {
+				continue
+			}
 			magnet, err := core.ParseMagnetLink(t.Src)
 			if err != nil {
 				return nil, err
