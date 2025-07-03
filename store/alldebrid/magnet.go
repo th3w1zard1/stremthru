@@ -150,6 +150,10 @@ const (
 	MagnetStatusCodeErrorUnknown                                     // Internal error
 	MagnetStatusCodeErrorDownloadTookTooLong                         // Download took more than 72h
 	MagnetStatusCodeErrorDeletedUpstream                             // Deleted on the hoster website
+	MagnetStatusCodeProcessingFailed                                 // Processing failed
+	MagnetStatusCodeProcessingFailedAlt                              // Processing failed
+	MagnetStatusCodeErrorContactingTrakcer                           // Error while contacting tracker
+	MagnetStatusCodeFileNotAvailable                                 // File not available - no peer
 )
 
 // get magnet files
