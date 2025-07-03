@@ -48,6 +48,8 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 	case "clear_cache":
 		catalogCache.Remove(getCatalogCacheKey(idPrefix, ctx.StoreAuthToken))
 		switch ctx.Store.GetName() {
+		case store.StoreNameAlldebrid:
+			adLinksCache.Remove(getADLinksCacheKey(idPrefix, ctx.StoreAuthToken))
 		case store.StoreNamePremiumize:
 			pmItemsCache.Remove(getPMItemsCacheKey(idPrefix, ctx.StoreAuthToken))
 		case store.StoreNameRealDebrid:

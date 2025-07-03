@@ -409,6 +409,8 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 		res := stremio.MetaHandlerResponse{}
 
 		switch idr.storeCode {
+		case store.StoreCodeAllDebrid:
+			res.Meta = getADWebDLsMeta(r, ctx, idr)
 		case store.StoreCodeRealDebrid:
 			res.Meta = getRDWebDLsMeta(r, ctx, idr)
 		case store.StoreCodePremiumize:

@@ -321,7 +321,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		hashes[i] = item.hash
 	}
 
-	includeWebDLsMetaPreview := ud.EnableWebDL && (idr.storeCode == store.StoreCodeRealDebrid || idr.storeCode == store.StoreCodePremiumize)
+	includeWebDLsMetaPreview := ud.EnableWebDL && (idr.storeCode == store.StoreCodeRealDebrid || idr.storeCode == store.StoreCodePremiumize || idr.storeCode == store.StoreCodeAllDebrid)
 
 	count := len(hashes)
 	if includeWebDLsMetaPreview {

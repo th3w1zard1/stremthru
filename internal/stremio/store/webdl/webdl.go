@@ -10,9 +10,15 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/request"
 	"github.com/MunifTanjim/stremthru/store"
+	"github.com/MunifTanjim/stremthru/store/alldebrid"
 	"github.com/MunifTanjim/stremthru/store/premiumize"
 	"github.com/MunifTanjim/stremthru/store/torbox"
 )
+
+var adClient = alldebrid.NewAPIClient(&alldebrid.APIClientConfig{
+	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("alldebrid")),
+	UserAgent:  config.StoreClientUserAgent,
+})
 
 var tbClient = torbox.NewAPIClient(&torbox.APIClientConfig{
 	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("torbox")),
@@ -60,6 +66,42 @@ func ListWebDLs(params *ListWebDLsParams, storeName store.StoreName) (*ListWebDL
 	params.Limit = max(1, min(params.Limit, 500))
 
 	switch storeName {
+	case store.StoreNameAlldebrid:
+		rParams := &alldebrid.GetRecentUserLinksParams{
+			Ctx: params.Ctx,
+		}
+		res, err := adClient.GetRecentUserLinks(rParams)
+		if err != nil {
+			return nil, err
+		}
+
+		data := ListWebDLsData{}
+		for i := range res.Data {
+			link := &res.Data[i]
+			if link.Host == "error" || link.Host == "magnet" {
+				continue
+			}
+			item := WebDL{
+				Id:      link.Link,
+				Hash:    "",
+				Name:    link.Filename,
+				Size:    link.Size,
+				Status:  store.MagnetStatusDownloaded,
+				AddedAt: link.GetDate(),
+				Files: []WebDLFile{
+					{
+						Link: link.LinkDL,
+						Name: link.Filename,
+						Size: link.Size,
+					},
+				},
+			}
+			data.Items = append(data.Items, item)
+		}
+
+		data.TotalItems = len(data.Items)
+
+		return &data, nil
 	case store.StoreNamePremiumize:
 		rParams := &premiumize.ListItemsParams{
 			Ctx: params.Ctx,
