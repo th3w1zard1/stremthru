@@ -54,3 +54,17 @@ func (c APIClient) GetRecentUserLinks(params *GetRecentUserLinksParams) (APIResp
 	res, err := c.Request("GET", "/v4/user/history", params, response)
 	return newAPIResponse(res, response.Data.Links), err
 }
+
+type GetSavedUserLinks struct {
+	Links []UserLink `json:"links"`
+}
+
+type GetSavedUserLinksParams struct {
+	Ctx
+}
+
+func (c APIClient) GetSavedUserLinks(params *GetSavedUserLinksParams) (APIResponse[[]UserLink], error) {
+	response := &Response[GetSavedUserLinks]{}
+	res, err := c.Request("GET", "/v4/user/links", params, response)
+	return newAPIResponse(res, response.Data.Links), err
+}

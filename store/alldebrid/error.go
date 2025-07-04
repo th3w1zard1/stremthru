@@ -83,6 +83,10 @@ const (
 	ErrorCodeFreedaysInvalidCountry  ErrorCode = "FREEDAYS_INVALID_COUNTRY"
 	ErrorCodeFreedaysInvalidPhone    ErrorCode = "FREEDAYS_INVALID_PHONE"
 	ErrorCodeFreedaysInvalidProvider ErrorCode = "FREEDAYS_INVALID_PROVIDER"
+
+	ErrorCodeStreamInvalidGenId    ErrorCode = "STREAM_INVALID_GEN_ID"
+	ErrorCodeStreamInvalidStreamId ErrorCode = "STREAM_INVALID_STREAM_ID"
+	ErrorCodeDelayedInvalidId      ErrorCode = "DELAYED_INVALID_ID"
 )
 
 var errorCodeByErrorCode = map[ErrorCode]core.ErrorCode{

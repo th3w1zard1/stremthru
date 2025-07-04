@@ -189,7 +189,7 @@ type GetMagnetStatusDataMagnet struct {
 	Filename       string           `json:"filename"`
 	Size           int64            `json:"size"`
 	Hash           string           `json:"hash"`
-	Type           string           `json:"type"`
+	Type           string           `json:"type"` // m
 	Version        int              `json:"version"`
 	Status         string           `json:"status"`
 	StatusCode     MagnetStatusCode `json:"statusCode"`
@@ -200,6 +200,8 @@ type GetMagnetStatusDataMagnet struct {
 	UploadSpeed    int              `json:"uploadSpeed"`
 	UploadDate     int64            `json:"uploadDate"`
 	CompletionDate int64            `json:"completionDate"`
+	Notified       bool             `json:"notified"`
+	NBLink         int              `json:"nbLink"`
 }
 
 func (m GetMagnetStatusDataMagnet) GetAddedAt() time.Time {
