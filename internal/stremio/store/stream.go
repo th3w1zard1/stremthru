@@ -94,7 +94,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if strings.HasPrefix(videoIdWithLink, getWebDLsMetaIdPrefix(idr.getStoreCode())) {
+		if strings.HasPrefix(videoIdWithLink, getWebDLsMetaId(idr.getStoreCode())) {
 			SendResponse(w, r, 200, res)
 			return
 		}

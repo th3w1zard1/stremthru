@@ -67,34 +67,51 @@ func ListWebDLs(params *ListWebDLsParams, storeName store.StoreName) (*ListWebDL
 
 	switch storeName {
 	case store.StoreNameAlldebrid:
-		rParams := &alldebrid.GetRecentUserLinksParams{
+		rParamsRecent := &alldebrid.GetRecentUserLinksParams{
 			Ctx: params.Ctx,
 		}
-		res, err := adClient.GetRecentUserLinks(rParams)
-		if err != nil {
-			return nil, err
+		rParamsSaved := &alldebrid.GetSavedUserLinksParams{
+			Ctx: params.Ctx,
+		}
+		resRecent, errRecent := adClient.GetRecentUserLinks(rParamsRecent)
+		resSaved, errSaved := adClient.GetSavedUserLinks(rParamsSaved)
+		if errRecent != nil {
+			return nil, errRecent
+		}
+		if errSaved != nil {
+			return nil, errSaved
 		}
 
+		links := append(resRecent.Data, resSaved.Data...)
+
+		seenLink := map[string]struct{}{}
+
 		data := ListWebDLsData{}
-		for i := range res.Data {
-			link := &res.Data[i]
+		for i := range links {
+			link := &links[i]
 			if link.Host == "error" || link.Host == "magnet" {
 				continue
 			}
+			if _, seen := seenLink[link.Link]; seen {
+				continue
+			}
+			seenLink[link.Link] = struct{}{}
 			item := WebDL{
 				Id:      link.Link,
 				Hash:    "",
 				Name:    link.Filename,
 				Size:    link.Size,
-				Status:  store.MagnetStatusDownloaded,
+				Status:  store.MagnetStatusUnknown,
 				AddedAt: link.GetDate(),
-				Files: []WebDLFile{
-					{
-						Link: link.LinkDL,
-						Name: link.Filename,
-						Size: link.Size,
-					},
-				},
+				Files:   []WebDLFile{},
+			}
+			if link.LinkDL != "" {
+				item.Status = store.MagnetStatusDownloaded
+				item.Files = append(item.Files, WebDLFile{
+					Link: link.LinkDL,
+					Name: link.Filename,
+					Size: link.Size,
+				})
 			}
 			data.Items = append(data.Items, item)
 		}
@@ -261,6 +278,56 @@ type GenerateLinkParams struct {
 
 func GenerateLink(params *GenerateLinkParams, storeName store.StoreName) (*GenerateLinkData, error) {
 	switch storeName {
+	case store.StoreNameAlldebrid:
+		res, err := adClient.UnlockLink(&alldebrid.UnlockLinkParams{
+			Ctx:    params.Ctx,
+			Link:   params.Link,
+			UserIP: params.CLientIP,
+		})
+		if err != nil {
+			return nil, err
+		}
+		data := GenerateLinkData{}
+		if res.Data.Link != "" {
+			if !core.HasVideoExtension(res.Data.Filename) {
+				error := core.NewAPIError("no video file found")
+				error.StatusCode = http.StatusUnprocessableEntity
+				error.StoreName = string(storeName)
+				return nil, error
+			}
+			data.Link = res.Data.Link
+			return &data, nil
+		}
+
+		if len(res.Data.Streams) > 0 {
+			var stream *alldebrid.UnlockLinkDataStream
+			for i := range res.Data.Streams {
+				s := &res.Data.Streams[i]
+				if !core.HasVideoExtension("." + s.Ext) {
+					continue
+				}
+				stream = s
+			}
+			if stream == nil {
+				error := core.NewAPIError("no video stream found")
+				error.StatusCode = http.StatusUnprocessableEntity
+				error.StoreName = string(storeName)
+				return nil, error
+			}
+			sRes, err := adClient.GetStreamingLink(&alldebrid.GetStreamingLinkParams{
+				Ctx:    params.Ctx,
+				Id:     res.Data.Id,
+				Stream: stream.Id,
+			})
+			if err != nil {
+				return nil, err
+			}
+			data.Link = sRes.Data.Link
+			return &data, nil
+		}
+
+		return &data, nil
+
 	case store.StoreNamePremiumize:
 		res, err := pmClient.GetItem(&premiumize.GetItemParams{
 			Ctx: params.Ctx,

@@ -410,7 +410,7 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 
 		switch idr.storeCode {
 		case store.StoreCodeAllDebrid:
-			res.Meta = getADWebDLsMeta(r, ctx, idr)
+			res.Meta = getADWebDLsMeta(r, ctx, idr, eud)
 		case store.StoreCodeRealDebrid:
 			res.Meta = getRDWebDLsMeta(r, ctx, idr)
 		case store.StoreCodePremiumize:

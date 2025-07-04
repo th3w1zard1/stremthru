@@ -2,6 +2,7 @@ package stremio_store
 
 import (
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
@@ -22,7 +23,7 @@ func getADLinksCacheKey(idPrefix, storeToken string) string {
 	return idPrefix + storeToken
 }
 
-func getADWebDLsMeta(r *http.Request, ctx *context.StoreContext, idr *ParsedId) stremio.Meta {
+func getADWebDLsMeta(r *http.Request, ctx *context.StoreContext, idr *ParsedId, eud string) stremio.Meta {
 	released := time.Now().UTC()
 
 	meta := stremio.Meta{
@@ -48,34 +49,48 @@ func getADWebDLsMeta(r *http.Request, ctx *context.StoreContext, idr *ParsedId) 
 		tunnelType := config.StoreTunnel.GetTypeForStream(string(ctx.Store.GetName()))
 		idPrefix := getWebDLsMetaIdPrefix(idr.getStoreCode())
 
+		streamBaseUrl := ExtractRequestBaseURL(r).JoinPath("/stremio/store/" + eud + "/_/strem/")
 		for i := range res.Items {
 			dl := &res.Items[i]
-			if len(dl.Files) == 0 {
-				continue
-			}
-			file := dl.Files[0]
-			if !core.HasVideoExtension(file.Name) {
-				continue
-			}
+
 			stream := stremio.Stream{
-				URL: file.Link,
 				BehaviorHints: &stremio.StreamBehaviorHints{
-					VideoSize: file.Size,
-					Filename:  file.Name,
+					VideoSize: dl.Size,
+					Filename:  dl.Name,
 				},
 			}
-			videoTitle := getMetaPreviewDescriptionForWebDL("", dl.Name, true) + "\n📄 " + file.Name
-			if shouldCreateProxyLink {
-				if proxyLink, err := shared.CreateProxyLink(r, stream.URL, nil, tunnelType, 12*time.Hour, ctx.ProxyAuthUser, ctx.ProxyAuthPassword, true, file.Name); err == nil {
-					stream.URL = proxyLink
-					videoTitle = "✨ " + videoTitle
-				} else {
-					log.Error("failed to create proxy link, skipping file", "error", err, "store", storeName.Code(), "filename", file.Name)
+
+			videoId := idPrefix + dl.Id
+			isDirectLink := false
+			if len(dl.Files) == 0 {
+				stream.URL = streamBaseUrl.JoinPath(url.PathEscape(videoId)).String()
+			} else {
+				file := dl.Files[0]
+				if !core.HasVideoExtension(file.Name) {
 					continue
 				}
+				isDirectLink = true
+				stream.URL = file.Link
+				stream.BehaviorHints.VideoSize = file.Size
+				stream.BehaviorHints.Filename = file.Name
 			}
+
+			videoTitle := getMetaPreviewDescriptionForWebDL("", dl.Name, true) + "\n📄 " + stream.BehaviorHints.Filename
+
+			if shouldCreateProxyLink {
+				videoTitle = "✨ " + videoTitle
+				if isDirectLink {
+					if proxyLink, err := shared.CreateProxyLink(r, stream.URL, nil, tunnelType, 12*time.Hour, ctx.ProxyAuthUser, ctx.ProxyAuthPassword, true, stream.BehaviorHints.Filename); err == nil {
+						stream.URL = proxyLink
+					} else {
+						log.Error("failed to create proxy link, skipping file", "error", err, "store", storeName.Code(), "filename", stream.BehaviorHints.Filename)
+						continue
+					}
+				}
+			}
+
 			video := stremio.MetaVideo{
-				Id:       idPrefix + dl.Id,
+				Id:       videoId,
 				Title:    videoTitle,
 				Released: dl.AddedAt,
 				Streams:  []stremio.Stream{stream},
