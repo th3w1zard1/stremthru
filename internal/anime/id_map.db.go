@@ -334,6 +334,29 @@ func normalizeOptionalId(id string) string {
 	return id
 }
 
+func getAnchorColumnValue(item AnimeIdMap, anchorColumnName string) string {
+	switch anchorColumnName {
+	case IdMapColumn.AniDB:
+		return normalizeOptionalId(item.AniDB)
+	case IdMapColumn.AniList:
+		return normalizeOptionalId(item.AniList)
+	case IdMapColumn.AniSearch:
+		return normalizeOptionalId(item.AniSearch)
+	case IdMapColumn.AnimePlanet:
+		return normalizeOptionalId(item.AnimePlanet)
+	case IdMapColumn.Kitsu:
+		return normalizeOptionalId(item.Kitsu)
+	case IdMapColumn.LiveChart:
+		return normalizeOptionalId(item.LiveChart)
+	case IdMapColumn.MAL:
+		return normalizeOptionalId(item.MAL)
+	case IdMapColumn.NotifyMoe:
+		return normalizeOptionalId(item.NotifyMoe)
+	default:
+		panic("unsupported anchor column")
+	}
+}
+
 func BulkRecordIdMaps(items []AnimeIdMap, anchorColumnName string) error {
 	count := len(items)
 	if count == 0 {
@@ -342,6 +365,36 @@ func BulkRecordIdMaps(items []AnimeIdMap, anchorColumnName string) error {
 
 	var query strings.Builder
 	query.WriteString(query_bulk_record_id_maps_before_values)
+
+	seenMap := map[string]struct{}{}
+
+	columnCount := len(IdMapColumns) - 2
+	args := make([]any, 0, count*columnCount)
+	for _, item := range items {
+		anchorValue := getAnchorColumnValue(item, anchorColumnName)
+		if _, seen := seenMap[anchorValue]; seen {
+			count--
+			continue
+		}
+		seenMap[anchorValue] = struct{}{}
+
+		args = append(
+			args,
+			item.Type,
+			db.NullString{String: normalizeOptionalId(item.AniDB)},
+			db.NullString{String: normalizeOptionalId(item.AniList)},
+			db.NullString{String: normalizeOptionalId(item.AniSearch)},
+			db.NullString{String: normalizeOptionalId(item.AnimePlanet)},
+			db.NullString{String: normalizeOptionalId(item.IMDB)},
+			db.NullString{String: normalizeOptionalId(item.Kitsu)},
+			db.NullString{String: normalizeOptionalId(item.LiveChart)},
+			db.NullString{String: normalizeOptionalId(item.MAL)},
+			db.NullString{String: normalizeOptionalId(item.NotifyMoe)},
+			db.NullString{String: normalizeOptionalId(item.TMDB)},
+			db.NullString{String: normalizeOptionalId(item.TVDB)},
+		)
+	}
+
 	query.WriteString(util.RepeatJoin(query_bulk_record_id_maps_placeholder, count, ","))
 	query.WriteString(query_bulk_record_id_maps_on_conflict_before_column)
 	query.WriteString(anchorColumnName)
@@ -352,23 +405,6 @@ func BulkRecordIdMaps(items []AnimeIdMap, anchorColumnName string) error {
 		}
 		query.WriteString(", ")
 		query.WriteString(setColumnValue)
-	}
-
-	columnCount := len(IdMapColumns) - 2
-	args := make([]any, count*columnCount)
-	for i, item := range items {
-		args[i*columnCount+0] = item.Type
-		args[i*columnCount+1] = db.NullString{String: normalizeOptionalId(item.AniDB)}
-		args[i*columnCount+2] = db.NullString{String: normalizeOptionalId(item.AniList)}
-		args[i*columnCount+3] = db.NullString{String: normalizeOptionalId(item.AniSearch)}
-		args[i*columnCount+4] = db.NullString{String: normalizeOptionalId(item.AnimePlanet)}
-		args[i*columnCount+5] = db.NullString{String: normalizeOptionalId(item.IMDB)}
-		args[i*columnCount+6] = db.NullString{String: normalizeOptionalId(item.Kitsu)}
-		args[i*columnCount+7] = db.NullString{String: normalizeOptionalId(item.LiveChart)}
-		args[i*columnCount+8] = db.NullString{String: normalizeOptionalId(item.MAL)}
-		args[i*columnCount+9] = db.NullString{String: normalizeOptionalId(item.NotifyMoe)}
-		args[i*columnCount+10] = db.NullString{String: normalizeOptionalId(item.TMDB)}
-		args[i*columnCount+11] = db.NullString{String: normalizeOptionalId(item.TVDB)}
 	}
 
 	_, err := db.Exec(query.String(), args...)
