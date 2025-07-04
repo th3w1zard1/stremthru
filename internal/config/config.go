@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
@@ -24,6 +25,10 @@ const (
 )
 
 var Environment = func() string {
+	if testing.Testing() {
+		return EnvTest
+	}
+
 	value, _ := os.LookupEnv("STREMTHRU_ENV")
 	switch value {
 	case "dev", "development":
@@ -44,7 +49,9 @@ var defaultValueByEnv = map[string]map[string]string{
 	},
 	EnvProd: {},
 	EnvTest: {
-		"STREMTHRU_DATA_DIR": os.TempDir(),
+		"STREMTHRU_LOG_FORMAT": "text",
+		"STREMTHRU_LOG_LEVEL":  "DEBUG",
+		"STREMTHRU_DATA_DIR":   os.TempDir(),
 	},
 	"": {
 		"STREMTHRU_BASE_URL":                            "http://localhost:8080",
