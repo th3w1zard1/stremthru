@@ -672,7 +672,7 @@ func InitMapAniDBTorrentWorker(conf *WorkerConfig) *Worker {
 							}
 							anidbId := anidbTitleIds[0]
 
-							tvdbMaps, err := anidb.GetTVDBEpisodeMaps(anidbId)
+							tvdbMaps, err := anidb.GetTVDBEpisodeMaps(anidbId, true)
 							if err != nil {
 								log.Error("failed to get tvdb episode maps", "error", err, "anidb_id", anidbId)
 								continue

@@ -406,6 +406,12 @@ func (ms AniDBTVDBEpisodeMaps) GetAbsoluteOrderSeasonMap() *AniDBTVDBEpisodeMap 
 }
 
 var query_get_tvdb_episode_maps_by_anidbid = fmt.Sprintf(
+	`SELECT %s FROM %s WHERE %s = ?`,
+	db.JoinColumnNames(TVDBEpisodeMapColumns...),
+	TVDBEpisodeMapTableName,
+	TVDBEpisodeMapColumn.AniDBId,
+)
+var query_get_tvdb_episode_maps_by_anidbid_with_related = fmt.Sprintf(
 	`SELECT %s FROM %s WHERE %s = (SELECT %s FROM %s WHERE %s = ? LIMIT 1)`,
 	db.JoinColumnNames(TVDBEpisodeMapColumns...),
 	TVDBEpisodeMapTableName,
@@ -415,8 +421,12 @@ var query_get_tvdb_episode_maps_by_anidbid = fmt.Sprintf(
 	TVDBEpisodeMapColumn.AniDBId,
 )
 
-func GetTVDBEpisodeMaps(anidbId string) (AniDBTVDBEpisodeMaps, error) {
-	rows, err := db.Query(query_get_tvdb_episode_maps_by_anidbid, anidbId)
+func GetTVDBEpisodeMaps(anidbId string, includeRelated bool) (AniDBTVDBEpisodeMaps, error) {
+	query := query_get_tvdb_episode_maps_by_anidbid
+	if includeRelated {
+		query = query_get_tvdb_episode_maps_by_anidbid_with_related
+	}
+	rows, err := db.Query(query, anidbId)
 	if err != nil {
 		return nil, err
 	}

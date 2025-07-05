@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/MunifTanjim/go-ptt"
+	"github.com/MunifTanjim/stremthru/internal/anidb"
 	"github.com/MunifTanjim/stremthru/internal/anime"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
@@ -112,7 +113,7 @@ func MatchFileByStremId(files []store.MagnetFile, sid string, magnetHash string,
 	}
 	if strings.HasPrefix(sid, "kitsu:") {
 		kitsuId, episode, _ := strings.Cut(strings.TrimPrefix(sid, "kitsu:"), ":")
-		_, season, err := anime.GetAniDBIdByKitsuId(kitsuId)
+		anidbId, season, err := anime.GetAniDBIdByKitsuId(kitsuId)
 		if err != nil {
 			log.Error("failed to get anidb id by kitsu id", "error", err, "kitsu_id", kitsuId)
 			return nil
@@ -126,28 +127,48 @@ func MatchFileByStremId(files []store.MagnetFile, sid string, magnetHash string,
 		expectedSeason := util.SafeParseInt(season, -1)
 
 		filesForSeason := []*store.MagnetFile{}
-		dataByIdx := map[int]seasonEpisodeData{}
+		dataByName := map[string]seasonEpisodeData{}
 
 		minEpisode := 99999
 		for i := range files {
 			f := &files[i]
 			d := getSeasonEpisode(f.Name, true)
+			dataByName[f.Name] = d
 			if d.releaseType == "" && (d.episode != -1) && ((d.season == -1 && expectedSeason == 1) || d.season == expectedSeason) {
 				filesForSeason = append(filesForSeason, f)
-				idx := len(filesForSeason) - 1
-				dataByIdx[idx] = d
 				if d.episode < minEpisode {
 					minEpisode = d.episode
 				}
 			}
 		}
 
-		for i, f := range filesForSeason {
-			d := dataByIdx[i]
-			if d.episode == expectedEpisode || (len(tInfo.Episodes) == 0 && minEpisode > 1 && d.episode-minEpisode+1 == expectedEpisode) {
-				return f
+		if len(filesForSeason) == 0 {
+			tvdbMaps, err := anidb.GetTVDBEpisodeMaps(anidbId, false)
+			if err != nil {
+				log.Error("failed to get tvdb episode maps for anidb id", "error", err, "anidb_id", anidbId)
+				return nil
+			}
+
+			absMap := tvdbMaps.GetAbsoluteOrderSeasonMap()
+			if absMap != nil {
+				expectedEpisode = expectedEpisode + absMap.Offset
+				for i := range files {
+					f := &files[i]
+					d := dataByName[f.Name]
+					if d.episode == expectedEpisode {
+						return f
+					}
+				}
+			}
+		} else {
+			for _, f := range filesForSeason {
+				d := dataByName[f.Name]
+				if d.episode == expectedEpisode || (len(tInfo.Episodes) == 0 && minEpisode > 1 && d.episode-minEpisode+1 == expectedEpisode) {
+					return f
+				}
 			}
 		}
+
 		return nil
 	}
 	if parts := strings.SplitN(sid, ":", 3); len(parts) == 3 {
