@@ -60,8 +60,6 @@ func getFlatFiles(files []ResponseMagnetFile, result []MagnetFile, parent *Magne
 			idx++
 		} else {
 			file.Type = store.MagnetFileTypeFolder
-			result = append(result, *file)
-			idx++
 			result = getFlatFiles(f.Children, result, file, idx)
 		}
 	}
