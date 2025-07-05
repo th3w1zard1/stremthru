@@ -306,7 +306,11 @@ func SyncDataset() error {
 						datasetLog.Warn("skipping id maps with no anchor column", "count", len(idMaps))
 						continue
 					}
-					anime.BulkRecordIdMaps(idMaps, anchorColumn)
+					err := anime.BulkRecordIdMaps(idMaps, anchorColumn)
+					if err != nil {
+						datasetLog.Error("failed to record id maps", "error", err, "anchor_column", anchorColumn, "count", len(idMaps))
+						return err
+					}
 					datasetLog.Info("synced id maps", "anchor_column", anchorColumn, "count", len(idMaps))
 				}
 				return nil
