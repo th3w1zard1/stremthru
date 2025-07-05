@@ -246,6 +246,8 @@ func Record(items []InsertData, discardIdx bool) {
 	}
 
 	for cItems := range slices.Chunk(items, 200) {
+		seenFileMap := map[string]struct{}{}
+
 		count := len(cItems)
 		args := make([]any, 0, count*6)
 		for i := range cItems {
@@ -258,7 +260,14 @@ func Record(items []InsertData, discardIdx bool) {
 			if sid == "" {
 				sid = "*"
 			}
-			args = append(args, item.Hash, item.Name, idx, item.Size, sid, item.Source)
+			key := item.Hash + ":" + item.Name
+			if _, seen := seenFileMap[key]; !seen {
+				seenFileMap[key] = struct{}{}
+				args = append(args, item.Hash, item.Name, idx, item.Size, sid, item.Source)
+			} else {
+				log.Warn("skipped duplicate file", "hash", item.Hash, "name", item.Name)
+				count--
+			}
 		}
 		query := record_streams_query_before_values +
 			util.RepeatJoin(record_streams_query_values_placeholder, count, ",") +
