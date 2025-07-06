@@ -2,9 +2,11 @@ package stremio_store
 
 import (
 	"errors"
+	"net/url"
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/store"
+	"github.com/MunifTanjim/stremthru/store/premiumize"
 )
 
 func isStoreId(id string) bool {
@@ -126,4 +128,26 @@ func parseId(id string) (*ParsedId, error) {
 	r.storeName = r.storeCode.Name()
 
 	return &r, nil
+}
+
+func getVideoIdAndData(idWithLink string, idr *ParsedId) (id, link, name string, err error) {
+	videoId := strings.TrimPrefix(idWithLink, getIdPrefix(idr.getStoreCode()))
+	idPrefix := ""
+	switch idr.storeCode {
+	case store.StoreCodePremiumize:
+		if strings.HasPrefix(videoId, premiumize.CachedMagnetIdPrefix) {
+			idPrefix = premiumize.CachedMagnetIdPrefix
+			videoId = strings.TrimPrefix(videoId, premiumize.CachedMagnetIdPrefix)
+		}
+	}
+	id, escapedLink, _ := strings.Cut(videoId, ":")
+	link, err = url.PathUnescape(escapedLink)
+	if err != nil {
+		return "", "", "", err
+	}
+	if l, err := url.Parse(link); err != nil || l.Scheme == "" {
+		name = link
+		link = ""
+	}
+	return idPrefix + id, link, name, nil
 }

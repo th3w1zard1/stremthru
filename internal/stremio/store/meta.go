@@ -504,7 +504,12 @@ func handleMeta(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		videoId := id + ":" + url.PathEscape(f.Link)
+		videoId := ""
+		if ctx.Store.GetName() == store.StoreNamePremiumize {
+			videoId = id + ":" + url.PathEscape(f.Name)
+		} else {
+			videoId = id + ":" + url.PathEscape(f.Link)
+		}
 		video := stremio.MetaVideo{
 			Id:        videoId,
 			Title:     f.Name,
