@@ -297,7 +297,7 @@ func (ti *TorrentInfo) parse() error {
 
 const TableName = "torrent_info"
 
-type ColumnStruct struct {
+var Column = struct {
 	Hash         string
 	TorrentTitle string
 
@@ -309,50 +309,48 @@ type ColumnStruct struct {
 	ParserVersion string
 	ParserInput   string
 
-	Audio       string
-	BitDepth    string
-	Channels    string
-	Codec       string
-	Commentary  string
-	Complete    string
-	Container   string
-	Convert     string
-	Date        string
-	Documentary string
-	Dubbed      string
-	Edition     string
-	EpisodeCode string
-	Episodes    string
-	Extended    string
-	Extension   string
-	Group       string
-	HDR         string
-	Hardcoded   string
-	Languages   string
-	Network     string
-	Proper      string
-	Quality     string
-	Region      string
-	ReleaseType string
-	Remastered  string
-	Repack      string
-	Resolution  string
-	Retail      string
-	Seasons     string
-	Site        string
-	Size        string
-	Subbed      string
-	ThreeD      string
-	Title       string
-	Uncensored  string
-	Unrated     string
-	Upscaled    string
-	Volumes     string
-	Year        string
-	YearEnd     string
-}
-
-var Column = ColumnStruct{
+	Audio        string
+	BitDepth     string
+	Channels     string
+	Codec        string
+	Commentary   string
+	Complete     string
+	Container    string
+	Convert      string
+	Date         string
+	Documentary  string
+	Dubbed       string
+	Edition      string
+	EpisodeCode  string
+	Episodes     string
+	Extended     string
+	Extension    string
+	Group        string
+	HDR          string
+	Hardcoded    string
+	Languages    string
+	Network      string
+	Proper       string
+	Quality      string
+	Region       string
+	ReleaseTypes string
+	Remastered   string
+	Repack       string
+	Resolution   string
+	Retail       string
+	Seasons      string
+	Site         string
+	Size         string
+	Subbed       string
+	ThreeD       string
+	Title        string
+	Uncensored   string
+	Unrated      string
+	Upscaled     string
+	Volumes      string
+	Year         string
+	YearEnd      string
+}{
 	Hash:         "hash",
 	TorrentTitle: "t_title",
 
@@ -364,47 +362,47 @@ var Column = ColumnStruct{
 	ParserVersion: "parser_version",
 	ParserInput:   "parser_input",
 
-	Audio:       "audio",
-	BitDepth:    "bit_depth",
-	Channels:    "channels",
-	Codec:       "codec",
-	Commentary:  "commentary",
-	Complete:    "complete",
-	Container:   "container",
-	Convert:     "convert",
-	Date:        "date",
-	Documentary: "documentary",
-	Dubbed:      "dubbed",
-	Edition:     "edition",
-	EpisodeCode: "episode_code",
-	Episodes:    "episodes",
-	Extended:    "extended",
-	Extension:   "extension",
-	Group:       "group",
-	HDR:         "hdr",
-	Hardcoded:   "hardcoded",
-	Languages:   "languages",
-	Network:     "network",
-	Proper:      "proper",
-	Quality:     "quality",
-	Region:      "region",
-	ReleaseType: "release_types",
-	Remastered:  "remastered",
-	Repack:      "repack",
-	Resolution:  "resolution",
-	Retail:      "retail",
-	Seasons:     "seasons",
-	Site:        "site",
-	Size:        "size",
-	Subbed:      "subbed",
-	ThreeD:      "three_d",
-	Title:       "title",
-	Uncensored:  "uncensored",
-	Unrated:     "unrated",
-	Upscaled:    "upscaled",
-	Volumes:     "volumes",
-	Year:        "year",
-	YearEnd:     "year_end",
+	Audio:        "audio",
+	BitDepth:     "bit_depth",
+	Channels:     "channels",
+	Codec:        "codec",
+	Commentary:   "commentary",
+	Complete:     "complete",
+	Container:    "container",
+	Convert:      "convert",
+	Date:         "date",
+	Documentary:  "documentary",
+	Dubbed:       "dubbed",
+	Edition:      "edition",
+	EpisodeCode:  "episode_code",
+	Episodes:     "episodes",
+	Extended:     "extended",
+	Extension:    "extension",
+	Group:        "group",
+	HDR:          "hdr",
+	Hardcoded:    "hardcoded",
+	Languages:    "languages",
+	Network:      "network",
+	Proper:       "proper",
+	Quality:      "quality",
+	Region:       "region",
+	ReleaseTypes: "release_types",
+	Remastered:   "remastered",
+	Repack:       "repack",
+	Resolution:   "resolution",
+	Retail:       "retail",
+	Seasons:      "seasons",
+	Site:         "site",
+	Size:         "size",
+	Subbed:       "subbed",
+	ThreeD:       "three_d",
+	Title:        "title",
+	Uncensored:   "uncensored",
+	Unrated:      "unrated",
+	Upscaled:     "upscaled",
+	Volumes:      "volumes",
+	Year:         "year",
+	YearEnd:      "year_end",
 }
 
 var Columns = []string{
@@ -443,7 +441,7 @@ var Columns = []string{
 	Column.Proper,
 	Column.Quality,
 	Column.Region,
-	Column.ReleaseType,
+	Column.ReleaseTypes,
 	Column.Remastered,
 	Column.Repack,
 	Column.Resolution,
