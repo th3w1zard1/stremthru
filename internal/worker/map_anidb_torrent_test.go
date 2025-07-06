@@ -1495,6 +1495,34 @@ func TestPrepareAniDBTorrentsFromTVDBEpisodeMaps(t *testing.T) {
 				},
 			},
 		},
+		{
+			toEpisodeMaps(`
+  <anime anidbid="3303" tvdbid="76906" defaulttvdbseason="a">
+    <name>Medarot</name>
+    <mapping-list>
+      <mapping anidbseason="1" tvdbseason="1" start="1" end="26" offset="0"/>
+      <mapping anidbseason="1" tvdbseason="2" start="27" end="52" offset="-26"/>
+    </mapping-list>
+  </anime>
+
+  <anime anidbid="4694" tvdbid="76906" defaulttvdbseason="a" episodeoffset="52">
+    <name>Medarot Damashii</name>
+    <mapping-list>
+      <mapping anidbseason="1" tvdbseason="3" start="1" end="39" offset="0"/>
+    </mapping-list>
+  </anime>
+			`),
+			[]anidb.AniDBTitle{
+				{TId: "3303", Value: "Medarot", Season: "1"},
+				{TId: "4694", Value: "Medarot Damashii", Season: "1"},
+			},
+			[]testCase{
+				{
+					makeTorrentInfo("Medarot (1999) S01e01-52 [480p H264 Ita Jap SubITA] REPACK byMC-08"),
+					[]torrentMap{},
+				},
+			},
+		},
 	} {
 		for _, c := range tc.cases {
 			tMaps, err := prepareAniDBTorrentMaps(tc.tvdbMaps, tc.titles, c.tInfo)

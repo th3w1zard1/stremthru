@@ -148,4 +148,18 @@
       <mapping anidbseason="1" tvdbseason="4" start="1" end="2" offset="28"/>
     </mapping-list>
   </anime>
+
+  <anime anidbid="3303" tvdbid="76906" defaulttvdbseason="a">
+    <name>Medarot</name>
+    <mapping-list>
+      <mapping anidbseason="1" tvdbseason="1" start="1" end="26" offset="0"/>
+      <mapping anidbseason="1" tvdbseason="2" start="27" end="52" offset="-26"/>
+    </mapping-list>
+  </anime>
+  <anime anidbid="4694" tvdbid="76906" defaulttvdbseason="a" episodeoffset="52">
+    <name>Medarot Damashii</name>
+    <mapping-list>
+      <mapping anidbseason="1" tvdbseason="3" start="1" end="39" offset="0"/>
+    </mapping-list>
+  </anime>
 </anime-list>

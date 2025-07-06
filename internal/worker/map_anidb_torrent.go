@@ -247,8 +247,11 @@ func prepareAniDBTorrentMaps(tvdbMaps anidb.AniDBTVDBEpisodeMaps, titles anidb.A
 					if isAnimeSeason {
 						if tEpisodesAreAbsolute {
 							tvdbMap := anidbGroup.TVDBEpisodeMaps.GetAbsoluteOrderSeasonMap()
-							tvAbsEpiStart, tvAbsEpiEnd := tvdbMap.TVDBEpisodeBoundary()
-							isAnimeSeason = tvAbsEpiStart <= tFirstEpisode && tLastEpisode <= tvAbsEpiEnd
+							isAnimeSeason = tvdbMap != nil
+							if isAnimeSeason {
+								tvAbsEpiStart, tvAbsEpiEnd := tvdbMap.TVDBEpisodeBoundary()
+								isAnimeSeason = tvAbsEpiStart <= tFirstEpisode && tLastEpisode <= tvAbsEpiEnd
+							}
 						} else {
 							aniEpiStart, aniEpiEnd := tvdbMap.AniDBEpisodeBoundary()
 							isAnimeSeason = aniEpiStart == tFirstEpisode && tLastEpisode == aniEpiEnd
