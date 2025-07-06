@@ -205,6 +205,7 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 			&tInfo.Proper,
 			&tInfo.Quality,
 			&tInfo.Region,
+			&tInfo.ReleaseTypes,
 			&tInfo.Remastered,
 			&tInfo.Repack,
 			&tInfo.Resolution,
