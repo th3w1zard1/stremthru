@@ -671,7 +671,8 @@ func InitMapAniDBTorrentWorker(conf *WorkerConfig) *Worker {
 							}
 
 							panicHints = panicHints[:0]
-							panicHints = append(panicHints, "tInfo.Title="+tInfo.Title)
+							panicHints = append(panicHints, "tInfo.Hash="+tInfo.Hash)
+							panicHints = append(panicHints, "tInfo.TorrentTitle="+tInfo.TorrentTitle)
 
 							anidbTitleIds, err := anidb.SearchIdsByTitle(tInfo.Title, nil, 0, 1)
 							if err != nil {
