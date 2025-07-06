@@ -330,7 +330,7 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 
 	res.Metas = make([]stremio.MetaPreview, 0, count)
 
-	if includeWebDLsMetaPreview {
+	if includeWebDLsMetaPreview && extra.Skip == 0 {
 		res.Metas = append(res.Metas, stremio.MetaPreview{
 			Id:          getWebDLsMetaId(idStoreCode),
 			Type:        ContentTypeOther,
