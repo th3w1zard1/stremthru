@@ -641,6 +641,14 @@ func InitMapAniDBTorrentWorker(conf *WorkerConfig) *Worker {
 					go func() {
 						defer wg.Done()
 
+						panicHints := []string{}
+						defer func() {
+							if perr, stack := util.HandlePanic(recover(), true); perr != nil {
+								err = perr
+								log.Error("failed processing chunked hashes", "error", err, "stack", stack, "hints", strings.Join(panicHints, "\n"))
+							}
+						}()
+
 						items := []anidb.AniDBTorrent{}
 						tInfoByHash, err := torrent_info.GetByHashes(cHashes)
 						if err != nil {
@@ -659,6 +667,9 @@ func InitMapAniDBTorrentWorker(conf *WorkerConfig) *Worker {
 								continue
 							}
 
+							panicHints = panicHints[:0]
+							panicHints = append(panicHints, "tInfo.Title="+tInfo.Title)
+
 							anidbTitleIds, err := anidb.SearchIdsByTitle(tInfo.Title, nil, 0, 1)
 							if err != nil {
 								log.Error("failed to search anidb title ids", "error", err, "title", tInfo.Title)
@@ -671,6 +682,8 @@ func InitMapAniDBTorrentWorker(conf *WorkerConfig) *Worker {
 								continue
 							}
 							anidbId := anidbTitleIds[0]
+
+							panicHints = append(panicHints, "anidbId="+anidbId)
 
 							tvdbMaps, err := anidb.GetTVDBEpisodeMaps(anidbId, true)
 							if err != nil {
