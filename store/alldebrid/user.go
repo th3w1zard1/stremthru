@@ -1,6 +1,9 @@
 package alldebrid
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type GetUserDataUser struct {
 	Username       string `json:"username"`
@@ -29,12 +32,20 @@ func (c APIClient) GetUser(params *GetUserParams) (APIResponse[GetUserDataUser],
 }
 
 type UserLink struct {
-	Link     string `json:"link"`
-	LinkDL   string `json:"link_dl"`
-	Filename string `json:"filename"`
-	Size     int64  `json:"size"`
-	Date     int64  `json:"date"`
-	Host     string `json:"host"` // `error`
+	Link     string      `json:"link"`
+	LinkDL   string      `json:"link_dl"`
+	Filename string      `json:"filename"`
+	Size     json.Number `json:"size"`
+	Date     int64       `json:"date"`
+	Host     string      `json:"host"` // `error`
+}
+
+func (l UserLink) GetSize() int64 {
+	size, err := l.Size.Int64()
+	if err != nil {
+		size = -1
+	}
+	return size
 }
 
 func (l UserLink) GetDate() time.Time {

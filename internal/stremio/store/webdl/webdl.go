@@ -100,7 +100,7 @@ func ListWebDLs(params *ListWebDLsParams, storeName store.StoreName) (*ListWebDL
 				Id:      link.Link,
 				Hash:    "",
 				Name:    link.Filename,
-				Size:    link.Size,
+				Size:    link.GetSize(),
 				Status:  store.MagnetStatusUnknown,
 				AddedAt: link.GetDate(),
 				Files:   []WebDLFile{},
@@ -110,7 +110,7 @@ func ListWebDLs(params *ListWebDLsParams, storeName store.StoreName) (*ListWebDL
 				item.Files = append(item.Files, WebDLFile{
 					Link: link.LinkDL,
 					Name: link.Filename,
-					Size: link.Size,
+					Size: link.GetSize(),
 				})
 			}
 			data.Items = append(data.Items, item)
