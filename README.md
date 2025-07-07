@@ -613,6 +613,11 @@ Cloudflare WARP:
 
 - [github.com/cmj2002/warp-docker](https://github.com/cmj2002/warp-docker)
 
+## Sponsors
+
+- [DanaramaPyjama](https://x.com/danaramaps4)
+- [Debridio](https://debridio.com)
+
 ## License
 
 Licensed under the MIT License. Check the [LICENSE](./LICENSE) file for details.
