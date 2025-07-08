@@ -21,6 +21,7 @@ import (
 )
 
 var streamTemplate = stremio_transformer.StreamTemplateDefault
+var lazyPull = config.Stremio.Torz.LazyPull
 
 type wrappedStream struct {
 	stremio.Stream
@@ -85,7 +86,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	eud := ud.GetEncoded()
 
 	if isImdbId {
-		if config.LazyPeer {
+		if lazyPull {
 			go buddy.PullTorrentsByStremId(id, "")
 		} else {
 			buddy.PullTorrentsByStremId(id, "")

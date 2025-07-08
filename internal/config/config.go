@@ -775,6 +775,12 @@ func PrintConfig(state *AppState) {
 			disabled = " (disabled)"
 		}
 		l.Println("   - " + feature + disabled)
+		switch feature {
+		case FeatureStremioTorz:
+			if Stremio.Torz.LazyPull {
+				l.Println("      [lazy pull]")
+			}
+		}
 	}
 	l.Println()
 

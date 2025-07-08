@@ -223,6 +223,11 @@ Comma separated list of features to enable/disable.
 Use `-` prefix to disable opt-out feature, and `+` prefix to enable opt-in feature.
 Otherwise only the specified features will be enabled.
 
+#### `STREMTHRU_STREMIO_TORZ_LAZY_PULL`
+
+If `true`, torz will pull from public database in the background,
+so on first query it'll return less results, but it'll be faster.
+
 #### AniList Integration
 
 ##### `STREMTHRU_INTEGRATION_ANILIST_LIST_STALE_TIME`
