@@ -10,7 +10,9 @@ import (
 	"github.com/MunifTanjim/stremthru/store"
 )
 
-func GetStoreCodeOptions() []configure.ConfigOption {
+var P2PEnabled = config.Feature.IsEnabled(config.FeatureStremioP2P)
+
+func GetStoreCodeOptions(includeP2P bool) []configure.ConfigOption {
 	options := []configure.ConfigOption{
 		{Value: "", Label: "StremThru"},
 		{Value: "ad", Label: "AllDebrid"},
@@ -25,6 +27,12 @@ func GetStoreCodeOptions() []configure.ConfigOption {
 	if config.IsPublicInstance {
 		options[0].Disabled = true
 		options[0].Label = ""
+	}
+	if P2PEnabled && includeP2P {
+		options = append(options, configure.ConfigOption{
+			Value: "p2p",
+			Label: "⚠️ P2P 🧪",
+		})
 	}
 	return options
 }

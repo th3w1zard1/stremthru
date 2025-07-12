@@ -3,13 +3,14 @@ package anilist
 import (
 	"errors"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/anime"
 	"github.com/MunifTanjim/stremthru/internal/anizip"
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/db"
-	"github.com/MunifTanjim/stremthru/internal/worker"
+	"github.com/MunifTanjim/stremthru/internal/worker/worker_queue"
 )
 
 var listCache = cache.NewCache[AniListList](&cache.CacheConfig{
@@ -111,7 +112,7 @@ func ScheduleIdMapSync(medias []AniListMedia) {
 	for i := range medias {
 		media := &medias[i]
 		if media.IdMap == nil || media.IdMap.IsStale() {
-			worker.AnimeIdMapperQueue.Queue(worker.AnimeIdMapperQueueItem{
+			worker_queue.AnimeIdMapperQueue.Queue(worker_queue.AnimeIdMapperQueueItem{
 				Service: anime.IdMapColumn.AniList,
 				Id:      strconv.Itoa(media.Id),
 			})
@@ -119,28 +120,15 @@ func ScheduleIdMapSync(medias []AniListMedia) {
 	}
 }
 
-func (l *AniListList) Fetch() error {
-	isMissing := false
+func getListCacheKey(l *AniListList) string {
+	return l.Id
+}
 
-	listCacheKey := l.Id
-	var cachedL AniListList
-	if !listCache.Get(listCacheKey, &cachedL) {
-		if list, err := GetListById(l.Id); err != nil {
-			return err
-		} else if list == nil {
-			isMissing = true
-		} else {
-			*l = *list
-			log.Debug("found list by id", "id", l.Id, "is_stale", l.IsStale())
-			listCache.Add(listCacheKey, *l)
-		}
-	} else {
-		*l = cachedL
-	}
+var listFetchMutex sync.Mutex
 
-	if !isMissing && !l.IsStale() {
-		return nil
-	}
+func syncList(l *AniListList) error {
+	listFetchMutex.Lock()
+	defer listFetchMutex.Unlock()
 
 	var list *List
 	var err error
@@ -222,7 +210,45 @@ func (l *AniListList) Fetch() error {
 		return err
 	}
 
-	if err := listCache.Add(listCacheKey, *l); err != nil {
+	if err := listCache.Add(getListCacheKey(l), *l); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *AniListList) Fetch() error {
+	isMissing := false
+
+	listCacheKey := getListCacheKey(l)
+	var cachedL AniListList
+	if !listCache.Get(listCacheKey, &cachedL) {
+		if list, err := GetListById(l.Id); err != nil {
+			return err
+		} else if list == nil {
+			isMissing = true
+		} else {
+			*l = *list
+			log.Debug("found list by id", "id", l.Id, "is_stale", l.IsStale())
+			listCache.Add(listCacheKey, *l)
+		}
+	} else {
+		*l = cachedL
+	}
+
+	if !isMissing {
+		if l.IsStale() {
+			staleList := *l
+			go func() {
+				if err := syncList(&staleList); err != nil {
+					log.Error("failed to sync stale list", "id", l.Id, "error", err)
+				}
+			}()
+		}
+		return nil
+	}
+
+	if err := syncList(l); err != nil {
 		return err
 	}
 

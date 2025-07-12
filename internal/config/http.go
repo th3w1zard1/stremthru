@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -20,6 +21,22 @@ const (
 )
 
 type TunnelMap map[string]url.URL
+
+func (tm TunnelMap) hasProxy() bool {
+	for _, proxyUrl := range tm {
+		if proxyUrl.Host != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func (tm TunnelMap) GetDefaultProxyHost() string {
+	if proxy := tm.getProxy("*"); proxy != nil && proxy.Host != "" {
+		return proxy.Host
+	}
+	return ""
+}
 
 func (tm TunnelMap) getProxy(hostname string) *url.URL {
 	hn := hostname
@@ -339,6 +356,7 @@ func (ipr *IPResolver) resolveTunnelIPMap() error {
 
 	proxyIpByProxyHost := map[string]string{}
 	proxyIpByHostname := map[string]string{}
+	errs := []error{}
 
 	for hostname, u := range Tunnel {
 		if ip, ok := proxyIpByProxyHost[u.Host]; ok {
@@ -350,11 +368,11 @@ func (ipr *IPResolver) resolveTunnelIPMap() error {
 			ip = ipr.GetMachineIP()
 		} else {
 			client := getHTTPClientWithProxy(&u)
-			proxyIp, err := getIp(client)
-			if err != nil {
-				return err
+			if proxyIp, err := getIp(client); err == nil {
+				ip = proxyIp
+			} else {
+				errs = append(errs, err)
 			}
-			ip = proxyIp
 		}
 		proxyIpByHostname[hostname] = ip
 		proxyIpByProxyHost[u.Host] = ip
@@ -366,7 +384,7 @@ func (ipr *IPResolver) resolveTunnelIPMap() error {
 	ipr.proxyIpByProxyHost = proxyIpByProxyHost
 	ipr.proxyIpMapStaleAt = time.Now().Add(30 * time.Minute)
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (ipr *IPResolver) GetTunnelIPByProxyHost() (map[string]string, error) {

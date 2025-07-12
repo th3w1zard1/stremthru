@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/MunifTanjim/go-ptt"
+	"github.com/MunifTanjim/stremthru/internal/anidb"
+	"github.com/MunifTanjim/stremthru/internal/anime"
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/imdb_torrent"
 	ts "github.com/MunifTanjim/stremthru/internal/torrent_stream"
@@ -110,46 +112,47 @@ type TorrentInfo struct {
 	ParserVersion int                 `json:"parser_version"`
 	ParserInput   string              `json:"parser_input"`
 
-	Audio       CommaSeperatedString `json:"audio"`
-	BitDepth    string               `json:"bit_depth"`
-	Channels    CommaSeperatedString `json:"channels"`
-	Codec       string               `json:"codec"`
-	Commentary  bool                 `json:"commentary"`
-	Complete    bool                 `json:"complete"`
-	Container   string               `json:"container"`
-	Convert     bool                 `json:"convert"`
-	Date        db.DateOnly          `json:"date"`
-	Documentary bool                 `json:"documentary"`
-	Dubbed      bool                 `json:"dubbed"`
-	Edition     string               `json:"edition"`
-	EpisodeCode string               `json:"episode_code"`
-	Episodes    CommaSeperatedInt    `json:"episodes"`
-	Extended    bool                 `json:"extended"`
-	Extension   string               `json:"extension"`
-	Group       string               `json:"group"`
-	HDR         CommaSeperatedString `json:"hdr"`
-	Hardcoded   bool                 `json:"hardcoded"`
-	Languages   CommaSeperatedString `json:"languages"`
-	Network     string               `json:"network"`
-	Proper      bool                 `json:"proper"`
-	Quality     string               `json:"quality"`
-	Region      string               `json:"region"`
-	Remastered  bool                 `json:"remastered"`
-	Repack      bool                 `json:"repack"`
-	Resolution  string               `json:"resolution"`
-	Retail      bool                 `json:"retail"`
-	Seasons     CommaSeperatedInt    `json:"seasons"`
-	Site        string               `json:"site"`
-	Size        int64                `json:"size"`
-	Subbed      bool                 `json:"subbed"`
-	ThreeD      string               `json:"three_d"`
-	Title       string               `json:"title"`
-	Uncensored  bool                 `json:"uncensored"`
-	Unrated     bool                 `json:"unrated"`
-	Upscaled    bool                 `json:"upscaled"`
-	Volumes     CommaSeperatedInt    `json:"volumes"`
-	Year        int                  `json:"year"`
-	YearEnd     int                  `json:"year_end"`
+	Audio        CommaSeperatedString `json:"audio"`
+	BitDepth     string               `json:"bit_depth"`
+	Channels     CommaSeperatedString `json:"channels"`
+	Codec        string               `json:"codec"`
+	Commentary   bool                 `json:"commentary"`
+	Complete     bool                 `json:"complete"`
+	Container    string               `json:"container"`
+	Convert      bool                 `json:"convert"`
+	Date         db.DateOnly          `json:"date"`
+	Documentary  bool                 `json:"documentary"`
+	Dubbed       bool                 `json:"dubbed"`
+	Edition      string               `json:"edition"`
+	EpisodeCode  string               `json:"episode_code"`
+	Episodes     CommaSeperatedInt    `json:"episodes"`
+	Extended     bool                 `json:"extended"`
+	Extension    string               `json:"extension"`
+	Group        string               `json:"group"`
+	HDR          CommaSeperatedString `json:"hdr"`
+	Hardcoded    bool                 `json:"hardcoded"`
+	Languages    CommaSeperatedString `json:"languages"`
+	Network      string               `json:"network"`
+	Proper       bool                 `json:"proper"`
+	Quality      string               `json:"quality"`
+	Region       string               `json:"region"`
+	ReleaseTypes CommaSeperatedString `json:"release_types"`
+	Remastered   bool                 `json:"remastered"`
+	Repack       bool                 `json:"repack"`
+	Resolution   string               `json:"resolution"`
+	Retail       bool                 `json:"retail"`
+	Seasons      CommaSeperatedInt    `json:"seasons"`
+	Site         string               `json:"site"`
+	Size         int64                `json:"size"`
+	Subbed       bool                 `json:"subbed"`
+	ThreeD       string               `json:"three_d"`
+	Title        string               `json:"title"`
+	Uncensored   bool                 `json:"uncensored"`
+	Unrated      bool                 `json:"unrated"`
+	Upscaled     bool                 `json:"upscaled"`
+	Volumes      CommaSeperatedInt    `json:"volumes"`
+	Year         int                  `json:"year"`
+	YearEnd      int                  `json:"year_end"`
 }
 
 func (ti TorrentInfo) IsParsed() bool {
@@ -163,43 +166,44 @@ func (ti TorrentInfo) ToParsedResult() (*ptt.Result, error) {
 	}
 
 	pttr := &ptt.Result{
-		Audio:       ti.Audio,
-		BitDepth:    ti.BitDepth,
-		Channels:    ti.Channels,
-		Codec:       ti.Codec,
-		Commentary:  ti.Commentary,
-		Complete:    ti.Complete,
-		Container:   ti.Container,
-		Convert:     ti.Convert,
-		Date:        ti.Date.String(),
-		Documentary: ti.Documentary,
-		Dubbed:      ti.Dubbed,
-		Edition:     ti.Edition,
-		EpisodeCode: ti.EpisodeCode,
-		Episodes:    ti.Episodes,
-		Extended:    ti.Extended,
-		Extension:   ti.Extension,
-		Group:       ti.Group,
-		HDR:         ti.HDR,
-		Hardcoded:   ti.Hardcoded,
-		Languages:   ti.Languages,
-		Network:     ti.Network,
-		Proper:      ti.Proper,
-		Quality:     ti.Quality,
-		Region:      ti.Region,
-		Remastered:  ti.Remastered,
-		Repack:      ti.Repack,
-		Resolution:  ti.Resolution,
-		Retail:      ti.Retail,
-		Seasons:     ti.Seasons,
-		Site:        ti.Site,
-		Subbed:      ti.Subbed,
-		ThreeD:      ti.ThreeD,
-		Title:       ti.Title,
-		Uncensored:  ti.Uncensored,
-		Unrated:     ti.Unrated,
-		Upscaled:    ti.Upscaled,
-		Volumes:     ti.Volumes,
+		Audio:        ti.Audio,
+		BitDepth:     ti.BitDepth,
+		Channels:     ti.Channels,
+		Codec:        ti.Codec,
+		Commentary:   ti.Commentary,
+		Complete:     ti.Complete,
+		Container:    ti.Container,
+		Convert:      ti.Convert,
+		Date:         ti.Date.String(),
+		Documentary:  ti.Documentary,
+		Dubbed:       ti.Dubbed,
+		Edition:      ti.Edition,
+		EpisodeCode:  ti.EpisodeCode,
+		Episodes:     ti.Episodes,
+		Extended:     ti.Extended,
+		Extension:    ti.Extension,
+		Group:        ti.Group,
+		HDR:          ti.HDR,
+		Hardcoded:    ti.Hardcoded,
+		Languages:    ti.Languages,
+		Network:      ti.Network,
+		Proper:       ti.Proper,
+		Quality:      ti.Quality,
+		Region:       ti.Region,
+		ReleaseTypes: ti.ReleaseTypes,
+		Remastered:   ti.Remastered,
+		Repack:       ti.Repack,
+		Resolution:   ti.Resolution,
+		Retail:       ti.Retail,
+		Seasons:      ti.Seasons,
+		Site:         ti.Site,
+		Subbed:       ti.Subbed,
+		ThreeD:       ti.ThreeD,
+		Title:        ti.Title,
+		Uncensored:   ti.Uncensored,
+		Unrated:      ti.Unrated,
+		Upscaled:     ti.Upscaled,
+		Volumes:      ti.Volumes,
 	}
 	if ti.Size > 0 {
 		pttr.Size = util.ToSize(ti.Size)
@@ -263,6 +267,7 @@ func (ti *TorrentInfo) parse() error {
 	ti.Proper = r.Proper
 	ti.Quality = r.Quality
 	ti.Region = r.Region
+	ti.ReleaseTypes = r.ReleaseTypes
 	ti.Remastered = r.Remastered
 	ti.Repack = r.Repack
 	ti.Resolution = r.Resolution
@@ -292,7 +297,7 @@ func (ti *TorrentInfo) parse() error {
 
 const TableName = "torrent_info"
 
-type ColumnStruct struct {
+var Column = struct {
 	Hash         string
 	TorrentTitle string
 
@@ -304,49 +309,48 @@ type ColumnStruct struct {
 	ParserVersion string
 	ParserInput   string
 
-	Audio       string
-	BitDepth    string
-	Channels    string
-	Codec       string
-	Commentary  string
-	Complete    string
-	Container   string
-	Convert     string
-	Date        string
-	Documentary string
-	Dubbed      string
-	Edition     string
-	EpisodeCode string
-	Episodes    string
-	Extended    string
-	Extension   string
-	Group       string
-	HDR         string
-	Hardcoded   string
-	Languages   string
-	Network     string
-	Proper      string
-	Quality     string
-	Region      string
-	Remastered  string
-	Repack      string
-	Resolution  string
-	Retail      string
-	Seasons     string
-	Site        string
-	Size        string
-	Subbed      string
-	ThreeD      string
-	Title       string
-	Uncensored  string
-	Unrated     string
-	Upscaled    string
-	Volumes     string
-	Year        string
-	YearEnd     string
-}
-
-var Column = ColumnStruct{
+	Audio        string
+	BitDepth     string
+	Channels     string
+	Codec        string
+	Commentary   string
+	Complete     string
+	Container    string
+	Convert      string
+	Date         string
+	Documentary  string
+	Dubbed       string
+	Edition      string
+	EpisodeCode  string
+	Episodes     string
+	Extended     string
+	Extension    string
+	Group        string
+	HDR          string
+	Hardcoded    string
+	Languages    string
+	Network      string
+	Proper       string
+	Quality      string
+	Region       string
+	ReleaseTypes string
+	Remastered   string
+	Repack       string
+	Resolution   string
+	Retail       string
+	Seasons      string
+	Site         string
+	Size         string
+	Subbed       string
+	ThreeD       string
+	Title        string
+	Uncensored   string
+	Unrated      string
+	Upscaled     string
+	Volumes      string
+	Year         string
+	YearEnd      string
+}{
 	Hash:         "hash",
 	TorrentTitle: "t_title",
 
@@ -358,46 +362,47 @@ var Column = ColumnStruct{
 	ParserVersion: "parser_version",
 	ParserInput:   "parser_input",
 
-	Audio:       "audio",
-	BitDepth:    "bit_depth",
-	Channels:    "channels",
-	Codec:       "codec",
-	Commentary:  "commentary",
-	Complete:    "complete",
-	Container:   "container",
-	Convert:     "convert",
-	Date:        "date",
-	Documentary: "documentary",
-	Dubbed:      "dubbed",
-	Edition:     "edition",
-	EpisodeCode: "episode_code",
-	Episodes:    "episodes",
-	Extended:    "extended",
-	Extension:   "extension",
-	Group:       "group",
-	HDR:         "hdr",
-	Hardcoded:   "hardcoded",
-	Languages:   "languages",
-	Network:     "network",
-	Proper:      "proper",
-	Quality:     "quality",
-	Region:      "region",
-	Remastered:  "remastered",
-	Repack:      "repack",
-	Resolution:  "resolution",
-	Retail:      "retail",
-	Seasons:     "seasons",
-	Site:        "site",
-	Size:        "size",
-	Subbed:      "subbed",
-	ThreeD:      "three_d",
-	Title:       "title",
-	Uncensored:  "uncensored",
-	Unrated:     "unrated",
-	Upscaled:    "upscaled",
-	Volumes:     "volumes",
-	Year:        "year",
-	YearEnd:     "year_end",
+	Audio:        "audio",
+	BitDepth:     "bit_depth",
+	Channels:     "channels",
+	Codec:        "codec",
+	Commentary:   "commentary",
+	Complete:     "complete",
+	Container:    "container",
+	Convert:      "convert",
+	Date:         "date",
+	Documentary:  "documentary",
+	Dubbed:       "dubbed",
+	Edition:      "edition",
+	EpisodeCode:  "episode_code",
+	Episodes:     "episodes",
+	Extended:     "extended",
+	Extension:    "extension",
+	Group:        "group",
+	HDR:          "hdr",
+	Hardcoded:    "hardcoded",
+	Languages:    "languages",
+	Network:      "network",
+	Proper:       "proper",
+	Quality:      "quality",
+	Region:       "region",
+	ReleaseTypes: "release_types",
+	Remastered:   "remastered",
+	Repack:       "repack",
+	Resolution:   "resolution",
+	Retail:       "retail",
+	Seasons:      "seasons",
+	Site:         "site",
+	Size:         "size",
+	Subbed:       "subbed",
+	ThreeD:       "three_d",
+	Title:        "title",
+	Uncensored:   "uncensored",
+	Unrated:      "unrated",
+	Upscaled:     "upscaled",
+	Volumes:      "volumes",
+	Year:         "year",
+	YearEnd:      "year_end",
 }
 
 var Columns = []string{
@@ -436,6 +441,7 @@ var Columns = []string{
 	Column.Proper,
 	Column.Quality,
 	Column.Region,
+	Column.ReleaseTypes,
 	Column.Remastered,
 	Column.Repack,
 	Column.Resolution,
@@ -500,6 +506,7 @@ func GetByHash(hash string) (*TorrentInfo, error) {
 		&tInfo.Proper,
 		&tInfo.Quality,
 		&tInfo.Region,
+		&tInfo.ReleaseTypes,
 		&tInfo.Remastered,
 		&tInfo.Repack,
 		&tInfo.Resolution,
@@ -589,6 +596,7 @@ func GetByHashes(hashes []string) (map[string]TorrentInfo, error) {
 			&tInfo.Proper,
 			&tInfo.Quality,
 			&tInfo.Region,
+			&tInfo.ReleaseTypes,
 			&tInfo.Remastered,
 			&tInfo.Repack,
 			&tInfo.Resolution,
@@ -691,6 +699,11 @@ func Upsert(items []TorrentInfoInsertData, category TorrentInfoCategory, discard
 			}
 			seenHash[t.Hash] = struct{}{}
 
+			if len(t.Hash) != 40 {
+				count--
+				continue
+			}
+
 			tSource := string(t.Source)
 			for _, f := range t.Files {
 				if f.Name == "" {
@@ -792,6 +805,7 @@ func GetUnparsed(limit int) ([]TorrentInfo, error) {
 			&tInfo.Proper,
 			&tInfo.Quality,
 			&tInfo.Region,
+			&tInfo.ReleaseTypes,
 			&tInfo.Remastered,
 			&tInfo.Repack,
 			&tInfo.Resolution,
@@ -898,6 +912,7 @@ func UpsertParsed(tInfos []*TorrentInfo) error {
 				tInfo.Proper,
 				tInfo.Quality,
 				tInfo.Region,
+				tInfo.ReleaseTypes,
 				tInfo.Remastered,
 				tInfo.Repack,
 				tInfo.Resolution,
@@ -924,6 +939,78 @@ func UpsertParsed(tInfos []*TorrentInfo) error {
 	return nil
 }
 
+var query_list_hashes_for_anime_by_anidb_id_from_torrent_stream = fmt.Sprintf(
+	`SELECT DISTINCT %s FROM %s WHERE %s LIKE ?`,
+	ts.Column.Hash,
+	ts.TableName,
+	ts.Column.ASId,
+)
+var query_list_hashes_for_anime_by_anidb_id_from_anidb_torrent = fmt.Sprintf(
+	"SELECT ato.%s FROM %s ato WHERE ato.%s = ? AND ato.%s = '%s' AND ato.%s = ?",
+	anidb.TorrentColumn.Hash,
+	anidb.TorrentTableName,
+	anidb.TorrentColumn.TId,
+	anidb.TorrentColumn.SeasonType,
+	anidb.TorrentSeasonTypeAnime,
+	anidb.TorrentColumn.Season,
+)
+var query_list_hashes_for_anime_by_anidb_id_from_anidb_torrent_with_episode = fmt.Sprintf(
+	"SELECT ato.%s FROM %s ato WHERE ato.%s = ? AND ato.%s = '%s' AND ato.%s = ? AND (ato.%s = 0 OR ato.%s <= ?) AND (ato.%s = 0 OR ato.%s >= ?)",
+	anidb.TorrentColumn.Hash,
+	anidb.TorrentTableName,
+	anidb.TorrentColumn.TId,
+	anidb.TorrentColumn.SeasonType,
+	anidb.TorrentSeasonTypeAnime,
+	anidb.TorrentColumn.Season,
+	anidb.TorrentColumn.EpisodeStart,
+	anidb.TorrentColumn.EpisodeStart,
+	anidb.TorrentColumn.EpisodeEnd,
+	anidb.TorrentColumn.EpisodeEnd,
+)
+
+func listHashesForAnimeByAniDBId(anidbId, season, episode string) ([]string, error) {
+	var query strings.Builder
+	var args []any
+
+	s := util.SafeParseInt(season, -1)
+	if episode == "" {
+		query.WriteString(query_list_hashes_for_anime_by_anidb_id_from_torrent_stream)
+		args = []any{anidbId + ":%"}
+
+		query.WriteString(" UNION ")
+		query.WriteString(query_list_hashes_for_anime_by_anidb_id_from_anidb_torrent)
+		args = append(args, anidbId, s)
+	} else {
+		query.WriteString(query_list_hashes_for_anime_by_anidb_id_from_torrent_stream)
+		args = []any{anidbId + ":" + episode}
+
+		ep := util.SafeParseInt(episode, -1)
+		query.WriteString(" UNION ")
+		query.WriteString(query_list_hashes_for_anime_by_anidb_id_from_anidb_torrent_with_episode)
+		args = append(args, anidbId, s, ep, ep)
+	}
+	rows, err := db.Query(query.String(), args...)
+	if err != nil {
+		log.Error("failed to list hashes by anidb id", "error", err, "anidb_id", anidbId, "episode", episode)
+		return nil, err
+	}
+	defer rows.Close()
+
+	hashes := []string{}
+	for rows.Next() {
+		var hash string
+		if err := rows.Scan(&hash); err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, hash)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return hashes, nil
+}
+
 var query_list_hashes_by_stremid_from_torrent_stream = fmt.Sprintf(
 	"SELECT DISTINCT %s FROM %s WHERE %s = ? OR %s LIKE ?",
 	ts.Column.Hash,
@@ -937,7 +1024,6 @@ var query_list_hashes_by_stremid_from_imdb_torrent = fmt.Sprintf(
 	imdb_torrent.TableName,
 	imdb_torrent.Column.TId,
 )
-
 var query_list_hashes_by_stremid_from_imdb_torrent_for_series = fmt.Sprintf(
 	"SELECT ito.%s FROM %s ito JOIN %s ti ON ito.%s = ti.%s WHERE ito.%s = ? AND CONCAT(',', ti.%s, ',') LIKE ? AND (ti.%s = '' OR CONCAT(',', ti.%s, ',') LIKE ?)",
 	imdb_torrent.Column.Hash,
@@ -953,6 +1039,14 @@ var query_list_hashes_by_stremid_from_imdb_torrent_for_series = fmt.Sprintf(
 
 func ListHashesByStremId(stremId string) ([]string, error) {
 	if !strings.HasPrefix(stremId, "tt") {
+		if strings.HasPrefix(stremId, "kitsu:") {
+			kitsuId, episode, _ := strings.Cut(strings.TrimPrefix(stremId, "kitsu:"), ":")
+			anidbId, season, err := anime.GetAniDBIdByKitsuId(kitsuId)
+			if err != nil || anidbId == "" {
+				return nil, err
+			}
+			return listHashesForAnimeByAniDBId(anidbId, season, episode)
+		}
 		return nil, fmt.Errorf("unsupported strem id: %s", stremId)
 	}
 
@@ -1276,7 +1370,7 @@ func ExistsByHash(hashes []string) (map[string]bool, error) {
 	return exists, nil
 }
 
-var query_get_unmapped_hashes = fmt.Sprintf(
+var query_get_imdb_unmapped_hashes = fmt.Sprintf(
 	"SELECT ti.%s FROM %s ti LEFT JOIN %s ito ON ti.%s = ito.%s WHERE ti.%s = ti.%s AND ito.%s IS NULL LIMIT ?",
 	Column.Hash,
 	TableName,
@@ -1288,11 +1382,47 @@ var query_get_unmapped_hashes = fmt.Sprintf(
 	imdb_torrent.Column.TId,
 )
 
-func GetUnmappedHashes(limit int) ([]string, error) {
+func GetIMDBUnmappedHashes(limit int) ([]string, error) {
 	hashes := []string{}
 	limit = max(1, min(limit, 20000))
 
-	rows, err := db.Query(query_get_unmapped_hashes, limit)
+	rows, err := db.Query(query_get_imdb_unmapped_hashes, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var hash string
+		if err := rows.Scan(&hash); err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, hash)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return hashes, nil
+}
+
+var query_get_anidb_unmapped_hashes = fmt.Sprintf(
+	"SELECT ti.%s FROM %s ti LEFT JOIN %s ato ON ti.%s = ato.%s WHERE ti.%s = ti.%s AND ato.%s IS NULL LIMIT ?",
+	Column.Hash,
+	TableName,
+	anidb.TorrentTableName,
+	Column.Hash,
+	anidb.TorrentColumn.Hash,
+	Column.TorrentTitle,
+	Column.ParserInput,
+	anidb.TorrentColumn.TId,
+)
+
+func GetAniDBUnmappedHashes(limit int) ([]string, error) {
+	hashes := []string{}
+	limit = max(1, min(limit, 20000))
+
+	rows, err := db.Query(query_get_anidb_unmapped_hashes, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -1396,4 +1526,16 @@ func GetBasicInfoByHash(hashes []string) (map[string]BasicInfo, error) {
 		return nil, err
 	}
 	return basicInfos, nil
+}
+
+var query_mark_for_reparse_below_version = fmt.Sprintf(
+	`UPDATE %s SET %s = '' WHERE %s < ?`,
+	TableName,
+	Column.ParserInput,
+	Column.ParserVersion,
+)
+
+func MarkForReparseBelowVersion(version int) error {
+	_, err := db.Exec(query_mark_for_reparse_below_version, version)
+	return err
 }

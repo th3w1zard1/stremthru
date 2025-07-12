@@ -14,7 +14,7 @@ import (
 	stremio_store_webdl "github.com/MunifTanjim/stremthru/internal/stremio/store/webdl"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
-	"github.com/MunifTanjim/stremthru/internal/worker"
+	"github.com/MunifTanjim/stremthru/internal/worker/worker_queue"
 	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
@@ -170,7 +170,7 @@ func getCatalogItems(s store.Store, storeToken string, clientIp string, idPrefix
 			hasMore = len(res.Items) == fetch_list_limit && offset < res.TotalItems
 
 			if hasMore && offset >= max_fetch_list_items {
-				worker.StoreCrawlerQueue.Queue(worker.StoreCrawlerQueueItem{
+				worker_queue.StoreCrawlerQueue.Queue(worker_queue.StoreCrawlerQueueItem{
 					StoreCode:  string(s.GetName().Code()),
 					StoreToken: storeToken,
 				})
@@ -321,21 +321,22 @@ func handleCatalog(w http.ResponseWriter, r *http.Request) {
 		hashes[i] = item.hash
 	}
 
-	includeRDDownlodsMetaPreview := ud.EnableWebDL && idr.storeCode == store.StoreCodeRealDebrid
+	includeWebDLsMetaPreview := ud.EnableWebDL && (idr.storeCode == store.StoreCodeRealDebrid || idr.storeCode == store.StoreCodePremiumize || idr.storeCode == store.StoreCodeAllDebrid)
 
 	count := len(hashes)
-	if includeRDDownlodsMetaPreview {
+	if includeWebDLsMetaPreview {
 		count += 1
 	}
 
 	res.Metas = make([]stremio.MetaPreview, 0, count)
 
-	if includeRDDownlodsMetaPreview {
+	if includeWebDLsMetaPreview && extra.Skip == 0 {
 		res.Metas = append(res.Metas, stremio.MetaPreview{
-			Id:     getRDWebDLsId(idStoreCode),
-			Type:   ContentTypeOther,
-			Name:   "Web Downloads",
-			Poster: "https://emojiapi.dev/api/v1/inbox_tray/256.png",
+			Id:          getWebDLsMetaId(idStoreCode),
+			Type:        ContentTypeOther,
+			Name:        "Web Downloads",
+			Description: "Web Downloads for " + strings.ToUpper(string(idr.storeCode)),
+			Poster:      "https://emojiapi.dev/api/v1/inbox_tray/256.png",
 		})
 	}
 

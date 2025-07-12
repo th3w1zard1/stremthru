@@ -1,31 +1,50 @@
 package anime
 
 import (
+	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/MunifTanjim/stremthru/internal/anidb"
 	"github.com/MunifTanjim/stremthru/internal/db"
 	"github.com/MunifTanjim/stremthru/internal/util"
 )
 
 const IdMapTableName = "anime_id_map"
 
+type AnimeIdMapType = string
+
+const (
+	AnimeIdMapTypeTV      AnimeIdMapType = "TV"
+	AnimeIdMapTypeTVShort AnimeIdMapType = "TV_SHORT"
+	AnimeIdMapTypeMovie   AnimeIdMapType = "MOVIE"
+	AnimeIdMapTypeSpecial AnimeIdMapType = "SPECIAL"
+	AnimeIdMapTypeOVA     AnimeIdMapType = "OVA"
+	AnimeIdMapTypeONA     AnimeIdMapType = "ONA"
+	AnimeIdMapTypeMusic   AnimeIdMapType = "MUSIC"
+	AnimeIdMapTypeManga   AnimeIdMapType = "MANGA"
+	AnimeIdMapTypeNovel   AnimeIdMapType = "NOVEL"
+	AnimeIdMapTypeOneShot AnimeIdMapType = "ONE_SHOT"
+	AnimeIdMapTypeUnknown AnimeIdMapType = ""
+)
+
 type AnimeIdMap struct {
-	Id          int          `json:"id"`
-	Type        string       `json:"type"`
-	AniList     string       `json:"anilist"`
-	AniDB       string       `json:"anidb"`
-	AniSearch   string       `json:"anisearch"`
-	AnimePlanet string       `json:"animeplanet"`
-	IMDB        string       `json:"imdb"`
-	Kitsu       string       `json:"kitsu"`
-	LiveChart   string       `json:"livechart"`
-	MAL         string       `json:"mal"`
-	NotifyMoe   string       `json:"notifymoe"`
-	TMDB        string       `json:"tmdb"`
-	TVDB        string       `json:"tvdb"`
-	UpdatedAt   db.Timestamp `json:"uat"`
+	Id          int            `json:"id"`
+	Type        AnimeIdMapType `json:"type"`
+	AniList     string         `json:"anilist"`
+	AniDB       string         `json:"anidb"`
+	AniSearch   string         `json:"anisearch"`
+	AnimePlanet string         `json:"animeplanet"`
+	IMDB        string         `json:"imdb"`
+	Kitsu       string         `json:"kitsu"`
+	LiveChart   string         `json:"livechart"`
+	MAL         string         `json:"mal"`
+	NotifyMoe   string         `json:"notifymoe"`
+	TMDB        string         `json:"tmdb"`
+	TVDB        string         `json:"tvdb"`
+	UpdatedAt   db.Timestamp   `json:"uat"`
 }
 
 func (idMap *AnimeIdMap) IsZero() bool {
@@ -37,20 +56,20 @@ func (idMap *AnimeIdMap) IsStale() bool {
 }
 
 type rawAnimeIdMap struct {
-	Id          int           `json:"id"`
-	Type        string        `json:"type"`
-	AniList     db.NullString `json:"anilist"`
-	AniDB       db.NullString `json:"anidb"`
-	AniSearch   db.NullString `json:"anisearch"`
-	AnimePlanet db.NullString `json:"animeplanet"`
-	IMDB        db.NullString `json:"imdb"`
-	Kitsu       db.NullString `json:"kitsu"`
-	LiveChart   db.NullString `json:"livechart"`
-	MAL         db.NullString `json:"mal"`
-	NotifyMoe   db.NullString `json:"notifymoe"`
-	TMDB        db.NullString `json:"tmdb"`
-	TVDB        db.NullString `json:"tvdb"`
-	UpdatedAt   db.Timestamp  `json:"uat"`
+	Id          int            `json:"id"`
+	Type        AnimeIdMapType `json:"type"`
+	AniList     db.NullString  `json:"anilist"`
+	AniDB       db.NullString  `json:"anidb"`
+	AniSearch   db.NullString  `json:"anisearch"`
+	AnimePlanet db.NullString  `json:"animeplanet"`
+	IMDB        db.NullString  `json:"imdb"`
+	Kitsu       db.NullString  `json:"kitsu"`
+	LiveChart   db.NullString  `json:"livechart"`
+	MAL         db.NullString  `json:"mal"`
+	NotifyMoe   db.NullString  `json:"notifymoe"`
+	TMDB        db.NullString  `json:"tmdb"`
+	TVDB        db.NullString  `json:"tvdb"`
+	UpdatedAt   db.Timestamp   `json:"uat"`
 }
 
 type IdMapColumnStruct struct {
@@ -116,7 +135,7 @@ func GetIdMapsForAniList(ids []int) ([]AnimeIdMap, error) {
 	query := query_get_id_map + "(" + util.RepeatJoin("?", count, ",") + ")"
 	args := make([]any, count)
 	for i := range ids {
-		args[i] = ids[i]
+		args[i] = strconv.Itoa(ids[i])
 	}
 	rows, err := db.Query(query, args...)
 	if err != nil {
@@ -169,6 +188,115 @@ func GetIdMapsForAniList(ids []int) ([]AnimeIdMap, error) {
 	return idMaps, nil
 }
 
+var query_get_type_by_anilist_ids = fmt.Sprintf(
+	"SELECT %s, %s FROM %s WHERE %s IN ",
+	IdMapColumn.AniList,
+	IdMapColumn.Type,
+	IdMapTableName,
+	IdMapColumn.AniList,
+)
+
+func GetTypeByAnilistIds(ids []int) (map[int]AnimeIdMapType, error) {
+	count := len(ids)
+	if count == 0 {
+		return nil, nil
+	}
+
+	query := query_get_type_by_anilist_ids + "(" + util.RepeatJoin("?", count, ",") + ")"
+	args := make([]any, count)
+	for i := range ids {
+		args[i] = strconv.Itoa(ids[i])
+	}
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	typeById := make(map[int]AnimeIdMapType, count)
+	for rows.Next() {
+		var id string
+		var animeType AnimeIdMapType
+		if err := rows.Scan(&id, &animeType); err != nil {
+			return nil, err
+		}
+		if id, err := strconv.Atoi(id); err == nil {
+			typeById[id] = animeType
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return typeById, nil
+}
+
+var query_get_type_by_kitsu_ids = fmt.Sprintf(
+	"SELECT %s, %s FROM %s WHERE %s IN ",
+	IdMapColumn.Kitsu,
+	IdMapColumn.Type,
+	IdMapTableName,
+	IdMapColumn.Kitsu,
+)
+
+func GetTypeByKitsuIds(ids []int) (map[int]AnimeIdMapType, error) {
+	count := len(ids)
+	if count == 0 {
+		return nil, nil
+	}
+
+	query := query_get_type_by_kitsu_ids + "(" + util.RepeatJoin("?", count, ",") + ")"
+	args := make([]any, count)
+	for i := range ids {
+		args[i] = strconv.Itoa(ids[i])
+	}
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	typeById := make(map[int]AnimeIdMapType, count)
+	for rows.Next() {
+		var id string
+		var animeType AnimeIdMapType
+		if err := rows.Scan(&id, &animeType); err != nil {
+			return nil, err
+		}
+		if id, err := strconv.Atoi(id); err == nil {
+			typeById[id] = animeType
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return typeById, nil
+}
+
+var query_get_anidb_id_by_kitsu_id = fmt.Sprintf(
+	`SELECT im.%s, at.%s FROM %s im LEFT JOIN %s at ON at.%s = im.%s WHERE im.%s = ? LIMIT 1`,
+	IdMapColumn.AniDB,
+	anidb.TitleColumn.Season,
+	IdMapTableName,
+	anidb.TitleTableName,
+	anidb.TitleColumn.TId,
+	IdMapColumn.AniDB,
+	IdMapColumn.Kitsu,
+)
+
+func GetAniDBIdByKitsuId(kitsuId string) (anidbId, season string, err error) {
+	query := query_get_anidb_id_by_kitsu_id
+	row := db.QueryRow(query, kitsuId)
+	if err = row.Scan(&anidbId, &season); err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", nil
+		}
+		return "", "", err
+	}
+	return anidbId, season, nil
+}
+
 var query_bulk_record_id_maps_before_values = fmt.Sprintf(
 	`INSERT INTO %s AS aim (%s) VALUES `,
 	IdMapTableName,
@@ -206,11 +334,67 @@ func normalizeOptionalId(id string) string {
 	return id
 }
 
+func getAnchorColumnValue(item AnimeIdMap, anchorColumnName string) string {
+	switch anchorColumnName {
+	case IdMapColumn.AniDB:
+		return normalizeOptionalId(item.AniDB)
+	case IdMapColumn.AniList:
+		return normalizeOptionalId(item.AniList)
+	case IdMapColumn.AniSearch:
+		return normalizeOptionalId(item.AniSearch)
+	case IdMapColumn.AnimePlanet:
+		return normalizeOptionalId(item.AnimePlanet)
+	case IdMapColumn.Kitsu:
+		return normalizeOptionalId(item.Kitsu)
+	case IdMapColumn.LiveChart:
+		return normalizeOptionalId(item.LiveChart)
+	case IdMapColumn.MAL:
+		return normalizeOptionalId(item.MAL)
+	case IdMapColumn.NotifyMoe:
+		return normalizeOptionalId(item.NotifyMoe)
+	default:
+		panic("unsupported anchor column")
+	}
+}
+
 func BulkRecordIdMaps(items []AnimeIdMap, anchorColumnName string) error {
 	count := len(items)
+	if count == 0 {
+		return nil
+	}
 
 	var query strings.Builder
 	query.WriteString(query_bulk_record_id_maps_before_values)
+
+	seenMap := map[string]struct{}{}
+
+	columnCount := len(IdMapColumns) - 2
+	args := make([]any, 0, count*columnCount)
+	for _, item := range items {
+		anchorValue := getAnchorColumnValue(item, anchorColumnName)
+		if _, seen := seenMap[anchorValue]; seen {
+			count--
+			continue
+		}
+		seenMap[anchorValue] = struct{}{}
+
+		args = append(
+			args,
+			item.Type,
+			db.NullString{String: normalizeOptionalId(item.AniDB)},
+			db.NullString{String: normalizeOptionalId(item.AniList)},
+			db.NullString{String: normalizeOptionalId(item.AniSearch)},
+			db.NullString{String: normalizeOptionalId(item.AnimePlanet)},
+			db.NullString{String: normalizeOptionalId(item.IMDB)},
+			db.NullString{String: normalizeOptionalId(item.Kitsu)},
+			db.NullString{String: normalizeOptionalId(item.LiveChart)},
+			db.NullString{String: normalizeOptionalId(item.MAL)},
+			db.NullString{String: normalizeOptionalId(item.NotifyMoe)},
+			db.NullString{String: normalizeOptionalId(item.TMDB)},
+			db.NullString{String: normalizeOptionalId(item.TVDB)},
+		)
+	}
+
 	query.WriteString(util.RepeatJoin(query_bulk_record_id_maps_placeholder, count, ","))
 	query.WriteString(query_bulk_record_id_maps_on_conflict_before_column)
 	query.WriteString(anchorColumnName)
@@ -221,23 +405,6 @@ func BulkRecordIdMaps(items []AnimeIdMap, anchorColumnName string) error {
 		}
 		query.WriteString(", ")
 		query.WriteString(setColumnValue)
-	}
-
-	columnCount := len(IdMapColumns) - 2
-	args := make([]any, count*columnCount)
-	for i, item := range items {
-		args[i*columnCount+0] = item.Type
-		args[i*columnCount+1] = db.NullString{String: normalizeOptionalId(item.AniDB)}
-		args[i*columnCount+2] = db.NullString{String: normalizeOptionalId(item.AniList)}
-		args[i*columnCount+3] = db.NullString{String: normalizeOptionalId(item.AniSearch)}
-		args[i*columnCount+4] = db.NullString{String: normalizeOptionalId(item.AnimePlanet)}
-		args[i*columnCount+5] = db.NullString{String: normalizeOptionalId(item.IMDB)}
-		args[i*columnCount+6] = db.NullString{String: normalizeOptionalId(item.Kitsu)}
-		args[i*columnCount+7] = db.NullString{String: normalizeOptionalId(item.LiveChart)}
-		args[i*columnCount+8] = db.NullString{String: normalizeOptionalId(item.MAL)}
-		args[i*columnCount+9] = db.NullString{String: normalizeOptionalId(item.NotifyMoe)}
-		args[i*columnCount+10] = db.NullString{String: normalizeOptionalId(item.TMDB)}
-		args[i*columnCount+11] = db.NullString{String: normalizeOptionalId(item.TVDB)}
 	}
 
 	_, err := db.Exec(query.String(), args...)

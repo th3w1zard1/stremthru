@@ -116,7 +116,6 @@ func GetManifest(r *http.Request, ud *UserData) *stremio.Manifest {
 				}
 			}
 		}
-
 	} else {
 		name = "StremThru Store"
 	}

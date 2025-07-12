@@ -120,7 +120,7 @@ func (query Query) Encode() string {
 	}
 
 	if query.IMDBId != "" {
-		v.Set("imdbid", query.IMDBId)
+		v.Set("imdbid", strings.TrimPrefix(query.IMDBId, "tt"))
 	}
 
 	return v.Encode()
@@ -134,7 +134,7 @@ func ParseQuery(q url.Values) (Query, error) {
 	query := Query{}
 
 	for key, vals := range q {
-		switch key {
+		switch strings.ToLower(key) {
 		case "t":
 			if len(vals) > 1 {
 				return query, errors.New("Multiple t parameters not allowed")
@@ -213,6 +213,9 @@ func ParseQuery(q url.Values) (Query, error) {
 				return query, errors.New("Multiple imdbid parameters not allowed")
 			}
 			query.IMDBId = vals[0]
+			if !strings.HasPrefix(query.IMDBId, "tt") {
+				query.IMDBId = "tt" + query.IMDBId
+			}
 		}
 	}
 

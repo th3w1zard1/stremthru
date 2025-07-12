@@ -87,7 +87,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		}
 
 		http.Redirect(w, r, data.Link, http.StatusFound)
-	} else if idr.isWebDL {
+	} else if idr.isWebDL || videoId == WEBDL_META_ID_INDICATOR {
 		storeName := ctx.Store.GetName()
 		rParams := &stremio_store_webdl.GenerateLinkParams{
 			Link:     link,
@@ -97,6 +97,10 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		var lerr error
 		data, err := stremio_store_webdl.GenerateLink(rParams, storeName)
 		if err == nil {
+			if data.Link == "" {
+				store_video.Redirect(store_video.StoreVideoNameDownloading, w, r)
+				return
+			}
 			if config.StoreContentProxy.IsEnabled(string(storeName)) && ctx.StoreAuthToken == config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, string(storeName)) {
 				if ctx.IsProxyAuthorized {
 					tunnelType := config.StoreTunnel.GetTypeForStream(string(ctx.Store.GetName()))

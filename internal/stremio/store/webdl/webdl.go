@@ -10,11 +10,24 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/request"
 	"github.com/MunifTanjim/stremthru/store"
+	"github.com/MunifTanjim/stremthru/store/alldebrid"
+	"github.com/MunifTanjim/stremthru/store/premiumize"
 	"github.com/MunifTanjim/stremthru/store/torbox"
 )
 
+var adClient = alldebrid.NewAPIClient(&alldebrid.APIClientConfig{
+	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("alldebrid")),
+	UserAgent:  config.StoreClientUserAgent,
+})
+
 var tbClient = torbox.NewAPIClient(&torbox.APIClientConfig{
 	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("torbox")),
+	UserAgent:  config.StoreClientUserAgent,
+})
+
+var pmClient = premiumize.NewAPIClient(&premiumize.APIClientConfig{
+	HTTPClient: config.GetHTTPClient(config.StoreTunnel.GetTypeForAPI("premiumize")),
+	UserAgent:  config.StoreClientUserAgent,
 })
 
 type WebDLFile struct {
@@ -53,6 +66,91 @@ func ListWebDLs(params *ListWebDLsParams, storeName store.StoreName) (*ListWebDL
 	params.Limit = max(1, min(params.Limit, 500))
 
 	switch storeName {
+	case store.StoreNameAlldebrid:
+		rParamsRecent := &alldebrid.GetRecentUserLinksParams{
+			Ctx: params.Ctx,
+		}
+		rParamsSaved := &alldebrid.GetSavedUserLinksParams{
+			Ctx: params.Ctx,
+		}
+		resRecent, errRecent := adClient.GetRecentUserLinks(rParamsRecent)
+		resSaved, errSaved := adClient.GetSavedUserLinks(rParamsSaved)
+		if errRecent != nil {
+			return nil, errRecent
+		}
+		if errSaved != nil {
+			return nil, errSaved
+		}
+
+		links := append(resRecent.Data, resSaved.Data...)
+
+		seenLink := map[string]struct{}{}
+
+		data := ListWebDLsData{}
+		for i := range links {
+			link := &links[i]
+			if link.Host == "error" || link.Host == "magnet" {
+				continue
+			}
+			if _, seen := seenLink[link.Link]; seen {
+				continue
+			}
+			seenLink[link.Link] = struct{}{}
+			item := WebDL{
+				Id:      link.Link,
+				Hash:    "",
+				Name:    link.Filename,
+				Size:    link.GetSize(),
+				Status:  store.MagnetStatusUnknown,
+				AddedAt: link.GetDate(),
+				Files:   []WebDLFile{},
+			}
+			if link.LinkDL != "" {
+				item.Status = store.MagnetStatusDownloaded
+				item.Files = append(item.Files, WebDLFile{
+					Link: link.LinkDL,
+					Name: link.Filename,
+					Size: link.GetSize(),
+				})
+			}
+			data.Items = append(data.Items, item)
+		}
+
+		data.TotalItems = len(data.Items)
+
+		return &data, nil
+	case store.StoreNamePremiumize:
+		rParams := &premiumize.ListItemsParams{
+			Ctx: params.Ctx,
+		}
+		res, err := pmClient.ListItems(rParams)
+		if err != nil {
+			return nil, err
+		}
+
+		data := ListWebDLsData{}
+		for i := range res.Data.Files {
+			dl := &res.Data.Files[i]
+			item := WebDL{
+				Id:      dl.Id,
+				Hash:    "",
+				Name:    dl.Name,
+				Size:    dl.Size,
+				Status:  store.MagnetStatusDownloaded,
+				AddedAt: dl.GetCreatedAt(),
+			}
+			file := WebDLFile{
+				Name: dl.Name,
+				Path: dl.Path,
+				Size: dl.Size,
+			}
+			item.Files = append(item.Files, file)
+			data.Items = append(data.Items, item)
+		}
+
+		data.TotalItems = len(data.Items)
+
+		return &data, nil
 	case store.StoreNameTorBox:
 		rParams := &torbox.ListWebDLDownloadParams{
 			Ctx:    params.Ctx,
@@ -180,6 +278,72 @@ type GenerateLinkParams struct {
 
 func GenerateLink(params *GenerateLinkParams, storeName store.StoreName) (*GenerateLinkData, error) {
 	switch storeName {
+	case store.StoreNameAlldebrid:
+		res, err := adClient.UnlockLink(&alldebrid.UnlockLinkParams{
+			Ctx:    params.Ctx,
+			Link:   params.Link,
+			UserIP: params.CLientIP,
+		})
+		if err != nil {
+			return nil, err
+		}
+		data := GenerateLinkData{}
+		if res.Data.Link != "" {
+			if !core.HasVideoExtension(res.Data.Filename) {
+				error := core.NewAPIError("no video file found")
+				error.StatusCode = http.StatusUnprocessableEntity
+				error.StoreName = string(storeName)
+				return nil, error
+			}
+			data.Link = res.Data.Link
+			return &data, nil
+		}
+
+		if len(res.Data.Streams) > 0 {
+			var stream *alldebrid.UnlockLinkDataStream
+			for i := range res.Data.Streams {
+				s := &res.Data.Streams[i]
+				if !core.HasVideoExtension("." + s.Ext) {
+					continue
+				}
+				stream = s
+			}
+			if stream == nil {
+				error := core.NewAPIError("no video stream found")
+				error.StatusCode = http.StatusUnprocessableEntity
+				error.StoreName = string(storeName)
+				return nil, error
+			}
+			sRes, err := adClient.GetStreamingLink(&alldebrid.GetStreamingLinkParams{
+				Ctx:    params.Ctx,
+				Id:     res.Data.Id,
+				Stream: stream.Id,
+			})
+			if err != nil {
+				return nil, err
+			}
+			data.Link = sRes.Data.Link
+			return &data, nil
+		}
+
+		return &data, nil
+
+	case store.StoreNamePremiumize:
+		res, err := pmClient.GetItem(&premiumize.GetItemParams{
+			Ctx: params.Ctx,
+			Id:  params.Link,
+		})
+		if err != nil {
+			return nil, err
+		}
+		link := res.Data.StreamLink
+		if link == "" {
+			link = res.Data.Link
+		}
+		data := GenerateLinkData{
+			Link: res.Data.Link,
+		}
+		return &data, nil
 	case store.StoreNameTorBox:
 		id, fileId, err := torbox.LockedFileLink(params.Link).Parse()
 		if err != nil {

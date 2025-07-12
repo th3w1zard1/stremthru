@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/anime"
 	"github.com/MunifTanjim/stremthru/internal/buddy"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/shared"
@@ -20,6 +21,7 @@ import (
 )
 
 var streamTemplate = stremio_transformer.StreamTemplateDefault
+var lazyPull = config.Stremio.Torz.LazyPull
 
 type wrappedStream struct {
 	stremio.Stream
@@ -65,8 +67,14 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	id := stremio_shared.GetPathValue(r, "id")
 
 	isImdbId := strings.HasPrefix(id, "tt")
+	isKitsuId := strings.HasPrefix(id, "kitsu:")
 	if isImdbId {
 		if contentType != string(stremio.ContentTypeMovie) && contentType != string(stremio.ContentTypeSeries) {
+			shared.ErrorBadRequest(r, "unsupported type: "+contentType).Send(w, r)
+			return
+		}
+	} else if isKitsuId {
+		if contentType != "anime" && contentType != string(stremio.ContentTypeSeries) {
 			shared.ErrorBadRequest(r, "unsupported type: "+contentType).Send(w, r)
 			return
 		}
@@ -77,7 +85,13 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 
 	eud := ud.GetEncoded()
 
-	buddy.PullTorrentsByStremId(id, "")
+	if isImdbId {
+		if lazyPull {
+			go buddy.PullTorrentsByStremId(id, "")
+		} else {
+			buddy.PullTorrentsByStremId(id, "")
+		}
+	}
 
 	hashes, err := torrent_info.ListHashesByStremId(id)
 	if err != nil {
@@ -95,8 +109,10 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		magnetByHash[magnet.Hash] = magnet
 	}
 
+	isP2P := ud.IsP2P()
+
 	isCachedByHash := map[string]string{}
-	if len(hashes) > 0 {
+	if !isP2P && len(hashes) > 0 {
 		cmRes := ud.CheckMagnet(&store.CheckMagnetParams{
 			Magnets:  hashes,
 			ClientIP: ctx.ClientIP,
@@ -139,11 +155,26 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 
 		var file *torrent_stream.File
 		if files, ok := filesByHashes[hash]; ok {
-			for i := range files {
-				f := &files[i]
-				if core.HasVideoExtension(f.Name) {
-					if f.SId == id {
-						file = f
+			idToMatch := id
+			if isKitsuId {
+				kitsuId, episode, _ := strings.Cut(strings.TrimPrefix(id, "kitsu:"), ":")
+				anidbId, _, err := anime.GetAniDBIdByKitsuId(kitsuId)
+				if err != nil || anidbId == "" {
+					if err != nil {
+						log.Error("failed to get anidb id for kitsu id", "kitsu_id", kitsuId, "error", err)
+					}
+					idToMatch = ""
+				} else {
+					idToMatch = anidbId + ":" + episode
+				}
+			}
+			if idToMatch != "" {
+				for i := range files {
+					f := &files[i]
+					if core.HasVideoExtension(f.Name) {
+						if f.SId == idToMatch || f.ASId == idToMatch {
+							file = f
+						}
 					}
 				}
 			}
@@ -200,7 +231,23 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	cachedStreams := []stremio.Stream{}
 	uncachedStreams := []stremio.Stream{}
 	for _, wStream := range wrappedStreams {
-		if storeCode, isCached := isCachedByHash[wStream.hash]; isCached && storeCode != "" {
+		if isP2P {
+			fIdx := wStream.r.File.Idx
+			if fIdx == -1 {
+				continue
+			}
+
+			wStream.r.Store.Code = "P2P"
+			wStream.r.Store.Name = "P2P"
+			stream, err := streamTemplate.Execute(&wStream.Stream, wStream.r)
+			if err != nil {
+				SendError(w, r, err)
+				return
+			}
+			stream.InfoHash = wStream.hash
+			stream.FileIndex = fIdx
+			uncachedStreams = append(uncachedStreams, *stream)
+		} else if storeCode, isCached := isCachedByHash[wStream.hash]; isCached && storeCode != "" {
 			storeName := store.StoreCode(strings.ToLower(storeCode)).Name()
 			wStream.r.Store.Code = storeCode
 			wStream.r.Store.Name = string(storeName)

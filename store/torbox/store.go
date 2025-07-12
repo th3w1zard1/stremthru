@@ -298,6 +298,8 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	data.AddedAt = t.Data.GetAddedAt()
 	if t.Data.DownloadFinished && t.Data.DownloadPresent {
 		data.Status = store.MagnetStatusDownloaded
+	} else if t.Data.Progress > 0 {
+		data.Status = store.MagnetStatusDownloading
 	}
 	for _, f := range t.Data.Files {
 		file := store.MagnetFile{
@@ -405,6 +407,8 @@ func (c *StoreClient) GetMagnet(params *store.GetMagnetParams) (*store.GetMagnet
 	}
 	if res.Data.DownloadFinished && res.Data.DownloadPresent {
 		data.Status = store.MagnetStatusDownloaded
+	} else if res.Data.Progress > 0 {
+		data.Status = store.MagnetStatusDownloading
 	}
 	for _, f := range res.Data.Files {
 		file := store.MagnetFile{
@@ -448,6 +452,8 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 		}
 		if t.DownloadFinished && t.DownloadPresent {
 			item.Status = store.MagnetStatusDownloaded
+		} else if t.Progress > 0 {
+			item.Status = store.MagnetStatusDownloading
 		}
 		data.Items = append(data.Items, item)
 	}

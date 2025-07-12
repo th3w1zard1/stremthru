@@ -35,10 +35,10 @@ func (ud UserData) HasRequiredValues() bool {
 	}
 	for i := range ud.Stores {
 		s := &ud.Stores[i]
-		if s.Code.IsStremThru() && len(ud.Stores) > 1 {
+		if (s.Code.IsStremThru() || s.Code.IsP2P()) && len(ud.Stores) > 1 {
 			return false
 		}
-		if s.Token == "" {
+		if !s.Code.IsP2P() && s.Token == "" {
 			return false
 		}
 	}

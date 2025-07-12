@@ -57,7 +57,7 @@ type xmlCapsSearching struct {
 type CapsCategory struct {
 	XMLName xml.Name `xml:"category"`
 	Category
-	Sub []Category
+	Subcat []Category `xml:"subcat"`
 }
 
 type xmlCapsCategories struct {
@@ -87,6 +87,14 @@ func (c Caps) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 		Categories: xmlCapsCategories{
 			Children: c.Categories,
 		},
+	}
+
+	for i := range cx.Categories.Children {
+		cat := &cx.Categories.Children[i]
+		for i := range cat.Subcat {
+			subcat := &cat.Subcat[i]
+			subcat.Name = strings.TrimPrefix(subcat.Name, cat.Name+"/")
+		}
 	}
 
 	for _, mode := range c.Searching {

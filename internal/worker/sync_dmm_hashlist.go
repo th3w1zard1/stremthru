@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/dmm_hashlist"
@@ -179,17 +180,22 @@ func InitSyncDMMHashlistWorker(conf *WorkerConfig) *Worker {
 		hashes := []string{}
 		itemByHash := map[string]DMMHashlistItem{}
 		for _, item := range items {
-			if hashSeen.Get(item.Hash, &struct{}{}) {
+			magnet, err := core.ParseMagnetLink(item.Hash)
+			if err != nil || len(magnet.Hash) != 40 {
 				continue
 			}
-			if _, found := itemByHash[item.Hash]; found {
+			hash := magnet.Hash
+			if hashSeen.Get(hash, &struct{}{}) {
+				continue
+			}
+			if _, found := itemByHash[hash]; found {
 				continue
 			}
 			if item.Bytes == 0 || item.Filename == "" || item.Filename == "Magnet" {
 				continue
 			}
-			hashes = append(hashes, item.Hash)
-			itemByHash[item.Hash] = item
+			hashes = append(hashes, hash)
+			itemByHash[hash] = item
 		}
 
 		existsMap, err := torrent_info.ExistsByHash(hashes)

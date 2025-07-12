@@ -9,24 +9,56 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/anilist"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
+	"github.com/MunifTanjim/stremthru/internal/oauth"
 	"github.com/MunifTanjim/stremthru/internal/stremio/configure"
 	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 	stremio_template "github.com/MunifTanjim/stremthru/internal/stremio/template"
 	stremio_userdata "github.com/MunifTanjim/stremthru/internal/stremio/userdata"
+	"github.com/MunifTanjim/stremthru/internal/trakt"
+	"github.com/google/uuid"
 )
 
 var IsPublicInstance = config.IsPublicInstance
-var MaxPublicInstanceListCount = 5
+var MaxPublicInstanceListCount = 10
+var TraktEnabled = config.Integration.Trakt.IsEnabled()
+var AniListEnabled = config.Feature.IsEnabled("anime")
 
 type Base = stremio_template.BaseData
 
 type TemplateDataList struct {
-	URL   string
-	Name  string
-	Error struct {
+	Id      string
+	URL     string
+	Name    string
+	Shuffle configure.Config
+	Error   struct {
 		URL  string
 		Name string
 	}
+	Disabled struct {
+		URL bool
+	}
+}
+
+func newTemplateDataList(index int) TemplateDataList {
+	return TemplateDataList{
+		Shuffle: configure.Config{
+			Key:   "lists[" + strconv.Itoa(index) + "].shuffle",
+			Type:  configure.ConfigTypeCheckbox,
+			Title: "Shuffle Items",
+		},
+	}
+}
+
+type supportedServiceUrl struct {
+	Pattern  string
+	Examples []string
+}
+
+type supportedService struct {
+	Name     string
+	Hostname string
+	Icon     string
+	URLs     []supportedServiceUrl
 }
 
 type TemplateData struct {
@@ -40,6 +72,9 @@ type TemplateData struct {
 
 	RPDBAPIKey configure.Config
 
+	TraktEnabled bool
+	TraktTokenId configure.Config
+
 	Shuffle configure.Config
 
 	ManifestURL string
@@ -49,20 +84,22 @@ type TemplateData struct {
 	IsAuthed     bool
 	AuthError    string
 
+	SupportedServices []supportedService
+
 	stremio_userdata.TemplateDataUserData
 }
 
 func (td *TemplateData) HasListError() bool {
-	if len(td.Lists) > 0 {
-		if td.MDBListAPIKey.Error != "" {
+	if len(td.Lists) == 0 {
+		return true
+	}
+	for i := range td.Lists {
+		if td.Lists[i].Error.URL != "" {
 			return true
 		}
-
-		for i := range td.Lists {
-			if td.Lists[i].Error.URL != "" {
-				return true
-			}
-		}
+	}
+	if td.MDBListAPIKey.Error != "" {
+		return true
 	}
 	return false
 }
@@ -86,8 +123,8 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 			Key:          "mdblist_api_key",
 			Type:         "password",
 			Default:      ud.MDBListAPIkey,
-			Title:        "MDBList API Key",
-			Description:  `<a href="https://mdblist.com/preferences/#api_key_uid" target="_blank">API Key</a>`,
+			Title:        "API Key",
+			Description:  `MDBList <a href="https://mdblist.com/preferences/#api_key_uid" target="_blank">API Key</a>`,
 			Autocomplete: "off",
 			Error:        udError.mdblist.api_key,
 		},
@@ -95,15 +132,40 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 			Key:          "rpdb_api_key",
 			Type:         configure.ConfigTypePassword,
 			Default:      ud.RPDBAPIKey,
-			Title:        "RPDB API Key",
+			Title:        "API Key",
 			Description:  `Rating Poster Database <a href="https://ratingposterdb.com/api-key/" target="blank">API Key</a>`,
 			Autocomplete: "off",
+		},
+		TraktEnabled: TraktEnabled,
+		TraktTokenId: configure.Config{
+			Key:          "trakt_token_id",
+			Title:        "Auth Code",
+			Type:         configure.ConfigTypePassword,
+			Default:      ud.TraktTokenId,
+			Error:        udError.trakt_token_id,
+			Autocomplete: "off",
+			Action: configure.ConfigAction{
+				Visible: ud.TraktTokenId == "" || udError.trakt_token_id != "",
+				Label:   "Authorize",
+				OnClick: template.JS(`window.open("` + oauth.TraktOAuthConfig.AuthCodeURL(uuid.NewString()) + `", "_blank")`),
+			},
 		},
 		Shuffle: configure.Config{
 			Key:   "shuffle",
 			Type:  configure.ConfigTypeCheckbox,
-			Title: "Shuffle List Items",
+			Title: "Shuffle Items for All Lists",
 		},
+		Script: ``,
+	}
+
+	if TraktEnabled && td.TraktTokenId.Error == "" {
+		otok, err := ud.getTraktToken()
+		if err != nil {
+			td.TraktTokenId.Error = err.Error()
+			td.TraktTokenId.Action.Visible = true
+		} else if otok != nil {
+			td.TraktTokenId.Title += " (" + otok.UserName + ")"
+		}
 	}
 
 	if ud.Shuffle {
@@ -111,10 +173,15 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 	}
 
 	hasListNames := len(ud.ListNames) > 0
+	hasListShuffle := len(ud.ListShuffle) > 0
 	for i, listId := range ud.Lists {
-		list := TemplateDataList{}
+		list := newTemplateDataList(i)
+		list.Id = listId
 		if hasListNames {
 			list.Name = ud.ListNames[i]
+		}
+		if hasListShuffle && ud.ListShuffle[i] == 1 {
+			list.Shuffle.Default = "checked"
 		}
 		if len(ud.list_urls) > i {
 			list.URL = ud.list_urls[i]
@@ -142,16 +209,26 @@ func getTemplateData(ud *UserData, udError userDataError, isAuthed bool, r *http
 						list.URL = l.GetURL()
 					}
 				case "mdblist":
-					lId, err := strconv.Atoi(id)
-					if err != nil {
-						list.Error.URL = "Failed to Parse List ID: " + id
-					}
-					l := mdblist.MDBListList{Id: lId}
+					l := mdblist.MDBListList{Id: id}
 					if err := ud.FetchMDBListList(&l); err != nil {
 						log.Error("failed to fetch list", "error", err, "id", listId)
 						list.Error.URL = "Failed to Fetch List: " + err.Error()
 					} else {
 						list.URL = l.GetURL()
+					}
+
+				case "trakt":
+					if td.TraktTokenId.Error == "" {
+						l := trakt.TraktList{Id: id}
+						if err := ud.FetchTraktList(&l); err != nil {
+							log.Error("failed to fetch list", "error", err, "id", listId)
+							list.Error.URL = "Failed to Fetch List: " + err.Error()
+						} else {
+							list.URL = l.GetURL()
+						}
+					} else {
+						list.Disabled.URL = true
+						list.Error.URL = "Trakt.tv authorization needed"
 					}
 				}
 			}
@@ -192,8 +269,130 @@ var executeTemplate = func() stremio_template.Executor[TemplateData] {
 		td.CanAddList = td.IsAuthed || len(td.Lists) < MaxPublicInstanceListCount
 		td.CanRemoveList = len(td.Lists) > 1
 
+		td.SupportedServices = []supportedService{}
+		if AniListEnabled {
+			td.SupportedServices = append(td.SupportedServices, supportedService{
+				Name:     "AniList",
+				Hostname: "anilist.co",
+				Icon:     "https://anilist.co/img/icons/favicon-32x32.png",
+				URLs: []supportedServiceUrl{
+					{
+						Pattern:  "/user/{user_name}/animelist/{list_name}",
+						Examples: []string{"/user/Kyokino/animelist/Films"},
+					},
+					{Pattern: "/search/anime/trending"},
+					{Pattern: "/search/anime/this-season"},
+					{Pattern: "/search/anime/next-season"},
+					{Pattern: "/search/anime/popular"},
+					{Pattern: "/search/anime/top-100"},
+				},
+			})
+		}
+		td.SupportedServices = append(td.SupportedServices, supportedService{
+			Name:     "MDBList",
+			Hostname: "mdblist.com",
+			Icon:     "https://mdblist.com/static/favicon-32x32.png",
+			URLs: []supportedServiceUrl{
+				{
+					Pattern: "/?list={list_id}",
+					Examples: []string{
+						"/?list=14",
+					},
+				},
+				{
+					Pattern: "/lists/{user_name}/{list_slug}",
+					Examples: []string{
+						"/lists/garycrawfordgc/latest-tv-shows",
+					},
+				},
+				{
+					Pattern: "/watchlist/{user_name}",
+					Examples: []string{
+						"/watchlist/garycrawfordgc",
+					},
+				},
+			},
+		})
+		if TraktEnabled {
+			td.SupportedServices = append(td.SupportedServices, supportedService{
+				Name:     "Trakt.tv",
+				Hostname: "trakt.tv",
+				Icon:     "https://walter-r2.trakt.tv/hotlink-ok/public/2024/favicon.png",
+				URLs: []supportedServiceUrl{
+					{
+						Pattern: "/users/{user_slug}/favorites",
+						Examples: []string{
+							"/users/sean/favorites",
+						},
+					},
+					{
+						Pattern: "/users/{user_slug}/watchlist",
+						Examples: []string{
+							"/users/garycrawfordgc/watchlist",
+						},
+					},
+					{
+						Pattern: "/users/{user_slug}/lists/{list_slug}",
+						Examples: []string{
+							"/users/garycrawfordgc/lists/latest-releases",
+						},
+					},
+					{Pattern: "/movies/boxoffice"},
+					{
+						Pattern: "/{movies,shows}/anticipated",
+						Examples: []string{
+							"/movies/anticipated",
+							"/shows/anticipated",
+						},
+					},
+					{
+						Pattern: "/{movies,shows}/collected/{period}",
+						Examples: []string{
+							"/movies/collected/daily",
+							"/shows/collected/weekly",
+						},
+					},
+					{
+						Pattern: "/{movies,shows}/favorited/{period}",
+						Examples: []string{
+							"/movies/favorited/weekly",
+							"/shows/favorited/monthly",
+						},
+					},
+					{
+						Pattern: "/{movies,shows}/popular",
+						Examples: []string{
+							"/movies/popular",
+							"/shows/popular",
+						},
+					},
+					{
+						Pattern: "/{movies,shows}/recommendations",
+						Examples: []string{
+							"/movies/recommendations",
+							"/shows/recommendations",
+						},
+					},
+					{
+						Pattern: "/{movies,shows}/trending",
+						Examples: []string{
+							"/movies/trending",
+							"/shows/trending",
+						},
+					},
+					{
+						Pattern: "/{movies,shows}/watched/{period}",
+						Examples: []string{
+							"/movies/watched/monthly",
+							"/shows/watched/all",
+						},
+					},
+				},
+			})
+		}
+
 		if len(td.Lists) == 0 {
-			td.Lists = append(td.Lists, TemplateDataList{})
+			td.Lists = append(td.Lists, newTemplateDataList(0))
 		}
 
 		td.IsRedacted = !td.IsAuthed && td.SavedUserDataKey != ""

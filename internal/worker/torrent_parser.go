@@ -12,6 +12,10 @@ import (
 )
 
 func InitParseTorrentWorker(conf *WorkerConfig) *Worker {
+	if err := ti.MarkForReparseBelowVersion(9000); err != nil {
+		panic(err)
+	}
+
 	log := logger.Scoped("worker/torrent_parser")
 
 	var parseTorrentInfo = func(t *ti.TorrentInfo) *ti.TorrentInfo {

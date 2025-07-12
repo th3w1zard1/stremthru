@@ -3,6 +3,7 @@ package torznab
 import (
 	"encoding/xml"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
@@ -84,7 +85,7 @@ func (ri ResultItem) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	}
 	attrs = append(attrs, ChannelItemAttribute{Name: "category", Value: strconv.Itoa(ri.Category.ID)})
 	if ri.IMDB != "" {
-		attrs = append(attrs, ChannelItemAttribute{Name: "imdb", Value: ri.IMDB})
+		attrs = append(attrs, ChannelItemAttribute{Name: "imdb", Value: strings.TrimPrefix(ri.IMDB, "tt")})
 	}
 	if ri.InfoHash != "" {
 		if magnet, err := core.ParseMagnetLink(ri.InfoHash); err == nil {
@@ -131,7 +132,7 @@ func (ri ResultItem) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 		Enclosure: ChannelItemEnclosure{
 			URL:    ri.Link,
 			Length: ri.Size,
-			Type:   "application/x-bittorrent",
+			Type:   "application/x-bittorrent;x-scheme-handler/magnet",
 		},
 	})
 }

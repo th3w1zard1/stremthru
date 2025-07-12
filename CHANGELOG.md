@@ -1,5 +1,233 @@
 # Changelog
 
+## [0.80.4](https://github.com/MunifTanjim/stremthru/compare/0.80.3...0.80.4) (2025-07-08)
+
+
+### Bug Fixes
+
+* **stremio/torz:** decouple config for lazy pull from lazypeer ([1e34261](https://github.com/MunifTanjim/stremthru/commit/1e342615573fbb90498abcd857fdd06650e42f02))
+
+## [0.80.3](https://github.com/MunifTanjim/stremthru/compare/0.80.2...0.80.3) (2025-07-07)
+
+
+### Bug Fixes
+
+* **animelists:** resolve panic for map_anidb_torrent ([d0a641a](https://github.com/MunifTanjim/stremthru/commit/d0a641a08b6a4229dd7855d3024341beecb3fc45))
+* **store/alldebrid:** deal with inconsistent type for link size ([0ecab7f](https://github.com/MunifTanjim/stremthru/commit/0ecab7f4cd0639c626ab523b75b1e3dd107cc964))
+* **torrent_info:** fix typo in column name struct field ([a0ba0a0](https://github.com/MunifTanjim/stremthru/commit/a0ba0a0e2bdd0d4e00c285be29123218086cebbf))
+* **worker:** improve panic hints for map_anidb_torrent ([b139aa1](https://github.com/MunifTanjim/stremthru/commit/b139aa1734ee9842513852353a38b790d89921cd))
+
+## [0.80.2](https://github.com/MunifTanjim/stremthru/compare/0.80.1...0.80.2) (2025-07-06)
+
+
+### Bug Fixes
+
+* **torznab:** fix sql query for select torrent_info ([7367e38](https://github.com/MunifTanjim/stremthru/commit/7367e38ed491d190bba0070c98f3b54946666126))
+* **worker:** handle and recover panics in map_anidb_torrent ([bd6202c](https://github.com/MunifTanjim/stremthru/commit/bd6202ccc5b043d5d91c9cff7bac94ea0c4ddf81))
+
+## [0.80.1](https://github.com/MunifTanjim/stremthru/compare/0.80.0...0.80.1) (2025-07-06)
+
+
+### Bug Fixes
+
+* **animeapi:** keep going when bulk record id maps fail ([73e1d8d](https://github.com/MunifTanjim/stremthru/commit/73e1d8dfd17b31b0cd2872da78ee645d0dde217c))
+* **stremio/store:** fix pagination when webdl meta is included ([fd4d812](https://github.com/MunifTanjim/stremthru/commit/fd4d812058703367fc3586f201b4284e2dda714a))
+* **stremio/store:** fix stream detection for premiumize cached contents ([83b9dc1](https://github.com/MunifTanjim/stremthru/commit/83b9dc1c81b8b694033ecde8f7a8d6805efeab81))
+
+## [0.80.0](https://github.com/MunifTanjim/stremthru/compare/0.79.3...0.80.0) (2025-07-05)
+
+
+### Features
+
+* **anidb:** add map torrent ([67d070d](https://github.com/MunifTanjim/stremthru/commit/67d070d9d94d89aa03f336e479a844243b12d241))
+* **anidb:** add titles sync ([8c8df06](https://github.com/MunifTanjim/stremthru/commit/8c8df067669fec38d920fe8446b85d7ecadb384c))
+* **animelists:** add dataset sync for anidb tvdb episode map ([3375398](https://github.com/MunifTanjim/stremthru/commit/33753983d48ad99a7e48972227784ded9bf123df))
+* **config:** detect test env automatically ([a0f6cb7](https://github.com/MunifTanjim/stremthru/commit/a0f6cb7256a9f12ab526997d5ca379c1abac8cfd))
+* **imdb_title:** use dataset processor for sync ([9580443](https://github.com/MunifTanjim/stremthru/commit/9580443446293707f17fafd58434462dc46e490d))
+* **magnet_cache:** remove files column usage ([36bf4ff](https://github.com/MunifTanjim/stremthru/commit/36bf4ff6883ab714d61064518a8faf96a266b2d9))
+* **manami:** add dataset sync for anime database ([686b547](https://github.com/MunifTanjim/stremthru/commit/686b5478295e52f75dc0cdb9a7869a1836fde9a3))
+* **store/alldebrid:** add get recent user links method ([adc64d0](https://github.com/MunifTanjim/stremthru/commit/adc64d094d9320588684636aa6bd2c4d6f2f9e6b))
+* **store/alldebrid:** add link related methods ([88495e3](https://github.com/MunifTanjim/stremthru/commit/88495e389dc3ed09fa39bdbbf28509edd982505d))
+* **store/alldebrid:** update error codes ([b8365b1](https://github.com/MunifTanjim/stremthru/commit/b8365b13b03b14ac7cd4baa935072972639bbd33))
+* **store/premiumize:** add item get and list methods ([38fb42c](https://github.com/MunifTanjim/stremthru/commit/38fb42c6e90ed7f5d2bfea8121cc099899d8d356))
+* **stremio/list:** allow setting list stale time for integrations ([621a126](https://github.com/MunifTanjim/stremthru/commit/621a126d38e19f4cb68da09e1760bb19e23ce8c5))
+* **stremio/list:** bump public instance limit to 10 ([139d063](https://github.com/MunifTanjim/stremthru/commit/139d063db67d4f167684474ef544202f4528e1b0))
+* **stremio/list:** support genre filter for trakt ([ba6d981](https://github.com/MunifTanjim/stremthru/commit/ba6d981bdefcc803157e3c223bad1f418195fecd))
+* **stremio/store:** add support for alldebrid webdl ([45a2399](https://github.com/MunifTanjim/stremthru/commit/45a23994ed4d6beb3df660f88fabe36367c59bee))
+* **stremio/store:** add support for premiumize webdl ([bddf3d1](https://github.com/MunifTanjim/stremthru/commit/bddf3d1d92723ebb4c95dc1546239f8d4d5f8341))
+* **stremio/store:** support saved links for alldebrid webdl ([5d94655](https://github.com/MunifTanjim/stremthru/commit/5d9465567152a14f995f98df877747a126d21449))
+* **stremio/torz:** add support for kitsu ids ([491a0b8](https://github.com/MunifTanjim/stremthru/commit/491a0b80281e80c15ffda06d5e5484176cb17dfe))
+* **stremio/torz:** support lazy pull from peer ([46870e3](https://github.com/MunifTanjim/stremthru/commit/46870e3ca8b8296a21d77563f942509692065148))
+* **torrent_info:** upgrade go-ptt and reparse everything ([17f078b](https://github.com/MunifTanjim/stremthru/commit/17f078b46ff58f249e3a57a4fdfa853dd331b92c))
+* **worker:** try to properly sequence workers for anime ([2a4eae7](https://github.com/MunifTanjim/stremthru/commit/2a4eae7cc51a6080ec7cb97de71db4e1882a5198))
+
+
+### Bug Fixes
+
+* **anidb:** fix torrent map for ova/oad etc. ([ab1cf1a](https://github.com/MunifTanjim/stremthru/commit/ab1cf1a29e642662fa06b4d6c12e9389e77cde13))
+* **anilist:** query list media score format consistently ([2dd6978](https://github.com/MunifTanjim/stremthru/commit/2dd69780198c78bd37f10edaa4e5cbc679f752f0))
+* **animeapi:** handle error for bulk record id maps ([88e7217](https://github.com/MunifTanjim/stremthru/commit/88e7217965f834ff189e329baf7f5ef1705f0262))
+* **anime:** ignore duplicates in bulk record id map ([be0431d](https://github.com/MunifTanjim/stremthru/commit/be0431d74a75a743608bd337b0229208b2cd6605))
+* **store/alldebrid:** do not show folders in files list ([d18b09f](https://github.com/MunifTanjim/stremthru/commit/d18b09f61b41780c7957850b9838dbaa8c1838be))
+* **store/premiumize:** do not show folders in files list ([b6e2eeb](https://github.com/MunifTanjim/stremthru/commit/b6e2eeb8f0f8b28bb83ac5f8256f3a4c6f018759))
+* **store/premiumize:** ignore transfers with non magnet src in list mangets ([15e6762](https://github.com/MunifTanjim/stremthru/commit/15e6762a3964cacb0532d41b228afe98738842c2))
+* **store/torbox:** detect downloading status ([28005a6](https://github.com/MunifTanjim/stremthru/commit/28005a6532ec595c5e904ad26c57b6c494dd5c32))
+* **stremio/torz:** match file with absolute episode for kitsu id ([6f848f0](https://github.com/MunifTanjim/stremthru/commit/6f848f08d59b8ec6136b4685a59b71e8120701e4))
+* **torrent_stream:** fix typo in error checking ([5a15613](https://github.com/MunifTanjim/stremthru/commit/5a15613650bc31de68dd4d3e265f20d4db821be6))
+* **torrent_stream:** ignore files duplicate name ([ba63a59](https://github.com/MunifTanjim/stremthru/commit/ba63a593055224085690aa37c796ee599fde6302))
+
+
+### Performance Improvements
+
+* **stremio/list:** sync stale lists lazily ([0d5f738](https://github.com/MunifTanjim/stremthru/commit/0d5f7380abf6c5c00e1127710cb1eeb829c472d9))
+
+## [0.79.3](https://github.com/MunifTanjim/stremthru/compare/0.79.2...0.79.3) (2025-06-21)
+
+
+### Bug Fixes
+
+* **anime:** return early for emtpy bulk record id maps ([c00341d](https://github.com/MunifTanjim/stremthru/commit/c00341da4347f7008e0d28a79a68932b652f7a45))
+* **stremio:** show file size in default template ([848d9bb](https://github.com/MunifTanjim/stremthru/commit/848d9bb4939425395266b75a5bdc9051ff043557))
+
+## [0.79.2](https://github.com/MunifTanjim/stremthru/compare/0.79.1...0.79.2) (2025-06-16)
+
+
+### Bug Fixes
+
+* **stremio/list:** unmarshal trakt.tv popular list response properly ([86c6e47](https://github.com/MunifTanjim/stremthru/commit/86c6e47ed2b213bed234c7e1920636c1a55258dc))
+
+## [0.79.1](https://github.com/MunifTanjim/stremthru/compare/0.79.0...0.79.1) (2025-06-14)
+
+
+### Bug Fixes
+
+* **torznab:** add missing imdb id for search by query ([92a2b43](https://github.com/MunifTanjim/stremthru/commit/92a2b4365a9d8ea78b9002edbef30fe6a9dcdadd))
+
+## [0.79.0](https://github.com/MunifTanjim/stremthru/compare/0.78.4...0.79.0) (2025-06-14)
+
+
+### Features
+
+* **buddy:** support lazy pull for check magnet ([cdca861](https://github.com/MunifTanjim/stremthru/commit/cdca86122dd08ac54e1585cd677ce44a9df6401a))
+* **store:** skip valid subs check for request from trusted peer ([c145c1c](https://github.com/MunifTanjim/stremthru/commit/c145c1c58ecaaf733fc2f324e0776e1846ceb973))
+* **worker:** keep item in queue if processor returns error ([5044130](https://github.com/MunifTanjim/stremthru/commit/50441304392a7dcd00f4e4fdbaea93c240a572dc))
+
+
+### Bug Fixes
+
+* **imdb_title:** fix typo in sqlite search ids func ([c5be5d1](https://github.com/MunifTanjim/stremthru/commit/c5be5d1ee2b1520d37f0806c3e924b2f78975222))
+
+## [0.78.4](https://github.com/MunifTanjim/stremthru/compare/0.78.3...0.78.4) (2025-06-13)
+
+
+### Bug Fixes
+
+* **store/premiumize:** fix add magnet for cached contents ([526dc59](https://github.com/MunifTanjim/stremthru/commit/526dc598a59fe4cf7eb9448b0e1498b270b0f7c5))
+
+## [0.78.3](https://github.com/MunifTanjim/stremthru/compare/0.78.2...0.78.3) (2025-06-11)
+
+
+### Bug Fixes
+
+* **stremio/list:** fix typo in trakt.tv popular list ([9c5e870](https://github.com/MunifTanjim/stremthru/commit/9c5e870037250372354d86c39825599af764063b))
+
+## [0.78.2](https://github.com/MunifTanjim/stremthru/compare/0.78.1...0.78.2) (2025-06-07)
+
+
+### Bug Fixes
+
+* **torznab:** parse query param names as case-insensitive ([dc91b56](https://github.com/MunifTanjim/stremthru/commit/dc91b561e5b17be0d75ea26fa0c23ed246a8bc31))
+* **torznab:** remove tt prefix from imdb attr in response ([93bbe74](https://github.com/MunifTanjim/stremthru/commit/93bbe74d114836e47c0a7d1d9b278c8a140e77ee))
+* **torznab:** respect limit and offset query ([0f2f99b](https://github.com/MunifTanjim/stremthru/commit/0f2f99bea398b1f589fd790dd8ad34255e660992))
+* **torznab:** use correct type for magnet uri enclosure ([44bfa49](https://github.com/MunifTanjim/stremthru/commit/44bfa494bf4d8c8992f3f62d0a8110ca82e57ef8))
+* **torznab:** use proper capabilities response ([1781d15](https://github.com/MunifTanjim/stremthru/commit/1781d15c1a6354f61afaec8c1901c56cb5babcff))
+
+## [0.78.1](https://github.com/MunifTanjim/stremthru/compare/0.78.0...0.78.1) (2025-06-07)
+
+
+### Bug Fixes
+
+* **torznab:** support imdbid without tt prefix ([57eb3b5](https://github.com/MunifTanjim/stremthru/commit/57eb3b5ea4e45f3e945488a7b56052864c173170))
+
+## [0.78.0](https://github.com/MunifTanjim/stremthru/compare/0.77.4...0.78.0) (2025-06-07)
+
+
+### Features
+
+* **animeapi:** sync mapping dataset ([24fa5fb](https://github.com/MunifTanjim/stremthru/commit/24fa5fbe3aa2892e89ba028eecd5a75ab8ef900e))
+* **kitsu:** add integration ([cb170e2](https://github.com/MunifTanjim/stremthru/commit/cb170e28b6d56c5889d206665d5a0237dea69ced))
+* **stremio/list:** add mdblist watchlist example ([d35c13b](https://github.com/MunifTanjim/stremthru/commit/d35c13ba884b4cdcd0110d597b137ae8ad5a6d8d))
+* **stremio/list:** support mdblist watchlist ([cca70c2](https://github.com/MunifTanjim/stremthru/commit/cca70c23b45bedfdb9f79042d4a7e813735d1d8a))
+* **stremio/torz:** support p2p stream ([ad721da](https://github.com/MunifTanjim/stremthru/commit/ad721daf9b466ec2250b5b7a2c06bf4a8a76b287))
+
+
+### Bug Fixes
+
+* **config:** do not panic on non-default non-responsive http proxy ([4f92e2b](https://github.com/MunifTanjim/stremthru/commit/4f92e2bc3ad6b4b926c7049d872df061d0adc7ce))
+
+## [0.77.4](https://github.com/MunifTanjim/stremthru/compare/0.77.3...0.77.4) (2025-06-04)
+
+
+### Bug Fixes
+
+* **anime:** fix GetIdMapsForAniList query for postgresql ([f1576dd](https://github.com/MunifTanjim/stremthru/commit/f1576ddb6cb93eb25765daa3749296652c6f707b))
+* **oauth:** handle missing oauth token ([1e21726](https://github.com/MunifTanjim/stremthru/commit/1e21726fba76d1d91a08922fde23edea83955fbf))
+* **stremio/list:** preserve trakt.tv urls when auth expired/revoked ([c3fdeac](https://github.com/MunifTanjim/stremthru/commit/c3fdeacc4434428cac6d7a4fa32b7def7362b0c1))
+* **trakt:** fix db queries for postgresql ([70bc3ce](https://github.com/MunifTanjim/stremthru/commit/70bc3ce85623467b4d83187236968ab9d9accb25))
+* **trakt:** use fallback when period is missing ([0c1809a](https://github.com/MunifTanjim/stremthru/commit/0c1809a19ce2babab60ac1c23a814aaa1abc26fb))
+
+## [0.77.3](https://github.com/MunifTanjim/stremthru/compare/0.77.2...0.77.3) (2025-06-03)
+
+
+### Bug Fixes
+
+* **dmm_hashlist:** ignore invalid magnet hash ([0bf142e](https://github.com/MunifTanjim/stremthru/commit/0bf142e26d0f37545677b94bc9819ba315a7cdf3))
+* **oauth:** fix save token query for postgresql ([a364ee4](https://github.com/MunifTanjim/stremthru/commit/a364ee4965a4370bbde01ef48ab91c2b5803ae6f))
+* **store/premiumize:** fix 414 uri too long error for check magnet ([4672111](https://github.com/MunifTanjim/stremthru/commit/46721117858b47d3e88b04ffffe4599859fd6024))
+* **torrent_info:** ignore invalid magnet hash ([ff6b5b0](https://github.com/MunifTanjim/stremthru/commit/ff6b5b00f62f0ef06b134677cf1f29c21aad1aa3))
+
+## [0.77.2](https://github.com/MunifTanjim/stremthru/compare/0.77.1...0.77.2) (2025-06-02)
+
+
+### Bug Fixes
+
+* **anilist:** update months for season detection ([344ba9b](https://github.com/MunifTanjim/stremthru/commit/344ba9b32d62b0e1c3ae867abaee1230104ba44d))
+* **stremio/list:** update type for mixed catalog ([e4930ae](https://github.com/MunifTanjim/stremthru/commit/e4930aeca91cc1052cdb6131880af077ba2ddb0f))
+
+## [0.77.1](https://github.com/MunifTanjim/stremthru/compare/0.77.0...0.77.1) (2025-06-01)
+
+
+### Bug Fixes
+
+* **stremio/list:** display correct error when trakt.tv is disabled ([93f1263](https://github.com/MunifTanjim/stremthru/commit/93f1263a814d36e2aca0a588b95c78cda433a8b1))
+* **stremio/list:** render list shuffle checkbox correctly ([12230c1](https://github.com/MunifTanjim/stremthru/commit/12230c158ab13b3a33329cbaba643a3a8ccec9eb))
+
+## [0.77.0](https://github.com/MunifTanjim/stremthru/compare/0.76.0...0.77.0) (2025-05-31)
+
+
+### Features
+
+* **oauth:** add oauth http client ([e164ac5](https://github.com/MunifTanjim/stremthru/commit/e164ac5abce4d71f815c3956868e8b57a11a2224))
+* **stremio/list:** add open button for list url ([3717bc1](https://github.com/MunifTanjim/stremthru/commit/3717bc163cc5cd1d51aacd7ea3ed0dd4b9172032))
+* **stremio/list:** show supported services ([3131269](https://github.com/MunifTanjim/stremthru/commit/3131269b239d841afedb7c51efba9b9681823bda))
+* **stremio/list:** support anilist named search lists ([733d601](https://github.com/MunifTanjim/stremthru/commit/733d601f94c3643e798027e87445849c4e850680))
+* **stremio/list:** support genre filter for anilist ([4f5acac](https://github.com/MunifTanjim/stremthru/commit/4f5acac3560c80be45fe2ac1dd568082cc96b4b5))
+* **stremio/list:** support shuffle per list ([a75ccff](https://github.com/MunifTanjim/stremthru/commit/a75ccfff461e7d47ef1c2d6ace840157a29afa2f))
+* **stremio/list:** support trakt.tv ([2679d51](https://github.com/MunifTanjim/stremthru/commit/2679d51fb3d261204f0cfb9b7608f679da9db2a1))
+* **stremio/list:** support trakt.tv recommendations ([39c098b](https://github.com/MunifTanjim/stremthru/commit/39c098b51430161f60683d39ec387ae7a9916eb6))
+* **stremio/list:** support trakt.tv standard user lists ([b81fee6](https://github.com/MunifTanjim/stremthru/commit/b81fee6947280f2c155ec1d1b7186147a76a7775))
+
+
+### Bug Fixes
+
+* **anilist:** add mutex for list fetching ([d8e2fb1](https://github.com/MunifTanjim/stremthru/commit/d8e2fb18201918f7f09e6731fcf606d8dc66988e))
+* **anilist:** use fallback for missing title ([08d1d76](https://github.com/MunifTanjim/stremthru/commit/08d1d76d392c7b03935ab08f2a8565b9ce5f4449))
+* **anizip:** handle 404 response ([ebf7fa3](https://github.com/MunifTanjim/stremthru/commit/ebf7fa3ef1a9c98c136463b75e020a27d8949cfe))
+* **stremio/list:** preserve config on error ([91341fc](https://github.com/MunifTanjim/stremthru/commit/91341fc77d1b57eff295f8d42404dee6a44b9ae2))
+* **stremio/list:** use correct image for anilist poster ([bd413a6](https://github.com/MunifTanjim/stremthru/commit/bd413a6c19fe7bd7c01642abf126cd8991a6a7d6))
+* **stremio/torz:** respect cached only config ([7987d93](https://github.com/MunifTanjim/stremthru/commit/7987d93afe913102d7170c74f585648303c04de1))
+* **util:** handle empty RepeatJoin ([9c9e54f](https://github.com/MunifTanjim/stremthru/commit/9c9e54f485b8137ca35b5b0c3d49928afc617777))
+
 ## [0.76.0](https://github.com/MunifTanjim/stremthru/compare/0.75.0...0.76.0) (2025-05-24)
 
 

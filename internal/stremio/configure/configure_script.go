@@ -28,6 +28,7 @@ function onStoreNameChangeUpdateStoreTokenDescription(nameField) {
 			pp: "PikPak <a href='https://mypikpak.com/drive/account/basic' target='_blank'>credential</a> in <code>email:password</code> format, e.g. <code>john.doe@example.com:secret-password</code>",
 			rd: "RealDebrid <a href='https://real-debrid.com/apitoken' target='_blank'>API Token</a>",
 			tb: "TorBox <a href='https://torbox.app/settings' target='_blank'>API Key</a>",
+			p2p: "⚠️ Peer-to-Peer (🧪 Experimental)",
 		};
 		const storeFallback = {
 			alldebrid: "ad",
@@ -38,8 +39,13 @@ function onStoreNameChangeUpdateStoreTokenDescription(nameField) {
 			premiumize: "pm",
 			realdebrid: "rd",
 			torbox: "tb",
+		  p2p: "p2p",
 		};
     tokenDescElem.innerHTML = descByStore[nameField.value] || descByStore[storeFallback[nameField.value]] || descByStore["*"] || "";
+    tokenField.disabled = nameField.value === "p2p";
+    if (nameField.value === "p2p") {
+      tokenField.value = "";
+    }
   }
 }
 

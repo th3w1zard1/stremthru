@@ -6,7 +6,11 @@ import (
 	"strings"
 
 	"github.com/MunifTanjim/go-ptt"
+	"github.com/MunifTanjim/stremthru/internal/anidb"
+	"github.com/MunifTanjim/stremthru/internal/anime"
+	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
+	"github.com/MunifTanjim/stremthru/internal/util"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
@@ -59,22 +63,39 @@ func MatchFileByPattern(files []store.MagnetFile, pattern *regexp.Regexp) *store
 	return nil
 }
 
-var parse_season_episode = ptt.GetPartialParser([]string{"seasons", "episodes"})
+var parse_season_episode = ptt.GetPartialParser([]string{"releaseTypes", "seasons", "episodes"})
 
-func getSeasonEpisode(title string) (season, episode int) {
-	season, episode = -1, -1
+var digits_regex = regexp.MustCompile(`\b(\d+)\b`)
+
+type seasonEpisodeData struct {
+	season      int
+	episode     int
+	releaseType string
+}
+
+func getSeasonEpisode(title string, extractDigitsAsEpisodeAgressively bool) seasonEpisodeData {
+	data := seasonEpisodeData{-1, -1, ""}
 	r := parse_season_episode(title)
 	if err := r.Error(); err != nil {
 		log.Error("failed to parse season episode", "title", title, "error", err)
-		return season, episode
+		return data
 	}
 	if len(r.Seasons) > 0 {
-		season = r.Seasons[0]
+		data.season = r.Seasons[0]
 	}
 	if len(r.Episodes) > 0 {
-		episode = r.Episodes[0]
+		data.episode = r.Episodes[0]
 	}
-	return season, episode
+	if extractDigitsAsEpisodeAgressively && data.season == -1 && data.episode == -1 {
+		matches := digits_regex.FindAllString(title, 2)
+		if len(matches) == 1 {
+			data.episode, _ = strconv.Atoi(matches[0])
+		}
+	}
+	if len(r.ReleaseTypes) > 0 {
+		data.releaseType = r.ReleaseTypes[0]
+	}
+	return data
 }
 
 func MatchFileByStremId(files []store.MagnetFile, sid string, magnetHash string, storeCode store.StoreCode) *store.MagnetFile {
@@ -90,6 +111,66 @@ func MatchFileByStremId(files []store.MagnetFile, sid string, magnetHash string,
 			return file
 		}
 	}
+	if strings.HasPrefix(sid, "kitsu:") {
+		kitsuId, episode, _ := strings.Cut(strings.TrimPrefix(sid, "kitsu:"), ":")
+		anidbId, season, err := anime.GetAniDBIdByKitsuId(kitsuId)
+		if err != nil {
+			log.Error("failed to get anidb id by kitsu id", "error", err, "kitsu_id", kitsuId)
+			return nil
+		}
+		tInfo, err := torrent_info.GetByHash(magnetHash)
+		if err != nil {
+			log.Error("failed to get torrent info by hash", "error", err, "hash", magnetHash)
+			return nil
+		}
+		expectedEpisode := util.SafeParseInt(episode, -1)
+		expectedSeason := util.SafeParseInt(season, -1)
+
+		filesForSeason := []*store.MagnetFile{}
+		dataByName := map[string]seasonEpisodeData{}
+
+		minEpisode := 99999
+		for i := range files {
+			f := &files[i]
+			d := getSeasonEpisode(f.Name, true)
+			dataByName[f.Name] = d
+			if d.releaseType == "" && (d.episode != -1) && ((d.season == -1 && expectedSeason == 1) || d.season == expectedSeason) {
+				filesForSeason = append(filesForSeason, f)
+				if d.episode < minEpisode {
+					minEpisode = d.episode
+				}
+			}
+		}
+
+		if len(filesForSeason) == 0 {
+			tvdbMaps, err := anidb.GetTVDBEpisodeMaps(anidbId, false)
+			if err != nil {
+				log.Error("failed to get tvdb episode maps for anidb id", "error", err, "anidb_id", anidbId)
+				return nil
+			}
+
+			absMap := tvdbMaps.GetAbsoluteOrderSeasonMap()
+			if absMap != nil {
+				expectedEpisode = expectedEpisode + absMap.Offset
+				for i := range files {
+					f := &files[i]
+					d := dataByName[f.Name]
+					if d.episode == expectedEpisode {
+						return f
+					}
+				}
+			}
+		} else {
+			for _, f := range filesForSeason {
+				d := dataByName[f.Name]
+				if d.episode == expectedEpisode || (len(tInfo.Episodes) == 0 && minEpisode > 1 && d.episode-minEpisode+1 == expectedEpisode) {
+					return f
+				}
+			}
+		}
+
+		return nil
+	}
 	if parts := strings.SplitN(sid, ":", 3); len(parts) == 3 {
 		expectedSeason, err := strconv.Atoi(parts[1])
 		if err != nil {
@@ -103,7 +184,7 @@ func MatchFileByStremId(files []store.MagnetFile, sid string, magnetHash string,
 		}
 		for i := range files {
 			f := &files[i]
-			if season, episode := getSeasonEpisode(f.Name); season == expectedSeason && episode == expectedEpisode {
+			if d := getSeasonEpisode(f.Name, false); d.season == expectedSeason && d.episode == expectedEpisode {
 				return f
 			}
 		}

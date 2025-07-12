@@ -71,7 +71,7 @@ func getTemplateData(ud *UserData, w http.ResponseWriter, r *http.Request) *Temp
 			NavTitle:    "Torz",
 		},
 		Stores:           []StoreConfig{},
-		StoreCodeOptions: stremio_shared.GetStoreCodeOptions(),
+		StoreCodeOptions: stremio_shared.GetStoreCodeOptions(true),
 		Configs: []configure.Config{
 			{
 				Key:   "cached",
@@ -112,6 +112,10 @@ var executeTemplate = func() stremio_template.Executor[TemplateData] {
 				s := &td.Stores[i]
 				if s.Code.IsStremThru() && s.Token != "" {
 					td.CanAddStore = false
+					td.Stores = td.Stores[i : i+1]
+					break
+				}
+				if s.Code.IsP2P() {
 					td.Stores = td.Stores[i : i+1]
 					break
 				}

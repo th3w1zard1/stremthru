@@ -71,6 +71,10 @@ sequenceDiagram
 
 Configuration is done using environment variables.
 
+#### `STREMTHRU_BASE_URL`
+
+Base URL for StremThru.
+
 #### `STREMTHRU_PORT`
 
 Port to listen on, default `8080`.
@@ -218,6 +222,41 @@ Comma separated list of features to enable/disable.
 
 Use `-` prefix to disable opt-out feature, and `+` prefix to enable opt-in feature.
 Otherwise only the specified features will be enabled.
+
+#### `STREMTHRU_STREMIO_TORZ_LAZY_PULL`
+
+If `true`, torz will pull from public database in the background,
+so on first query it'll return less results, but it'll be faster.
+
+#### AniList Integration
+
+##### `STREMTHRU_INTEGRATION_ANILIST_LIST_STALE_TIME`
+
+Stale time for list. e.g. `12h`.
+
+#### MDBList Integration
+
+##### `STREMTHRU_INTEGRATION_MDBLIST_LIST_STALE_TIME`
+
+Stale time for list. e.g. `12h`.
+
+#### Trakt.tv Integration
+
+Trakt.tv integration needs an [OAuth App](https://trakt.tv/oauth/applications).
+
+The Redirect URI should point to the `/auth/trakt.tv/callback` endpoint of [`STREMTHRU_BASE_URL`](#stremthru_base_url).
+
+##### `STREMTHRU_INTEGRATION_TRAKT_CLIENT_ID`
+
+Client ID for Trakt.tv OAuth App.
+
+##### `STREMTHRU_INTEGRATION_TRAKT_CLIENT_SECRET`
+
+Client Secret for Trakt.tv OAuth App.
+
+##### `STREMTHRU_INTEGRATION_TRAKT_LIST_STALE_TIME`
+
+Stale time for list. e.g. `12h`.
 
 ## Endpoints
 
@@ -578,6 +617,11 @@ docker compose up stremthru
 Cloudflare WARP:
 
 - [github.com/cmj2002/warp-docker](https://github.com/cmj2002/warp-docker)
+
+## Sponsors
+
+- [DanaramaPyjama](https://x.com/danaramaps4)
+- [Debridio](https://debridio.com)
 
 ## License
 

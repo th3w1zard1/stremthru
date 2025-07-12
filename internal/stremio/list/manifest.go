@@ -2,7 +2,6 @@ package stremio_list
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/MunifTanjim/stremthru/core"
@@ -10,17 +9,18 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/mdblist"
 	"github.com/MunifTanjim/stremthru/internal/shared"
+	"github.com/MunifTanjim/stremthru/internal/trakt"
 	"github.com/MunifTanjim/stremthru/stremio"
 )
 
-func mediaTypeToResourceType(mediaType mdblist.MediaType) stremio.ContentType {
+func mdblistMediaTypeToResourceType(mediaType mdblist.MediaType, fallbackMediaType string) stremio.ContentType {
 	switch mediaType {
 	case mdblist.MediaTypeMovie:
 		return stremio.ContentTypeMovie
 	case mdblist.MediaTypeShow:
 		return stremio.ContentTypeSeries
 	default:
-		return "other"
+		return stremio.ContentType(fallbackMediaType)
 	}
 }
 
@@ -69,16 +69,12 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 				catalogs = append(catalogs, catalog)
 
 			case "mdblist":
-				id, err := strconv.Atoi(idStr)
-				if err != nil {
-					return nil, core.NewError("invalid list id: " + listId)
-				}
-				list := mdblist.MDBListList{Id: id}
+				list := mdblist.MDBListList{Id: idStr}
 				if err := list.Fetch(ud.MDBListAPIkey); err != nil {
 					return nil, err
 				}
 				catalog := stremio.Catalog{
-					Type: string(mediaTypeToResourceType(list.Mediatype)),
+					Type: string(mdblistMediaTypeToResourceType(list.Mediatype, "MDBList")),
 					Id:   "st.list.mdblist." + idStr,
 					Name: list.Name,
 					Extra: []stremio.CatalogExtra{
@@ -90,6 +86,48 @@ func GetManifest(r *http.Request, ud *UserData) (*stremio.Manifest, error) {
 							Name: "skip",
 						},
 					},
+				}
+				if hasListNames {
+					if name := ud.ListNames[idx]; name != "" {
+						catalog.Name = name
+					}
+				}
+				catalogs = append(catalogs, catalog)
+
+			case "trakt":
+				list := trakt.TraktList{Id: idStr}
+				if err := list.Fetch(ud.TraktTokenId); err != nil {
+					return nil, err
+				}
+				catalog := stremio.Catalog{
+					Type: "Trakt",
+					Id:   "st.list.trakt." + idStr,
+					Name: list.Name,
+					Extra: []stremio.CatalogExtra{
+						{
+							Name:    "genre",
+							Options: trakt.Genres,
+						},
+						{
+							Name: "skip",
+						},
+					},
+				}
+				if list.IsDynamic() {
+					meta := trakt.GetDynamicListMeta(idStr)
+					otok, err := ud.getTraktToken()
+					if err != nil {
+						return nil, err
+					}
+					if meta.HasUserId && meta.UserId != otok.UserId {
+						catalog.Name = meta.UserId + " / " + catalog.Name
+					}
+					switch meta.ItemType {
+					case trakt.ItemTypeMovie:
+						catalog.Type = string(stremio.ContentTypeMovie)
+					case trakt.ItemTypeShow:
+						catalog.Type = string(stremio.ContentTypeSeries)
+					}
 				}
 				if hasListNames {
 					if name := ud.ListNames[idx]; name != "" {

@@ -101,7 +101,8 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 	var query strings.Builder
 	query.WriteString(
 		fmt.Sprintf(
-			"SELECT %s FROM %s ito INNER JOIN %s ti ON ti.%s = ito.%s WHERE ito.%s ",
+			"SELECT ito.%s, %s FROM %s ito INNER JOIN %s ti ON ti.%s = ito.%s WHERE ito.%s ",
+			imdb_torrent.Column.TId,
 			db.JoinPrefixedColumnNames("ti.", torrent_info.Columns...),
 			imdb_torrent.TableName,
 			torrent_info.TableName,
@@ -164,8 +165,11 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 
 	items := []ResultItem{}
 	for rows.Next() {
+		var imdbId string
 		var tInfo torrent_info.TorrentInfo
 		if err := rows.Scan(
+			&imdbId,
+
 			&tInfo.Hash,
 			&tInfo.TorrentTitle,
 
@@ -201,6 +205,7 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 			&tInfo.Proper,
 			&tInfo.Quality,
 			&tInfo.Region,
+			&tInfo.ReleaseTypes,
 			&tInfo.Remastered,
 			&tInfo.Repack,
 			&tInfo.Resolution,
@@ -239,7 +244,7 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 			Audio:       audio,
 			Category:    category,
 			Codec:       tInfo.Codec,
-			IMDB:        q.IMDBId,
+			IMDB:        imdbId,
 			InfoHash:    tInfo.Hash,
 			Language:    strings.Join(tInfo.Languages, ", "),
 			PublishDate: tInfo.CreatedAt.Time,
@@ -249,6 +254,14 @@ func (sti stremThruIndexer) Search(q Query) ([]ResultItem, error) {
 			Title:       tInfo.TorrentTitle,
 			Year:        tInfo.Year,
 		})
+	}
+
+	if q.Offset > 0 {
+		items = items[min(q.Offset, len(items)):]
+	}
+
+	if q.Limit > 0 {
+		items = items[:min(q.Limit, len(items))]
 	}
 
 	return items, nil
@@ -272,7 +285,8 @@ var StremThruIndexer = stremThruIndexer{
 			Title:     "StremThru",
 			Strapline: "StremThru Torznab",
 			Image:     "https://emojiapi.dev/api/v1/sparkles/256.png",
-			Version:   config.Version,
+			URL:       config.BaseURL.String(),
+			Version:   "1.3",
 		},
 		Searching: []CapsSearchingItem{
 			{
@@ -294,7 +308,7 @@ var StremThruIndexer = stremThruIndexer{
 		Categories: []CapsCategory{
 			{
 				Category: CategoryMovies,
-				Sub: []Category{
+				Subcat: []Category{
 					CategoryMovies_Foreign,
 					CategoryMovies_Other,
 					CategoryMovies_SD,
@@ -307,7 +321,7 @@ var StremThruIndexer = stremThruIndexer{
 			},
 			{
 				Category: CategoryTV,
-				Sub: []Category{
+				Subcat: []Category{
 					CategoryTV_WEBDL,
 					CategoryTV_FOREIGN,
 					CategoryTV_SD,

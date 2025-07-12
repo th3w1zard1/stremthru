@@ -57,9 +57,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 			td.IsAuthed = false
 		case "add-list":
 			if td.IsAuthed || len(td.Lists) < MaxPublicInstanceListCount {
-				td.Lists = append(td.Lists, TemplateDataList{
-					URL: "",
-				})
+				td.Lists = append(td.Lists, newTemplateDataList(len(td.Lists)))
 			}
 		case "remove-list":
 			if end := len(td.Lists); end > 1 {
@@ -158,7 +156,7 @@ func handleConfigure(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ud.GetEncoded() != "" {
+	if ud.GetEncoded() != "" || IsMethod(r, http.MethodPost) {
 		if len(td.Lists) == 0 {
 			list := TemplateDataList{}
 			list.Error.URL = "Missing List URL"

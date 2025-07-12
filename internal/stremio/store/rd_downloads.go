@@ -23,22 +23,22 @@ var rdDownloadsCache = cache.NewCache[[]stremio.MetaVideo](&cache.CacheConfig{
 	Name:     "stremio:store:rd:downloads",
 })
 
-func getRDDownloadsCacheKey(storeToken string) string {
-	return storeToken
+func getRDDownloadsCacheKey(idPrefix, storeToken string) string {
+	return idPrefix + storeToken
 }
 
-func getRDWebDLsMeta(r *http.Request, ctx *context.StoreContext, idStoreCode string) stremio.Meta {
+func getRDWebDLsMeta(r *http.Request, ctx *context.StoreContext, idr *ParsedId) stremio.Meta {
 	released := time.Now().UTC()
 
 	meta := stremio.Meta{
-		Id:          getRDWebDLsId(idStoreCode),
+		Id:          getWebDLsMetaId(idr.getStoreCode()),
 		Type:        ContentTypeOther,
 		Name:        "Web Downloads",
 		Description: "Web Downloads from RealDebrid",
 		Released:    &released,
 		Videos:      []stremio.MetaVideo{},
 	}
-	cacheKey := getRDDownloadsCacheKey(ctx.StoreAuthToken)
+	cacheKey := getRDDownloadsCacheKey(getIdPrefix(idr.getStoreCode()), ctx.StoreAuthToken)
 	if !rdDownloadsCache.Get(cacheKey, &meta.Videos) {
 		offset := 0
 		hasMore := true
@@ -57,7 +57,7 @@ func getRDWebDLsMeta(r *http.Request, ctx *context.StoreContext, idStoreCode str
 			storeName := ctx.Store.GetName()
 			shouldCreateProxyLink := config.StoreContentProxy.IsEnabled(string(storeName)) && ctx.StoreAuthToken == config.StoreAuthToken.GetToken(ctx.ProxyAuthUser, string(storeName)) && ctx.IsProxyAuthorized
 			tunnelType := config.StoreTunnel.GetTypeForStream(string(ctx.Store.GetName()))
-			idPrefix := getRDWebDLsIdPrefix(idStoreCode)
+			idPrefix := getWebDLsMetaIdPrefix(idr.getStoreCode())
 
 			for i := range res.Data {
 				dl := &res.Data[i]

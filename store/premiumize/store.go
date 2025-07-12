@@ -6,13 +6,17 @@ import (
 	"net/http"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
+	"github.com/MunifTanjim/stremthru/internal/buddy"
 	"github.com/MunifTanjim/stremthru/internal/cache"
 	"github.com/MunifTanjim/stremthru/internal/request"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
+	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
 	"github.com/MunifTanjim/stremthru/store"
 )
 
@@ -207,42 +211,177 @@ func (c *StoreClient) getCachedMagnetFiles(apiKey string, magnet string, include
 	return files, nil
 }
 
-func (c *StoreClient) checkMagnet(params *store.CheckMagnetParams, includeLink bool) (*store.CheckMagnetData, error) {
-	res, err := c.client.CheckCache(&CheckCacheParams{
-		Ctx:   params.Ctx,
-		Items: params.Magnets,
-	})
-	if err != nil {
-		return nil, err
-	}
+func (c *StoreClient) checkMagnet(params *store.CheckMagnetParams, includeLinkAndPath bool) (*store.CheckMagnetData, error) {
+	magnetByHash := make(map[string]core.MagnetLink, len(params.Magnets))
+	hashes := make([]string, 0, len(params.Magnets))
 
-	data := &store.CheckMagnetData{}
+	missingHashes := []string{}
 
-	for idx, is_cached := range res.Data.Response {
-		magnet, err := core.ParseMagnetLink(params.Magnets[idx])
+	for _, m := range params.Magnets {
+		magnet, err := core.ParseMagnetLink(m)
 		if err != nil {
 			return nil, err
 		}
-		item := &store.CheckMagnetDataItem{
-			Magnet: magnet.Link,
-			Hash:   magnet.Hash,
+		if len(magnet.Hash) != 40 {
+			continue
+		}
+		magnetByHash[magnet.Hash] = magnet
+		hashes = append(hashes, magnet.Hash)
+	}
+
+	foundItemByHash := map[string]store.CheckMagnetDataItem{}
+
+	if !includeLinkAndPath {
+		if data, err := buddy.CheckMagnet(c, hashes, params.GetAPIKey(c.client.apiKey), params.ClientIP, params.SId); err != nil {
+			return nil, err
+		} else {
+			for _, item := range data.Items {
+				foundItemByHash[item.Hash] = item
+			}
+		}
+
+		if params.LocalOnly {
+			data := &store.CheckMagnetData{
+				Items: []store.CheckMagnetDataItem{},
+			}
+
+			for _, hash := range hashes {
+				if item, ok := foundItemByHash[hash]; ok {
+					data.Items = append(data.Items, item)
+				}
+			}
+			return data, nil
+		}
+	}
+
+	for _, hash := range hashes {
+		if _, ok := foundItemByHash[hash]; !ok {
+			missingHashes = append(missingHashes, hash)
+		}
+	}
+
+	itemByHash := map[string]store.AddMagnetData{}
+	if len(missingHashes) > 0 {
+		chunkCount := len(missingHashes)/100 + 1
+		cItems := make([][]store.AddMagnetData, chunkCount)
+		errs := make([]error, chunkCount)
+		hasError := false
+
+		var wg sync.WaitGroup
+		for i, cMissingHashes := range slices.Collect(slices.Chunk(missingHashes, 100)) {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				ccParams := &CheckCacheParams{
+					Items: cMissingHashes,
+				}
+				ccParams.APIKey = params.APIKey
+				res, err := c.client.CheckCache(ccParams)
+				if err != nil {
+					hasError = true
+					errs[i] = err
+					return
+				}
+
+				items := []store.AddMagnetData{}
+				for idx, is_cached := range res.Data.Response {
+					magnet, err := core.ParseMagnetLink(ccParams.Items[idx])
+					if err != nil {
+						hasError = true
+						errs[i] = err
+						return
+					}
+					size, err := res.Data.Filesize[idx].Int64()
+					if err != nil {
+						size = -1
+					}
+					item := store.AddMagnetData{
+						Name:   res.Data.Filename[idx],
+						Size:   size,
+						Magnet: magnet.Link,
+						Hash:   magnet.Hash,
+						Status: store.MagnetStatusUnknown,
+						Files:  []store.MagnetFile{},
+					}
+
+					if is_cached {
+						item.Status = store.MagnetStatusCached
+
+						files, err := c.getCachedMagnetFiles(params.APIKey, item.Magnet, includeLinkAndPath)
+						if err != nil {
+							hasError = true
+							errs[i] = err
+							return
+						}
+						item.Files = files
+					}
+
+					items = append(items, item)
+				}
+
+				cItems[i] = items
+			}()
+		}
+		wg.Wait()
+
+		if hasError {
+			return nil, errors.Join(errs...)
+		}
+
+		for _, items := range cItems {
+			for _, item := range items {
+				itemByHash[strings.ToLower(item.Hash)] = item
+			}
+		}
+	}
+
+	data := &store.CheckMagnetData{
+		Items: []store.CheckMagnetDataItem{},
+	}
+	tInfos := []buddy.TorrentInfoInput{}
+	for _, hash := range hashes {
+		if item, ok := foundItemByHash[hash]; ok {
+			data.Items = append(data.Items, item)
+			continue
+		}
+
+		m := magnetByHash[hash]
+		item := store.CheckMagnetDataItem{
+			Hash:   m.Hash,
+			Magnet: m.Link,
 			Status: store.MagnetStatusUnknown,
 			Files:  []store.MagnetFile{},
 		}
-
-		if is_cached {
-			item.Status = store.MagnetStatusCached
-
-			files, err := c.getCachedMagnetFiles(params.APIKey, item.Magnet, includeLink)
-			if err != nil {
-				return nil, err
-			}
-			item.Files = files
+		tInfo := buddy.TorrentInfoInput{
+			Hash: hash,
 		}
-
-		data.Items = append(data.Items, *item)
+		if it, ok := itemByHash[hash]; ok {
+			tInfo.TorrentTitle = it.Name
+			tInfo.Size = it.Size
+			item.Status = it.Status
+			for _, f := range it.Files {
+				file := torrent_stream.File{
+					Idx:  f.Idx,
+					Name: f.Name,
+					Size: f.Size,
+				}
+				mFile := store.MagnetFile{
+					Idx:  file.Idx,
+					Name: file.Name,
+					Size: file.Size,
+				}
+				if includeLinkAndPath {
+					mFile.Path = f.Path
+					mFile.Link = f.Link
+				}
+				tInfo.Files = append(tInfo.Files, file)
+				item.Files = append(item.Files, mFile)
+			}
+		}
+		tInfos = append(tInfos, tInfo)
+		data.Items = append(data.Items, item)
 	}
-
+	go buddy.BulkTrackMagnet(c, tInfos, "", params.GetAPIKey(c.client.apiKey))
 	return data, nil
 }
 
@@ -318,8 +457,6 @@ func listFolderFlat(c *StoreClient, apiKey string, folderId string, result []sto
 		}
 
 		if f.Type == FolderItemTypeFolder {
-			result = append(result, *file)
-			idx++
 			result, err = listFolderFlat(c, apiKey, f.Id, result, file, idx)
 			if err != nil {
 				return nil, err
@@ -593,6 +730,9 @@ func (c *StoreClient) ListMagnets(params *store.ListMagnetsParams) (*store.ListM
 		}
 
 		for _, t := range lt_res.Data.Transfers {
+			if !strings.HasPrefix(t.Src, "magnet:") {
+				continue
+			}
 			magnet, err := core.ParseMagnetLink(t.Src)
 			if err != nil {
 				return nil, err

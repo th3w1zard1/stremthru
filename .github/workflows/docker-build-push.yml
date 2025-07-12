@@ -51,6 +51,8 @@ jobs:
             TAGS="${INPUT_REF}"
             if [[ "$(git rev-parse origin/main)" = "$(git rev-parse "${INPUT_REF}")" ]]; then
               TAGS="${TAGS} latest"
+            elif [[ "$(git describe --tags --abbrev=0 origin/main)" = "${INPUT_REF}" ]]; then
+              TAGS="${TAGS} latest"
             fi
             ;;
           main)

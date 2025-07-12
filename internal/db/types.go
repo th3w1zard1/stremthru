@@ -2,7 +2,10 @@ package db
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"errors"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -101,4 +104,80 @@ func (nv *NullString) Scan(value any) error {
 		return errors.New("failed to convert value")
 	}
 	return nil
+}
+
+type CommaSeperatedString []string
+
+func (css CommaSeperatedString) Value() (driver.Value, error) {
+	if len(css) == 0 {
+		return "", nil
+	}
+	return "," + strings.Join(css, ",") + ",", nil
+}
+
+func (css *CommaSeperatedString) Scan(value any) error {
+	if value == nil {
+		*css = []string{}
+		return nil
+	}
+	var str string
+	switch v := value.(type) {
+	case string:
+		str = v
+	case []byte:
+		str = string(v)
+	default:
+		return errors.New("failed to convert value to string")
+	}
+	if str == "" {
+		*css = []string{}
+		return nil
+	}
+	*css = strings.Split(strings.Trim(str, ","), ",")
+	return nil
+}
+
+type CommaSeperatedInt []int
+
+func (csi CommaSeperatedInt) Value() (driver.Value, error) {
+	css := make(CommaSeperatedString, len(csi))
+	for i := range csi {
+		css[i] = strconv.Itoa(csi[i])
+	}
+	return css.Value()
+}
+
+func (csi *CommaSeperatedInt) Scan(value any) error {
+	css := CommaSeperatedString{}
+	if err := css.Scan(value); err != nil {
+		return err
+	}
+	*csi = make([]int, len(css))
+	for i := range css {
+		v, err := strconv.Atoi(css[i])
+		if err != nil {
+			return err
+		}
+		(*csi)[i] = v
+	}
+	return nil
+}
+
+type JSONStringList []string
+
+func (list JSONStringList) Value() (driver.Value, error) {
+	return json.Marshal(list)
+}
+
+func (list *JSONStringList) Scan(value any) error {
+	var bytes []byte
+	switch v := value.(type) {
+	case string:
+		bytes = []byte(v)
+	case []byte:
+		bytes = v
+	default:
+		return errors.New("failed to convert value to []byte")
+	}
+	return json.Unmarshal(bytes, list)
 }

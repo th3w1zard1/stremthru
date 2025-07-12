@@ -37,6 +37,44 @@ var MapColumn = MapColumnStruct{
 	UpdatedAt: "uat",
 }
 
+var query_get_imdb_id_by_trakt_id = fmt.Sprintf(
+	`SELECT %s, %s FROM %s WHERE %s IN `,
+	MapColumn.IMDBId,
+	MapColumn.TraktId,
+	MapTableName,
+	MapColumn.TraktId,
+)
+
+func GetIMDBIdByTraktId(traktIds []string) (map[string]string, error) {
+	count := len(traktIds)
+	if count == 0 {
+		return nil, nil
+	}
+
+	query := query_get_imdb_id_by_trakt_id + "(" + util.RepeatJoin("?", count, ",") + ")"
+	args := make([]any, count)
+	for i := range traktIds {
+		args[i] = traktIds[i]
+	}
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	imdbIdByTraktId := make(map[string]string, count)
+	for rows.Next() {
+		var imdbId string
+		var traktId string
+		if err := rows.Scan(&imdbId, &traktId); err != nil {
+			return nil, err
+		}
+		imdbIdByTraktId[traktId] = imdbId
+	}
+
+	return imdbIdByTraktId, nil
+}
+
 func RecordMappingFromMDBList(tx *db.Tx, imdbId, tmdbId, tvdbId, traktId, malId string) error {
 	query := fmt.Sprintf(
 		`INSERT INTO %s AS itm (%s) VALUES (?,?,?,?,?) ON CONFLICT (%s) DO UPDATE SET %s, %s = %s`,
@@ -103,7 +141,7 @@ func normalizeOptionalId(id string) string {
 	return id
 }
 
-func BulkRecordMappingFromMDBList(items []BulkRecordMappingInputItem) {
+func BulkRecordMapping(items []BulkRecordMappingInputItem) {
 	count := len(items)
 	query := query_bulk_record_mapping_before_values +
 		util.RepeatJoin(query_bulk_record_mapping_placeholder, count, ",") +
@@ -120,6 +158,6 @@ func BulkRecordMappingFromMDBList(items []BulkRecordMappingInputItem) {
 
 	_, err := db.Exec(query, args...)
 	if err != nil {
-		log.Error("failed to bulk record mapping from MDBList", "error", err)
+		log.Error("failed to bulk record mapping", "error", err)
 	}
 }
